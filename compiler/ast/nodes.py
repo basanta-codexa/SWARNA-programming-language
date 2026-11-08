@@ -46,7 +46,19 @@ class PrintStatement:
     value: Expression
 
 
-Statement = LetStatement | PrintStatement
+@dataclass(frozen=True)
+class BlockStatement:
+    statements: list["Statement"]
+
+
+@dataclass(frozen=True)
+class IfStatement:
+    condition: Expression
+    then_branch: BlockStatement
+    else_branch: BlockStatement | None = None
+
+
+Statement = LetStatement | PrintStatement | IfStatement | BlockStatement
 
 
 @dataclass(frozen=True)

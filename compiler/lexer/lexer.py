@@ -88,6 +88,10 @@ class Lexer:
                 return Token(TokenType.KEYWORD_TRUE, value, line, column)
             if value == "false":
                 return Token(TokenType.KEYWORD_FALSE, value, line, column)
+            if value == "if":
+                return Token(TokenType.KEYWORD_IF, value, line, column)
+            if value == "else":
+                return Token(TokenType.KEYWORD_ELSE, value, line, column)
             return Token(TokenType.IDENTIFIER, value, line, column)
 
         if ch.isdigit():
@@ -142,6 +146,8 @@ class Lexer:
             "/": TokenType.SLASH,
             "(": TokenType.LPAREN,
             ")": TokenType.RPAREN,
+            "{": TokenType.LBRACE,
+            "}": TokenType.RBRACE,
         }
         if ch in single_char:
             self.advance()

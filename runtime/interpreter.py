@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from compiler.ast.nodes import BinaryExpression, BoolLiteral, Expression, Identifier, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
+from compiler.ast.nodes import BinaryExpression, BlockStatement, BoolLiteral, Expression, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
 
 
 class Interpreter:
@@ -20,7 +20,20 @@ class Interpreter:
         if isinstance(stmt, PrintStatement):
             self.output.append(self.eval_expression(stmt.value))
             return
+        if isinstance(stmt, IfStatement):
+            if bool(self.eval_expression(stmt.condition)):
+                self.eval_block(stmt.then_branch)
+            elif stmt.else_branch is not None:
+                self.eval_block(stmt.else_branch)
+            return
+        if isinstance(stmt, BlockStatement):
+            self.eval_block(stmt)
+            return
         raise RuntimeError(f"Unsupported statement: {stmt!r}")
+
+    def eval_block(self, block: BlockStatement) -> None:
+        for stmt in block.statements:
+            self.eval_statement(stmt)
 
     def eval_expression(self, expr: Expression) -> int | bool:
         if isinstance(expr, IntegerLiteral):

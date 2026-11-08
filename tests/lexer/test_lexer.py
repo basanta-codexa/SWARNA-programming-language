@@ -129,6 +129,15 @@ class TestLexer(unittest.TestCase):
             [(TokenType.BANG, "!"), (TokenType.AMPAMP, "&&"), (TokenType.PIPEPIPE, "||")],
         )
 
+    def test_if_else_braces(self):
+        lexer = Lexer("if x { } else { }")
+        tokens = lexer.tokenize()
+        types = [t.type for t in tokens[:-1]]
+        self.assertEqual(types, [
+            TokenType.KEYWORD_IF, TokenType.IDENTIFIER, TokenType.LBRACE, TokenType.RBRACE,
+            TokenType.KEYWORD_ELSE, TokenType.LBRACE, TokenType.RBRACE,
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()

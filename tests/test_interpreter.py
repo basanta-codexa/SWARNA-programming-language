@@ -48,6 +48,16 @@ class TestInterpreter(unittest.TestCase):
         env = run("let a = !false let b = true && false let c = true || false let d = true || false && false")
         self.assertEqual(env, {"a": True, "b": False, "c": True, "d": True})
 
+    def test_if_else(self):
+        env = run("let x = 0 if true { let x = 1 } else { let x = 2 }")
+        self.assertEqual(env["x"], 1)
+        env = run("let x = 0 if false { let x = 1 } else { let x = 2 }")
+        self.assertEqual(env["x"], 2)
+
+    def test_if_condition_expression(self):
+        env = run("let a = 5 let r = 0 if a > 3 { let r = 10 }")
+        self.assertEqual(env["r"], 10)
+
 
 if __name__ == "__main__":
     unittest.main()

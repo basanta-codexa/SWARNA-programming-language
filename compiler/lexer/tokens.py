@@ -7,6 +7,8 @@ class TokenType(Enum):
     KEYWORD_MUT = auto()
     KEYWORD_TRUE = auto()
     KEYWORD_FALSE = auto()
+    KEYWORD_IF = auto()
+    KEYWORD_ELSE = auto()
     IDENTIFIER = auto()
     EQUAL = auto()
     EQEQ = auto()
@@ -27,6 +29,8 @@ class TokenType(Enum):
     SLASH = auto()
     LPAREN = auto()
     RPAREN = auto()
+    LBRACE = auto()
+    RBRACE = auto()
     EOF = auto()
 
 

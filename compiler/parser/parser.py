@@ -1,4 +1,4 @@
-from compiler.ast.nodes import BinaryExpression, BoolLiteral, Expression, Identifier, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
+from compiler.ast.nodes import BinaryExpression, BlockStatement, BoolLiteral, Expression, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
 
@@ -27,11 +27,36 @@ class Parser:
     def parse_statement(self) -> Statement:
         if self.current.type == TokenType.KEYWORD_LET:
             return self.parse_let_statement()
+        if self.current.type == TokenType.KEYWORD_IF:
+            return self.parse_if_statement()
         if self.current.type == TokenType.IDENTIFIER and self.current.value == "print":
             return self.parse_print_statement()
         raise SyntaxError(
             f"Expected statement at line {self.current.line}, column {self.current.column}"
         )
+
+    def parse_if_statement(self) -> IfStatement:
+        self._expect(TokenType.KEYWORD_IF, "Expected 'if'")
+        condition = self.parse_expression()
+        then_branch = self.parse_block()
+        else_branch = None
+        if self.current.type == TokenType.KEYWORD_ELSE:
+            self._advance()
+            if self.current.type == TokenType.KEYWORD_IF:
+                else_branch = BlockStatement(statements=[self.parse_if_statement()])
+            else:
+                else_branch = self.parse_block()
+        return IfStatement(condition=condition, then_branch=then_branch, else_branch=else_branch)
+
+    def parse_block(self) -> BlockStatement:
+        self._expect(TokenType.LBRACE, "Expected '{'")
+        statements: list[Statement] = []
+        while self.current.type != TokenType.RBRACE:
+            if self.current.type == TokenType.EOF:
+                raise SyntaxError("Expected '}' before end of input")
+            statements.append(self.parse_statement())
+        self._advance()  # '}'
+        return BlockStatement(statements=statements)
 
     def parse_print_statement(self) -> PrintStatement:
         self._advance()  # 'print'
