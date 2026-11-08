@@ -48,6 +48,21 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_comparisons_bools_and_print(self):
+        code = compile_source("let a = 1 == 2 let b = !false print(b)")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST 1",
+            "CONST 2",
+            "EQ",
+            "STORE_NAME 'a'",
+            "CONST False",
+            "NOT",
+            "STORE_NAME 'b'",
+            "LOAD_NAME 'b'",
+            "PRINT",
+            "HALT",
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()

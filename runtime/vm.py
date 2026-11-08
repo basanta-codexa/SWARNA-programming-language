@@ -42,6 +42,30 @@ class VM:
                 self.stack.append(int(a / b))
             elif ins.op == Op.NEG:
                 self.stack.append(-self.stack.pop())
+            elif ins.op == Op.NOT:
+                self.stack.append(not bool(self.stack.pop()))
+            elif ins.op == Op.EQ:
+                b, a = self.stack.pop(), self.stack.pop()
+                self.stack.append(a == b)
+            elif ins.op == Op.NEQ:
+                b, a = self.stack.pop(), self.stack.pop()
+                self.stack.append(a != b)
+            elif ins.op == Op.LT:
+                b, a = self.stack.pop(), self.stack.pop()
+                self.stack.append(a < b)
+            elif ins.op == Op.LTE:
+                b, a = self.stack.pop(), self.stack.pop()
+                self.stack.append(a <= b)
+            elif ins.op == Op.GT:
+                b, a = self.stack.pop(), self.stack.pop()
+                self.stack.append(a > b)
+            elif ins.op == Op.GTE:
+                b, a = self.stack.pop(), self.stack.pop()
+                self.stack.append(a >= b)
+            elif ins.op == Op.PRINT:
+                if not self.stack:
+                    raise RuntimeError("Stack underflow on PRINT")
+                self.output.append(self.stack.pop())
             elif ins.op == Op.POP:
                 if self.stack:
                     self.stack.pop()

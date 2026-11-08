@@ -29,6 +29,15 @@ class TestVM(unittest.TestCase):
         with self.assertRaises(NameError):
             run_vm("let y = x + 1")
 
+    def test_vm_comparisons_bools_and_print(self):
+        program = Parser(Lexer("let a = 1 == 2 let b = !false print(b) print(1 < 2)")).parse_program()
+        code = Compiler().compile(program)
+        vm = VM()
+        env = vm.run(code)
+        self.assertEqual(env["a"], False)
+        self.assertEqual(env["b"], True)
+        self.assertEqual(vm.output, [True, True])
+
 
 if __name__ == "__main__":
     unittest.main()
