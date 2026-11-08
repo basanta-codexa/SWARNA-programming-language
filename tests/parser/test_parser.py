@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, UnaryExpression
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, UnaryExpression, WhileStatement
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 
@@ -164,6 +164,16 @@ class TestParser(unittest.TestCase):
                 value=BinaryExpression(left=IntegerLiteral(1), operator="+", right=IntegerLiteral(2)),
             ),
         )
+
+    def test_parse_while(self):
+        parser = Parser(Lexer("while i < 3 { i = i + 1 }"))
+        program = parser.parse_program()
+        self.assertEqual(len(program.statements), 1)
+        stmt = program.statements[0]
+        assert isinstance(stmt, WhileStatement)
+        assert isinstance(stmt.condition, BinaryExpression)
+        self.assertEqual(stmt.condition.operator, "<")
+        self.assertEqual(len(stmt.body.statements), 1)
 
     def test_parse_requires_equals(self):
         parser = Parser(Lexer("let x 42"))

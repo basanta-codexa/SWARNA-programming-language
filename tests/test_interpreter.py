@@ -70,6 +70,10 @@ class TestInterpreter(unittest.TestCase):
         with self.assertRaises(NameError):
             run("x = 1")
 
+    def test_while_loop(self):
+        env = run("let mut i = 0 while i < 3 { i = i + 1 }")
+        self.assertEqual(env["i"], 3)
+
 
 if __name__ == "__main__":
     unittest.main()

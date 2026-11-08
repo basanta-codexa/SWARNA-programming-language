@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression, WhileStatement
 
 
 class Interpreter:
@@ -36,6 +36,10 @@ class Interpreter:
                 self.eval_block(stmt.then_branch)
             elif stmt.else_branch is not None:
                 self.eval_block(stmt.else_branch)
+            return
+        if isinstance(stmt, WhileStatement):
+            while bool(self.eval_expression(stmt.condition)):
+                self.eval_block(stmt.body)
             return
         if isinstance(stmt, BlockStatement):
             self.eval_block(stmt)

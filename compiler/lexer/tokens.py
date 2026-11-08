@@ -9,6 +9,7 @@ class TokenType(Enum):
     KEYWORD_FALSE = auto()
     KEYWORD_IF = auto()
     KEYWORD_ELSE = auto()
+    KEYWORD_WHILE = auto()
     IDENTIFIER = auto()
     EQUAL = auto()
     EQEQ = auto()

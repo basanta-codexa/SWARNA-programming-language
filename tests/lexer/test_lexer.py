@@ -138,6 +138,12 @@ class TestLexer(unittest.TestCase):
             TokenType.KEYWORD_ELSE, TokenType.LBRACE, TokenType.RBRACE,
         ])
 
+    def test_while_keyword(self):
+        lexer = Lexer("while x < 10 { }")
+        tokens = lexer.tokenize()
+        self.assertEqual(tokens[0].type, TokenType.KEYWORD_WHILE)
+        self.assertEqual(tokens[0].value, "while")
+
 
 if __name__ == "__main__":
     unittest.main()

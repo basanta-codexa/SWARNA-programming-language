@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression, WhileStatement
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
 
@@ -29,6 +29,8 @@ class Parser:
             return self.parse_let_statement()
         if self.current.type == TokenType.KEYWORD_IF:
             return self.parse_if_statement()
+        if self.current.type == TokenType.KEYWORD_WHILE:
+            return self.parse_while_statement()
         if self.current.type == TokenType.IDENTIFIER and self.current.value == "print":
             return self.parse_print_statement()
         if self.current.type == TokenType.IDENTIFIER:
@@ -56,6 +58,12 @@ class Parser:
             else:
                 else_branch = self.parse_block()
         return IfStatement(condition=condition, then_branch=then_branch, else_branch=else_branch)
+
+    def parse_while_statement(self) -> WhileStatement:
+        self._expect(TokenType.KEYWORD_WHILE, "Expected 'while'")
+        condition = self.parse_expression()
+        body = self.parse_block()
+        return WhileStatement(condition=condition, body=body)
 
     def parse_block(self) -> BlockStatement:
         self._expect(TokenType.LBRACE, "Expected '{'")

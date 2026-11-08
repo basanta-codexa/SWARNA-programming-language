@@ -64,7 +64,13 @@ class IfStatement:
     else_branch: BlockStatement | None = None
 
 
-Statement = LetStatement | AssignmentStatement | PrintStatement | IfStatement | BlockStatement
+@dataclass(frozen=True)
+class WhileStatement:
+    condition: Expression
+    body: BlockStatement
+
+
+Statement = LetStatement | AssignmentStatement | PrintStatement | IfStatement | WhileStatement | BlockStatement
 
 
 @dataclass(frozen=True)
