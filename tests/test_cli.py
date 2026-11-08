@@ -1,6 +1,6 @@
 import unittest
 
-from swarna.__main__ import lex_source, parse_source
+from swarna.__main__ import emit_bytecode_source, lex_source, parse_source
 
 
 class TestCLIHelpers(unittest.TestCase):
@@ -15,6 +15,14 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertIn("LetStatement", out)
         self.assertIn("IntegerLiteral", out)
         self.assertIn("value=42", out)
+
+    def test_emit_bytecode_source(self):
+        out = emit_bytecode_source("let x = 1 + 2")
+        self.assertIn("CONST 1", out)
+        self.assertIn("CONST 2", out)
+        self.assertIn("ADD", out)
+        self.assertIn("STORE_NAME 'x'", out)
+        self.assertIn("HALT", out)
 
 
 if __name__ == "__main__":

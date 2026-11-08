@@ -1,6 +1,7 @@
 import argparse
 import sys
 
+from compiler.codegen.compiler import Compiler
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 
@@ -15,21 +16,31 @@ def parse_source(source: str) -> str:
     return repr(program)
 
 
+def emit_bytecode_source(source: str) -> str:
+    program = Parser(Lexer(source)).parse_program()
+    code = Compiler().compile(program)
+    return "\n".join(repr(i) for i in code)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="swarna", description="SWARNA language tools (minimal)")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--lex", action="store_true", help="Print tokens for the input")
     mode.add_argument("--parse", action="store_true", help="Print AST for the input")
+    mode.add_argument("--emit-bytecode", action="store_true", help="Print compiled bytecode for the input")
     parser.add_argument("source", nargs="?", help="Source line; if omitted, reads stdin or starts REPL")
     args = parser.parse_args(argv)
 
+    def render(source: str) -> str:
+        if args.parse:
+            return parse_source(source)
+        if args.emit_bytecode:
+            return emit_bytecode_source(source)
+        return lex_source(source)
+
     if args.source is not None:
-        source = args.source
         try:
-            if args.parse:
-                print(parse_source(source))
-            else:
-                print(lex_source(source))
+            print(render(args.source))
         except SyntaxError as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
@@ -38,16 +49,13 @@ def main(argv: list[str] | None = None) -> int:
     if not sys.stdin.isatty():
         source = sys.stdin.read()
         try:
-            if args.parse:
-                print(parse_source(source))
-            else:
-                print(lex_source(source))
+            print(render(source))
         except SyntaxError as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
         return 0
 
-    print("SWARNA (minimal) — enter a line, :lex/:parse prefixes optional, :q to quit")
+    print("SWARNA (minimal) — enter a line, :lex/:parse/:bytecode prefixes optional, :q to quit")
     while True:
         try:
             line = input("swarna> ")
@@ -58,20 +66,22 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if not line.strip():
             continue
-        action = "lex"
+        action = "parse" if args.parse else "bytecode" if args.emit_bytecode else "lex"
         source = line
         if line.startswith(":parse "):
             action, source = "parse", line[7:]
+        elif line.startswith(":bytecode "):
+            action, source = "bytecode", line[10:]
         elif line.startswith(":lex "):
             action, source = "lex", line[5:]
-        elif args.parse:
-            action = "parse"
         try:
             if action == "parse":
                 print(parse_source(source))
+            elif action == "bytecode":
+                print(emit_bytecode_source(source))
             else:
                 print(lex_source(source))
-        except SyntaxError as e:
+        except (SyntaxError, NotImplementedError, NameError, RuntimeError, ZeroDivisionError) as e:
             print(f"error: {e}", file=sys.stderr)
 
 
