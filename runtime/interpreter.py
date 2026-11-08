@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression, WhileStatement
 
 
 class Interpreter:
     def __init__(self) -> None:
-        self.env: dict[str, int | bool] = {}
+        self.env: dict[str, int | float | bool] = {}
         self.mutable: dict[str, bool] = {}
-        self.output: list[int | bool] = []
+        self.output: list[int | float | bool] = []
 
-    def eval(self, program: Program) -> dict[str, int | bool]:
+    def eval(self, program: Program) -> dict[str, int | float | bool]:
         for stmt in program.statements:
             self.eval_statement(stmt)
         return dict(self.env)
@@ -50,8 +50,10 @@ class Interpreter:
         for stmt in block.statements:
             self.eval_statement(stmt)
 
-    def eval_expression(self, expr: Expression) -> int | bool:
+    def eval_expression(self, expr: Expression) -> int | float | bool:
         if isinstance(expr, IntegerLiteral):
+            return expr.value
+        if isinstance(expr, FloatLiteral):
             return expr.value
         if isinstance(expr, BoolLiteral):
             return expr.value
@@ -84,7 +86,9 @@ class Interpreter:
             if expr.operator == "/":
                 if right == 0:
                     raise ZeroDivisionError("division by zero")
-                return int(left / right)
+                if type(left) is int and type(right) is int:
+                    return int(left / right)
+                return left / right
             if expr.operator == "==":
                 return left == right
             if expr.operator == "!=":

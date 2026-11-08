@@ -8,7 +8,7 @@ from runtime.interpreter import Interpreter
 from runtime.vm import VM
 
 
-def run_vm(source: str) -> dict[str, int | bool]:
+def run_vm(source: str) -> dict[str, int | float | bool]:
     program = Parser(Lexer(source)).parse_program()
     code = Compiler().compile(program)
     return VM().run(code)
@@ -121,6 +121,25 @@ class TestVM(unittest.TestCase):
             "let mut i = 0 while i < 3 { i = i + 1 } print(i)",
             "let mut i = 5 while i < 3 { i = i + 1 } print(i)",
             "let mut i = 0 while i < 3 { if i == 1 { print(99) } i = i + 1 } print(i)",
+        ]
+        for source in sources:
+            with self.subTest(source=source):
+                program = Parser(Lexer(source)).parse_program()
+                interpreter = Interpreter()
+                expected_env = interpreter.eval(program)
+
+                vm = VM()
+                actual_env = vm.run(Compiler().compile(program))
+
+                self.assertEqual(actual_env, expected_env)
+                self.assertEqual(vm.output, interpreter.output)
+
+    def test_vm_floats_match_interpreter(self):
+        sources = [
+            "let x = 3.5 print(x)",
+            "let x = 3.5 / 2 print(x)",
+            "let x = 7 / 2 print(x)",
+            "let mut i = 0.5 while i < 2.5 { i = i + 0.5 } print(i)",
         ]
         for source in sources:
             with self.subTest(source=source):

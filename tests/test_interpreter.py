@@ -5,7 +5,7 @@ from compiler.parser.parser import Parser
 from runtime.interpreter import Interpreter
 
 
-def run(source: str) -> dict[str, int]:
+def run(source: str) -> dict[str, int | float | bool]:
     program = Parser(Lexer(source)).parse_program()
     return Interpreter().eval(program)
 
@@ -26,6 +26,12 @@ class TestInterpreter(unittest.TestCase):
     def test_division(self):
         env = run("let x = 7 / 2")
         self.assertEqual(env["x"], 3)
+
+    def test_float_literals_and_division(self):
+        env = run("let x = 3.5 let y = x / 2 let z = 7 / 2")
+        self.assertEqual(env["x"], 3.5)
+        self.assertEqual(env["y"], 1.75)
+        self.assertEqual(env["z"], 3)
 
     def test_undefined_name(self):
         with self.assertRaises(NameError):

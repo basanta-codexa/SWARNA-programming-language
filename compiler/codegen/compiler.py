@@ -6,6 +6,7 @@ from compiler.ast.nodes import (
     BlockStatement,
     BoolLiteral,
     Expression,
+    FloatLiteral,
     Identifier,
     IfStatement,
     IntegerLiteral,
@@ -84,6 +85,9 @@ class Compiler:
 
     def compile_expression(self, expr: Expression) -> None:
         if isinstance(expr, IntegerLiteral):
+            self.emit(Op.CONST, expr.value)
+            return
+        if isinstance(expr, FloatLiteral):
             self.emit(Op.CONST, expr.value)
             return
         if isinstance(expr, BoolLiteral):

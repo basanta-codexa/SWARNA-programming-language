@@ -14,6 +14,11 @@ class IntegerLiteral:
 
 
 @dataclass(frozen=True)
+class FloatLiteral:
+    value: float
+
+
+@dataclass(frozen=True)
 class BoolLiteral:
     value: bool
 
@@ -31,7 +36,7 @@ class BinaryExpression:
     right: "Expression"
 
 
-Expression = IntegerLiteral | BoolLiteral | BinaryExpression | Identifier | UnaryExpression
+Expression = IntegerLiteral | FloatLiteral | BoolLiteral | BinaryExpression | Identifier | UnaryExpression
 
 
 @dataclass(frozen=True)

@@ -5,11 +5,11 @@ from compiler.bytecode.instructions import Instruction, Op
 
 class VM:
     def __init__(self) -> None:
-        self.stack: list[int | bool] = []
-        self.env: dict[str, int | bool] = {}
-        self.output: list[int | bool] = []
+        self.stack: list[int | float | bool] = []
+        self.env: dict[str, int | float | bool] = {}
+        self.output: list[int | float | bool] = []
 
-    def run(self, instructions: list[Instruction]) -> dict[str, int | bool]:
+    def run(self, instructions: list[Instruction]) -> dict[str, int | float | bool]:
         self.stack = []
         ip = 0
         while ip < len(instructions):
@@ -39,7 +39,10 @@ class VM:
                 b, a = self.stack.pop(), self.stack.pop()
                 if b == 0:
                     raise ZeroDivisionError("division by zero")
-                self.stack.append(int(a / b))
+                if type(a) is int and type(b) is int:
+                    self.stack.append(int(a / b))
+                else:
+                    self.stack.append(a / b)
             elif ins.op == Op.NEG:
                 self.stack.append(-self.stack.pop())
             elif ins.op == Op.NOT:

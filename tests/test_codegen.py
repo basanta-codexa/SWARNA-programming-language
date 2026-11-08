@@ -101,6 +101,16 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_float_division(self):
+        code = compile_source("let x = 3.5 / 2")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST 3.5",
+            "CONST 2",
+            "DIV",
+            "STORE_NAME 'x'",
+            "HALT",
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()

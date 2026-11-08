@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, FloatLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, UnaryExpression, WhileStatement
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 
@@ -174,6 +174,14 @@ class TestParser(unittest.TestCase):
         assert isinstance(stmt.condition, BinaryExpression)
         self.assertEqual(stmt.condition.operator, "<")
         self.assertEqual(len(stmt.body.statements), 1)
+
+    def test_parse_float_literal(self):
+        parser = Parser(Lexer("let x = 3.5"))
+        program = parser.parse_program()
+        self.assertEqual(
+            program,
+            Program(statements=[LetStatement(name=Identifier("x"), value=FloatLiteral(3.5), mutable=False)]),
+        )
 
     def test_parse_optional_semicolons(self):
         parser = Parser(Lexer("let x = 1; let y = 2; print(y);"))
