@@ -111,6 +111,16 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_integer_division(self):
+        code = compile_source("let x = 7 // 2")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST 7",
+            "CONST 2",
+            "IDIV",
+            "STORE_NAME 'x'",
+            "HALT",
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()

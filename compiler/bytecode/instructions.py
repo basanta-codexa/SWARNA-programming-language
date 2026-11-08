@@ -13,6 +13,7 @@ class Op(Enum):
     SUB = auto()
     MUL = auto()
     DIV = auto()
+    IDIV = auto()
     NEG = auto()
     NOT = auto()
     EQ = auto()

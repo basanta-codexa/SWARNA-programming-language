@@ -140,12 +140,17 @@ class Lexer:
                 self.advance()
                 return Token(TokenType.GTEQ, ">=", line, column)
             return Token(TokenType.GT, ">", line, column)
+        if ch == "/":
+            self.advance()
+            if self.current_char == "/":
+                self.advance()
+                return Token(TokenType.SLASHSLASH, "//", line, column)
+            return Token(TokenType.SLASH, "/", line, column)
 
         single_char = {
             "+": TokenType.PLUS,
             "-": TokenType.MINUS,
             "*": TokenType.STAR,
-            "/": TokenType.SLASH,
             "(": TokenType.LPAREN,
             ")": TokenType.RPAREN,
             "{": TokenType.LBRACE,

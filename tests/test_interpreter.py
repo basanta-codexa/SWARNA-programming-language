@@ -25,13 +25,26 @@ class TestInterpreter(unittest.TestCase):
 
     def test_division(self):
         env = run("let x = 7 / 2")
-        self.assertEqual(env["x"], 3)
+        self.assertEqual(env["x"], 3.5)
 
     def test_float_literals_and_division(self):
         env = run("let x = 3.5 let y = x / 2 let z = 7 / 2")
         self.assertEqual(env["x"], 3.5)
         self.assertEqual(env["y"], 1.75)
-        self.assertEqual(env["z"], 3)
+        self.assertEqual(env["z"], 3.5)
+
+    def test_integer_division(self):
+        env = run("let a = 7 // 2 let b = -7 // 2")
+        self.assertEqual(env["a"], 3)
+        self.assertEqual(env["b"], -4)
+
+    def test_integer_division_requires_ints(self):
+        with self.assertRaises(TypeError):
+            run("let x = 7.0 // 2")
+
+    def test_integer_division_by_zero(self):
+        with self.assertRaises(ZeroDivisionError):
+            run("let x = 1 // 0")
 
     def test_undefined_name(self):
         with self.assertRaises(NameError):

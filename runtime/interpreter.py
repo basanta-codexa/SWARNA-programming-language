@@ -86,9 +86,13 @@ class Interpreter:
             if expr.operator == "/":
                 if right == 0:
                     raise ZeroDivisionError("division by zero")
-                if type(left) is int and type(right) is int:
-                    return int(left / right)
                 return left / right
+            if expr.operator == "//":
+                if type(left) is not int or type(right) is not int:
+                    raise TypeError("'//' requires Int operands")
+                if right == 0:
+                    raise ZeroDivisionError("integer division by zero")
+                return left // right
             if expr.operator == "==":
                 return left == right
             if expr.operator == "!=":

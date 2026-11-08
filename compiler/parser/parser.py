@@ -141,7 +141,7 @@ class Parser:
 
     def parse_term(self) -> Expression:
         node = self.parse_factor()
-        while self.current.type in (TokenType.STAR, TokenType.SLASH):
+        while self.current.type in (TokenType.STAR, TokenType.SLASH, TokenType.SLASHSLASH):
             op = self.current.value
             self._advance()
             node = BinaryExpression(left=node, operator=op, right=self.parse_factor())

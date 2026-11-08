@@ -183,6 +183,18 @@ class TestParser(unittest.TestCase):
             Program(statements=[LetStatement(name=Identifier("x"), value=FloatLiteral(3.5), mutable=False)]),
         )
 
+    def test_parse_integer_division(self):
+        parser = Parser(Lexer("let x = 7 // 2"))
+        program = parser.parse_program()
+        self.assertEqual(
+            program,
+            Program(statements=[LetStatement(
+                name=Identifier("x"),
+                value=BinaryExpression(left=IntegerLiteral(7), operator="//", right=IntegerLiteral(2)),
+                mutable=False,
+            )]),
+        )
+
     def test_parse_optional_semicolons(self):
         parser = Parser(Lexer("let x = 1; let y = 2; print(y);"))
         program = parser.parse_program()

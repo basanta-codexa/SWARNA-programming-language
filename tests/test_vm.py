@@ -25,7 +25,19 @@ class TestVM(unittest.TestCase):
 
     def test_vm_unary_and_div(self):
         env = run_vm("let x = -7 / 2")
-        self.assertEqual(env["x"], -3)
+        self.assertEqual(env["x"], -3.5)
+
+    def test_vm_integer_division(self):
+        env = run_vm("let x = 7 // 2")
+        self.assertEqual(env["x"], 3)
+
+    def test_vm_integer_division_requires_ints(self):
+        with self.assertRaises(TypeError):
+            run_vm("let x = 7.0 // 2")
+
+    def test_vm_integer_division_by_zero(self):
+        with self.assertRaises(ZeroDivisionError):
+            run_vm("let x = 1 // 0")
 
     def test_vm_undefined_name(self):
         with self.assertRaises(NameError):
@@ -140,6 +152,26 @@ class TestVM(unittest.TestCase):
             "let x = 3.5 / 2 print(x)",
             "let x = 7 / 2 print(x)",
             "let mut i = 0.5 while i < 2.5 { i = i + 0.5 } print(i)",
+        ]
+        for source in sources:
+            with self.subTest(source=source):
+                program = Parser(Lexer(source)).parse_program()
+                interpreter = Interpreter()
+                expected_env = interpreter.eval(program)
+
+                vm = VM()
+                actual_env = vm.run(Compiler().compile(program))
+
+                self.assertEqual(actual_env, expected_env)
+                self.assertEqual(vm.output, interpreter.output)
+
+    def test_vm_division_matches_interpreter(self):
+        sources = [
+            "let x = 7 / 2 print(x)",
+            "let x = 7 // 2 print(x)",
+            "let x = -7 // 2 print(x)",
+            "let x = 3.5 / 2 print(x)",
+            "let x = 7 // 2 / 2 print(x)",
         ]
         for source in sources:
             with self.subTest(source=source):

@@ -113,6 +113,7 @@ class Compiler:
                 "-": Op.SUB,
                 "*": Op.MUL,
                 "/": Op.DIV,
+                "//": Op.IDIV,
                 "==": Op.EQ,
                 "!=": Op.NEQ,
                 "<": Op.LT,

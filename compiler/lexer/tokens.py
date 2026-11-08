@@ -28,6 +28,7 @@ class TokenType(Enum):
     MINUS = auto()
     STAR = auto()
     SLASH = auto()
+    SLASHSLASH = auto()
     LPAREN = auto()
     RPAREN = auto()
     LBRACE = auto()

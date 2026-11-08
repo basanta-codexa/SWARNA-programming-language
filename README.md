@@ -9,13 +9,14 @@ Design decisions and working rules are in [docs/DESIGN_PRINCIPLES.md](docs/DESIG
 Early development, v0.1. Implemented and tested:
 
 - Lexer and token set: identifiers, integers, floats, strings, booleans, operators, keywords, braces, semicolons.
+- Numeric semantics: `/` is true division; `//` is floor integer division.
 - Recursive-descent parser with operator precedence.
 - AST for `let`, assignment, `print`, `if`/`else`, `while`, and blocks.
 - Tree-walking interpreter with mutability checks.
 - Bytecode compiler and stack VM for the current subset, including jumps.
 - CLI: `--lex`, `--parse`, `--emit-bytecode`, and a small REPL.
 
-Not implemented yet: static type checking, functions and call frames, garbage collection, modules, the standard library, concurrency, debugger, formatter, and LSP.
+Not implemented yet: static type checking, functions and call frames, garbage collection, modules, the standard library, string values in expressions, concurrency, debugger, formatter, and LSP.
 
 ## Try it
 

@@ -39,10 +39,14 @@ class VM:
                 b, a = self.stack.pop(), self.stack.pop()
                 if b == 0:
                     raise ZeroDivisionError("division by zero")
-                if type(a) is int and type(b) is int:
-                    self.stack.append(int(a / b))
-                else:
-                    self.stack.append(a / b)
+                self.stack.append(a / b)
+            elif ins.op == Op.IDIV:
+                b, a = self.stack.pop(), self.stack.pop()
+                if type(a) is not int or type(b) is not int:
+                    raise TypeError("'//' requires Int operands")
+                if b == 0:
+                    raise ZeroDivisionError("integer division by zero")
+                self.stack.append(a // b)
             elif ins.op == Op.NEG:
                 self.stack.append(-self.stack.pop())
             elif ins.op == Op.NOT:

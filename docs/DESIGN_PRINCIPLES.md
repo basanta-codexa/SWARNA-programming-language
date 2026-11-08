@@ -26,13 +26,13 @@ A clean grammar with a bad error message is still a hard language.
 
 ### 1. `/` is true division; `//` is integer division
 
-`7 / 2` is `3.5`. `7 // 2` is `3`.
+`7 / 2` is `3.5`. `7 // 2` is `3`, and `-7 // 2` is `-4` (floor division, matching Python).
 
-`/` returns `Float` for numeric operands. `//` requires `Int` operands and returns `Int`. Converting a `Float` to an `Int` requires an explicit operation.
+`/` returns `Float` for numeric operands. `//` requires `Int` operands and returns `Int`; passing a `Float` raises `TypeError`. Converting a `Float` to an `Int` requires an explicit operation.
 
 Reason: people outside programming expect division to divide. Truncating integer division is a quiet source of bugs, and one extra character for floor division is a small price.
 
-Status: accepted, not yet implemented. The current interpreter and VM truncate `Int / Int`. This changes after control-flow codegen.
+Status: implemented in the interpreter and VM. `/` always produces `Float`; `//` floors toward negative infinity.
 
 ### 2. `let` is mutable; `const` is immutable
 
@@ -112,7 +112,7 @@ Reason: braces remove indentation ambiguity and keep parsing and tooling simple.
 
 | # | Decision | Status |
 |---|---|---|
-| 1 | `/` true division, `//` integer division | Accepted, pending |
+| 1 | `/` true division, `//` integer division | Implemented |
 | 2 | `let` mutable, `const` immutable | Accepted, pending |
 | 3 | `if` is an expression | Accepted, pending |
 | 4 | Exceptions by default, `Result` opt-in | Accepted, pending |

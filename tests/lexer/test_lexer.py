@@ -84,6 +84,20 @@ class TestLexer(unittest.TestCase):
             ],
         )
 
+    def test_division_operators(self):
+        lexer = Lexer("7 // 2 / 3")
+        tokens = lexer.tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens[:-1]],
+            [
+                (TokenType.INTEGER, "7"),
+                (TokenType.SLASHSLASH, "//"),
+                (TokenType.INTEGER, "2"),
+                (TokenType.SLASH, "/"),
+                (TokenType.INTEGER, "3"),
+            ],
+        )
+
     def test_string_literal(self):
         lexer = Lexer('"hello" "a\\"b"')
         tokens = lexer.tokenize()
