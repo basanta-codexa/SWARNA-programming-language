@@ -4,6 +4,7 @@ from compiler.bytecode.instructions import Instruction, Op
 from compiler.codegen.compiler import Compiler
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
+from runtime.interpreter import Interpreter
 from runtime.vm import VM
 
 
@@ -96,6 +97,24 @@ class TestVM(unittest.TestCase):
                 code = [Instruction(Op.JUMP, target), Instruction(Op.HALT)]
                 with self.assertRaises(RuntimeError):
                     VM().run(code)
+
+    def test_vm_if_else_matches_interpreter(self):
+        sources = [
+            "let mut x = 0 if 1 < 2 { x = 1 } else { x = 2 } print(x)",
+            "let mut x = 0 if 1 > 2 { x = 1 } else { x = 2 } print(x)",
+            "if true { if false { print(1) } else { print(2) } } else { print(3) }",
+        ]
+        for source in sources:
+            with self.subTest(source=source):
+                program = Parser(Lexer(source)).parse_program()
+                interpreter = Interpreter()
+                expected_env = interpreter.eval(program)
+
+                vm = VM()
+                actual_env = vm.run(Compiler().compile(program))
+
+                self.assertEqual(actual_env, expected_env)
+                self.assertEqual(vm.output, interpreter.output)
 
 
 if __name__ == "__main__":

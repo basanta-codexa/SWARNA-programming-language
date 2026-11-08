@@ -63,6 +63,29 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_if_else(self):
+        code = compile_source("if true { print(1) } else { print(2) }")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST True",
+            "JUMP_IF_FALSE 5",
+            "CONST 1",
+            "PRINT",
+            "JUMP 7",
+            "CONST 2",
+            "PRINT",
+            "HALT",
+        ])
+
+    def test_compile_if_without_else(self):
+        code = compile_source("if false { print(1) }")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST False",
+            "JUMP_IF_FALSE 4",
+            "CONST 1",
+            "PRINT",
+            "HALT",
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()

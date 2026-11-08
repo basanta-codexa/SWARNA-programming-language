@@ -3,9 +3,11 @@ from __future__ import annotations
 from compiler.ast.nodes import (
     AssignmentStatement,
     BinaryExpression,
+    BlockStatement,
     BoolLiteral,
     Expression,
     Identifier,
+    IfStatement,
     IntegerLiteral,
     LetStatement,
     PrintStatement,
@@ -27,8 +29,15 @@ class Compiler:
         self.emit(Op.HALT)
         return list(self.instructions)
 
-    def emit(self, op: Op, arg=None) -> None:
+    def emit(self, op: Op, arg=None) -> int:
         self.instructions.append(Instruction(op, arg))
+        return len(self.instructions) - 1
+
+    def patch(self, index: int, target: int) -> None:
+        ins = self.instructions[index]
+        if ins.op not in (Op.JUMP, Op.JUMP_IF_FALSE):
+            raise RuntimeError(f"Cannot patch non-jump instruction at {index}: {ins!r}")
+        self.instructions[index] = Instruction(ins.op, target)
 
     def compile_statement(self, stmt: Statement) -> None:
         if isinstance(stmt, LetStatement):
@@ -43,7 +52,26 @@ class Compiler:
             self.compile_expression(stmt.value)
             self.emit(Op.PRINT)
             return
+        if isinstance(stmt, IfStatement):
+            self.compile_expression(stmt.condition)
+            jump_to_else = self.emit(Op.JUMP_IF_FALSE, None)
+            self.compile_block(stmt.then_branch)
+            if stmt.else_branch is not None:
+                jump_to_end = self.emit(Op.JUMP, None)
+                self.patch(jump_to_else, len(self.instructions))
+                self.compile_block(stmt.else_branch)
+                self.patch(jump_to_end, len(self.instructions))
+            else:
+                self.patch(jump_to_else, len(self.instructions))
+            return
+        if isinstance(stmt, BlockStatement):
+            self.compile_block(stmt)
+            return
         raise NotImplementedError(f"Codegen not implemented for: {type(stmt).__name__}")
+
+    def compile_block(self, block: BlockStatement) -> None:
+        for stmt in block.statements:
+            self.compile_statement(stmt)
 
     def compile_expression(self, expr: Expression) -> None:
         if isinstance(expr, IntegerLiteral):
