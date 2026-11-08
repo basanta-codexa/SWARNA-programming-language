@@ -1,4 +1,4 @@
-from compiler.ast.nodes import BinaryExpression, Expression, Identifier, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
+from compiler.ast.nodes import BinaryExpression, BoolLiteral, Expression, Identifier, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
 
@@ -76,6 +76,12 @@ class Parser:
             value = IntegerLiteral(int(self.current.value))
             self._advance()
             return value
+        if self.current.type == TokenType.KEYWORD_TRUE:
+            self._advance()
+            return BoolLiteral(True)
+        if self.current.type == TokenType.KEYWORD_FALSE:
+            self._advance()
+            return BoolLiteral(False)
         if self.current.type == TokenType.IDENTIFIER:
             node = Identifier(self.current.value)
             self._advance()

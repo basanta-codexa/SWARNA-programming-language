@@ -97,6 +97,14 @@ class TestLexer(unittest.TestCase):
         with self.assertRaises(SyntaxError):
             lexer.tokenize()
 
+    def test_bool_keywords(self):
+        lexer = Lexer("true false")
+        tokens = lexer.tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens[:-1]],
+            [(TokenType.KEYWORD_TRUE, "true"), (TokenType.KEYWORD_FALSE, "false")],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

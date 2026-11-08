@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from compiler.ast.nodes import BinaryExpression, Expression, Identifier, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
+from compiler.ast.nodes import BinaryExpression, BoolLiteral, Expression, Identifier, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
 
 
 class Interpreter:
     def __init__(self) -> None:
-        self.env: dict[str, int] = {}
-        self.output: list[int] = []
+        self.env: dict[str, int | bool] = {}
+        self.output: list[int | bool] = []
 
-    def eval(self, program: Program) -> dict[str, int]:
+    def eval(self, program: Program) -> dict[str, int | bool]:
         for stmt in program.statements:
             self.eval_statement(stmt)
         return dict(self.env)
@@ -22,8 +22,10 @@ class Interpreter:
             return
         raise RuntimeError(f"Unsupported statement: {stmt!r}")
 
-    def eval_expression(self, expr: Expression) -> int:
+    def eval_expression(self, expr: Expression) -> int | bool:
         if isinstance(expr, IntegerLiteral):
+            return expr.value
+        if isinstance(expr, BoolLiteral):
             return expr.value
         if isinstance(expr, Identifier):
             if expr.name not in self.env:

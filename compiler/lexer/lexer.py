@@ -78,6 +78,10 @@ class Lexer:
                 return Token(TokenType.KEYWORD_LET, value, line, column)
             if value == "mut":
                 return Token(TokenType.KEYWORD_MUT, value, line, column)
+            if value == "true":
+                return Token(TokenType.KEYWORD_TRUE, value, line, column)
+            if value == "false":
+                return Token(TokenType.KEYWORD_FALSE, value, line, column)
             return Token(TokenType.IDENTIFIER, value, line, column)
 
         if ch.isdigit():

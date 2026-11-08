@@ -35,6 +35,11 @@ class TestInterpreter(unittest.TestCase):
         with self.assertRaises(ZeroDivisionError):
             run("let x = 1 / 0")
 
+    def test_bool_literals(self):
+        env = run("let a = true let b = false")
+        self.assertIs(env["a"], True)
+        self.assertIs(env["b"], False)
+
 
 if __name__ == "__main__":
     unittest.main()
