@@ -60,11 +60,15 @@ class Parser:
             value = IntegerLiteral(int(self.current.value))
             self._advance()
             return value
+        if self.current.type == TokenType.IDENTIFIER:
+            node = Identifier(self.current.value)
+            self._advance()
+            return node
         if self.current.type == TokenType.LPAREN:
             self._advance()
             node = self.parse_expression()
             self._expect(TokenType.RPAREN, "Expected ')'")
             return node
         raise SyntaxError(
-            f"Expected integer expression at line {self.current.line}, column {self.current.column}"
+            f"Expected expression at line {self.current.line}, column {self.current.column}"
         )

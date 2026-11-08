@@ -53,6 +53,24 @@ class TestParser(unittest.TestCase):
         assert isinstance(stmt.value.left, BinaryExpression)
         self.assertEqual(stmt.value.left.operator, "+")
 
+    def test_parse_identifier_in_expression(self):
+        parser = Parser(Lexer("let y = x + 1"))
+        program = parser.parse_program()
+        expected = Program(
+            statements=[
+                LetStatement(
+                    name=Identifier("y"),
+                    value=BinaryExpression(
+                        left=Identifier("x"),
+                        operator="+",
+                        right=IntegerLiteral(1),
+                    ),
+                    mutable=False,
+                )
+            ]
+        )
+        self.assertEqual(program, expected)
+
     def test_parse_requires_equals(self):
         parser = Parser(Lexer("let x 42"))
         with self.assertRaises(SyntaxError):

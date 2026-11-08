@@ -20,7 +20,7 @@ class BinaryExpression:
     right: "Expression"
 
 
-Expression = IntegerLiteral | BinaryExpression
+Expression = IntegerLiteral | BinaryExpression | Identifier
 
 
 @dataclass(frozen=True)
