@@ -126,6 +126,23 @@ class TestParser(unittest.TestCase):
         assert isinstance(stmt.value.left, BinaryExpression)
         self.assertEqual(stmt.value.left.operator, "+")
 
+    def test_parse_logical_precedence(self):
+        parser = Parser(Lexer("let x = true || false && false"))
+        program = parser.parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, BinaryExpression)
+        self.assertEqual(stmt.value.operator, "||")
+        assert isinstance(stmt.value.right, BinaryExpression)
+        self.assertEqual(stmt.value.right.operator, "&&")
+
+    def test_parse_unary_bang(self):
+        parser = Parser(Lexer("let x = !true"))
+        program = parser.parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(stmt.value, UnaryExpression(operator="!", operand=BoolLiteral(True)))
+
     def test_parse_requires_equals(self):
         parser = Parser(Lexer("let x 42"))
         with self.assertRaises(SyntaxError):

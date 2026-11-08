@@ -35,8 +35,16 @@ class Interpreter:
             value = self.eval_expression(expr.operand)
             if expr.operator == "-":
                 return -value
+            if expr.operator == "!":
+                return not bool(value)
             raise RuntimeError(f"Unsupported unary operator {expr.operator!r}")
         if isinstance(expr, BinaryExpression):
+            if expr.operator == "&&":
+                left = self.eval_expression(expr.left)
+                return bool(self.eval_expression(expr.right)) if bool(left) else False
+            if expr.operator == "||":
+                left = self.eval_expression(expr.left)
+                return True if bool(left) else bool(self.eval_expression(expr.right))
             left = self.eval_expression(expr.left)
             right = self.eval_expression(expr.right)
             if expr.operator == "+":

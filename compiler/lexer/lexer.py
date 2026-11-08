@@ -109,7 +109,19 @@ class Lexer:
             if self.current_char == "=":
                 self.advance()
                 return Token(TokenType.BANGEQ, "!=", line, column)
-            raise SyntaxError(f"Unexpected character '!' at line {line}, column {column}")
+            return Token(TokenType.BANG, "!", line, column)
+        if ch == "&":
+            self.advance()
+            if self.current_char == "&":
+                self.advance()
+                return Token(TokenType.AMPAMP, "&&", line, column)
+            raise SyntaxError(f"Unexpected character '&' at line {line}, column {column}")
+        if ch == "|":
+            self.advance()
+            if self.current_char == "|":
+                self.advance()
+                return Token(TokenType.PIPEPIPE, "||", line, column)
+            raise SyntaxError(f"Unexpected character '|' at line {line}, column {column}")
         if ch == "<":
             self.advance()
             if self.current_char == "=":

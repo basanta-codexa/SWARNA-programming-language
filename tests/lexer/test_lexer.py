@@ -121,6 +121,14 @@ class TestLexer(unittest.TestCase):
             ],
         )
 
+    def test_logical_operators(self):
+        lexer = Lexer("! && ||")
+        tokens = lexer.tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens[:-1]],
+            [(TokenType.BANG, "!"), (TokenType.AMPAMP, "&&"), (TokenType.PIPEPIPE, "||")],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

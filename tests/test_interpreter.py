@@ -44,6 +44,10 @@ class TestInterpreter(unittest.TestCase):
         env = run("let a = 1 == 1 let b = 1 != 2 let c = 1 < 2 let d = 3 >= 4 let e = 1 + 2 <= 3")
         self.assertEqual(env, {"a": True, "b": True, "c": True, "d": False, "e": True})
 
+    def test_logical_ops(self):
+        env = run("let a = !false let b = true && false let c = true || false let d = true || false && false")
+        self.assertEqual(env, {"a": True, "b": False, "c": True, "d": True})
+
 
 if __name__ == "__main__":
     unittest.main()
