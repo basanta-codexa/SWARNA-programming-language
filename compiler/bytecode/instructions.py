@@ -22,6 +22,8 @@ class Op(Enum):
     GT = auto()
     GTE = auto()
     PRINT = auto()
+    JUMP = auto()
+    JUMP_IF_FALSE = auto()
     POP = auto()
     HALT = auto()
 

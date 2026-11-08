@@ -1,5 +1,6 @@
 import unittest
 
+from compiler.bytecode.instructions import Instruction, Op
 from compiler.codegen.compiler import Compiler
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
@@ -37,6 +38,64 @@ class TestVM(unittest.TestCase):
         self.assertEqual(env["a"], False)
         self.assertEqual(env["b"], True)
         self.assertEqual(vm.output, [True, True])
+
+    def test_jump_skips_following_instructions(self):
+        # CONST 111; PRINT; JUMP 5; CONST 222; PRINT; HALT
+        code = [
+            Instruction(Op.CONST, 111),
+            Instruction(Op.PRINT),
+            Instruction(Op.JUMP, 5),
+            Instruction(Op.CONST, 222),
+            Instruction(Op.PRINT),
+            Instruction(Op.HALT),
+        ]
+        vm = VM()
+        vm.run(code)
+        self.assertEqual(vm.output, [111])
+
+    def test_jump_if_false_takes_branch_when_false(self):
+        # if 0 { print(111) } else { print(222) }
+        code = [
+            Instruction(Op.CONST, 0),
+            Instruction(Op.JUMP_IF_FALSE, 4),
+            Instruction(Op.CONST, 111),
+            Instruction(Op.PRINT),
+            Instruction(Op.CONST, 222),
+            Instruction(Op.PRINT),
+            Instruction(Op.HALT),
+        ]
+        vm = VM()
+        vm.run(code)
+        self.assertEqual(vm.output, [222])
+
+    def test_jump_if_false_falls_through_when_true(self):
+        # if 1 { print(111) } else { print(222) }
+        # The then-branch ends with JUMP over the else-branch.
+        code = [
+            Instruction(Op.CONST, 1),
+            Instruction(Op.JUMP_IF_FALSE, 5),
+            Instruction(Op.CONST, 111),
+            Instruction(Op.PRINT),
+            Instruction(Op.JUMP, 7),
+            Instruction(Op.CONST, 222),
+            Instruction(Op.PRINT),
+            Instruction(Op.HALT),
+        ]
+        vm = VM()
+        vm.run(code)
+        self.assertEqual(vm.output, [111])
+
+    def test_jump_if_false_requires_stack_value(self):
+        code = [Instruction(Op.JUMP_IF_FALSE, 1), Instruction(Op.HALT)]
+        with self.assertRaises(RuntimeError):
+            VM().run(code)
+
+    def test_invalid_jump_target_is_rejected(self):
+        for target in (-1, 99, "nope"):
+            with self.subTest(target=target):
+                code = [Instruction(Op.JUMP, target), Instruction(Op.HALT)]
+                with self.assertRaises(RuntimeError):
+                    VM().run(code)
 
 
 if __name__ == "__main__":

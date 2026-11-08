@@ -66,6 +66,14 @@ class VM:
                 if not self.stack:
                     raise RuntimeError("Stack underflow on PRINT")
                 self.output.append(self.stack.pop())
+            elif ins.op == Op.JUMP:
+                ip = self._jump_target(ins, len(instructions))
+            elif ins.op == Op.JUMP_IF_FALSE:
+                if not self.stack:
+                    raise RuntimeError("Stack underflow on JUMP_IF_FALSE")
+                condition = self.stack.pop()
+                if not bool(condition):
+                    ip = self._jump_target(ins, len(instructions))
             elif ins.op == Op.POP:
                 if self.stack:
                     self.stack.pop()
@@ -74,3 +82,11 @@ class VM:
             else:
                 raise RuntimeError(f"Unsupported opcode: {ins.op}")
         return dict(self.env)
+
+    @staticmethod
+    def _jump_target(ins: Instruction, code_size: int) -> int:
+        """Jump targets are absolute instruction indices and must be in bounds."""
+        target = ins.arg
+        if not isinstance(target, int) or not (0 <= target < code_size):
+            raise RuntimeError(f"Invalid jump target: {target!r}")
+        return target
