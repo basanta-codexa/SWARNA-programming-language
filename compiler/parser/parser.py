@@ -30,6 +30,10 @@ class Parser:
 
     def parse_let_statement(self) -> LetStatement:
         self._expect(TokenType.KEYWORD_LET, "Expected 'let'")
+        mutable = False
+        if self.current.type == TokenType.KEYWORD_MUT:
+            mutable = True
+            self._advance()
         name = Identifier(self._expect(TokenType.IDENTIFIER, "Expected identifier"))
         self._expect(TokenType.EQUAL, "Expected '='")
         if self.current.type != TokenType.INTEGER:
@@ -38,4 +42,4 @@ class Parser:
             )
         value = IntegerLiteral(int(self.current.value))
         self._advance()
-        return LetStatement(name=name, value=value, mutable=False)
+        return LetStatement(name=name, value=value, mutable=mutable)
