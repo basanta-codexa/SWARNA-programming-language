@@ -50,6 +50,8 @@ class Lexer:
             value = self._read_identifier()
             if value == "let":
                 return Token(TokenType.KEYWORD_LET, value, line, column)
+            if value == "mut":
+                return Token(TokenType.KEYWORD_MUT, value, line, column)
             return Token(TokenType.IDENTIFIER, value, line, column)
 
         if ch.isdigit():

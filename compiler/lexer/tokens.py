@@ -4,6 +4,7 @@ from enum import Enum, auto
 
 class TokenType(Enum):
     KEYWORD_LET = auto()
+    KEYWORD_MUT = auto()
     IDENTIFIER = auto()
     EQUAL = auto()
     INTEGER = auto()

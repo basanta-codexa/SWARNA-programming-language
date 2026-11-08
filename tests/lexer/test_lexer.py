@@ -57,6 +57,21 @@ class TestLexer(unittest.TestCase):
         )
         self.assertEqual(tokens[-1].type, TokenType.EOF)
 
+    def test_let_mut_binding(self):
+        lexer = Lexer("let mut x = 42")
+        tokens = lexer.tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens],
+            [
+                (TokenType.KEYWORD_LET, "let"),
+                (TokenType.KEYWORD_MUT, "mut"),
+                (TokenType.IDENTIFIER, "x"),
+                (TokenType.EQUAL, "="),
+                (TokenType.INTEGER, "42"),
+                (TokenType.EOF, ""),
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
