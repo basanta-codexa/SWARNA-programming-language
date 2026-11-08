@@ -1,4 +1,4 @@
-from compiler.ast.nodes import BinaryExpression, BlockStatement, BoolLiteral, Expression, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
 
@@ -31,9 +31,18 @@ class Parser:
             return self.parse_if_statement()
         if self.current.type == TokenType.IDENTIFIER and self.current.value == "print":
             return self.parse_print_statement()
+        if self.current.type == TokenType.IDENTIFIER:
+            return self.parse_assignment_statement()
         raise SyntaxError(
             f"Expected statement at line {self.current.line}, column {self.current.column}"
         )
+
+    def parse_assignment_statement(self) -> AssignmentStatement:
+        name = Identifier(self.current.value)
+        self._advance()
+        self._expect(TokenType.EQUAL, "Expected '=' in assignment")
+        value = self.parse_expression()
+        return AssignmentStatement(name=name, value=value)
 
     def parse_if_statement(self) -> IfStatement:
         self._expect(TokenType.KEYWORD_IF, "Expected 'if'")

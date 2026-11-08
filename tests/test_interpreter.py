@@ -58,6 +58,18 @@ class TestInterpreter(unittest.TestCase):
         env = run("let a = 5 let r = 0 if a > 3 { let r = 10 }")
         self.assertEqual(env["r"], 10)
 
+    def test_mut_assignment(self):
+        env = run("let mut x = 0 x = x + 1 x = x + 1")
+        self.assertEqual(env["x"], 2)
+
+    def test_assign_to_immutable_fails(self):
+        with self.assertRaises(RuntimeError):
+            run("let x = 0 x = 1")
+
+    def test_assign_to_undefined_fails(self):
+        with self.assertRaises(NameError):
+            run("x = 1")
+
 
 if __name__ == "__main__":
     unittest.main()

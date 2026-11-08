@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from compiler.ast.nodes import BinaryExpression, BlockStatement, BoolLiteral, Expression, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
 
 
 class Interpreter:
     def __init__(self) -> None:
         self.env: dict[str, int | bool] = {}
+        self.mutable: dict[str, bool] = {}
         self.output: list[int | bool] = []
 
     def eval(self, program: Program) -> dict[str, int | bool]:
@@ -15,7 +16,17 @@ class Interpreter:
 
     def eval_statement(self, stmt: Statement) -> None:
         if isinstance(stmt, LetStatement):
-            self.env[stmt.name.name] = self.eval_expression(stmt.value)
+            name = stmt.name.name
+            self.env[name] = self.eval_expression(stmt.value)
+            self.mutable[name] = stmt.mutable
+            return
+        if isinstance(stmt, AssignmentStatement):
+            name = stmt.name.name
+            if name not in self.env:
+                raise NameError(f"Undefined name '{name}'")
+            if not self.mutable.get(name, False):
+                raise RuntimeError(f"Cannot assign to immutable binding '{name}'")
+            self.env[name] = self.eval_expression(stmt.value)
             return
         if isinstance(stmt, PrintStatement):
             self.output.append(self.eval_expression(stmt.value))

@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import BinaryExpression, BlockStatement, BoolLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, UnaryExpression
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, UnaryExpression
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 
@@ -153,6 +153,17 @@ class TestParser(unittest.TestCase):
         self.assertIsNotNone(stmt.else_branch)
         assert isinstance(stmt.then_branch, BlockStatement)
         self.assertEqual(len(stmt.then_branch.statements), 1)
+
+    def test_parse_assignment(self):
+        parser = Parser(Lexer("x = 1 + 2"))
+        program = parser.parse_program()
+        self.assertEqual(
+            program.statements[0],
+            AssignmentStatement(
+                name=Identifier("x"),
+                value=BinaryExpression(left=IntegerLiteral(1), operator="+", right=IntegerLiteral(2)),
+            ),
+        )
 
     def test_parse_requires_equals(self):
         parser = Parser(Lexer("let x 42"))

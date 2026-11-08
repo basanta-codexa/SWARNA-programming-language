@@ -42,6 +42,12 @@ class LetStatement:
 
 
 @dataclass(frozen=True)
+class AssignmentStatement:
+    name: Identifier
+    value: Expression
+
+
+@dataclass(frozen=True)
 class PrintStatement:
     value: Expression
 
@@ -58,7 +64,7 @@ class IfStatement:
     else_branch: BlockStatement | None = None
 
 
-Statement = LetStatement | PrintStatement | IfStatement | BlockStatement
+Statement = LetStatement | AssignmentStatement | PrintStatement | IfStatement | BlockStatement
 
 
 @dataclass(frozen=True)
