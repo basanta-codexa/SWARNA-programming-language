@@ -116,6 +116,16 @@ class TestParser(unittest.TestCase):
         self.assertEqual(program.statements[0], LetStatement(name=Identifier("a"), value=BoolLiteral(True), mutable=False))
         self.assertEqual(program.statements[1], LetStatement(name=Identifier("b"), value=BoolLiteral(False), mutable=False))
 
+    def test_parse_comparison(self):
+        parser = Parser(Lexer("let x = 1 + 2 <= 3"))
+        program = parser.parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, BinaryExpression)
+        self.assertEqual(stmt.value.operator, "<=")
+        assert isinstance(stmt.value.left, BinaryExpression)
+        self.assertEqual(stmt.value.left.operator, "+")
+
     def test_parse_requires_equals(self):
         parser = Parser(Lexer("let x 42"))
         with self.assertRaises(SyntaxError):

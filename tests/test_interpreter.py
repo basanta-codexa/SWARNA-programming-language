@@ -40,6 +40,10 @@ class TestInterpreter(unittest.TestCase):
         self.assertIs(env["a"], True)
         self.assertIs(env["b"], False)
 
+    def test_comparisons(self):
+        env = run("let a = 1 == 1 let b = 1 != 2 let c = 1 < 2 let d = 3 >= 4 let e = 1 + 2 <= 3")
+        self.assertEqual(env, {"a": True, "b": True, "c": True, "d": False, "e": True})
+
 
 if __name__ == "__main__":
     unittest.main()

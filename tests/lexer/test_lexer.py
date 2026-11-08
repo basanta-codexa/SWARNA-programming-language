@@ -105,6 +105,22 @@ class TestLexer(unittest.TestCase):
             [(TokenType.KEYWORD_TRUE, "true"), (TokenType.KEYWORD_FALSE, "false")],
         )
 
+    def test_comparison_operators(self):
+        lexer = Lexer("== != < <= > >= =")
+        tokens = lexer.tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens[:-1]],
+            [
+                (TokenType.EQEQ, "=="),
+                (TokenType.BANGEQ, "!="),
+                (TokenType.LT, "<"),
+                (TokenType.LTEQ, "<="),
+                (TokenType.GT, ">"),
+                (TokenType.GTEQ, ">="),
+                (TokenType.EQUAL, "="),
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

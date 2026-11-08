@@ -49,5 +49,17 @@ class Interpreter:
                 if right == 0:
                     raise ZeroDivisionError("division by zero")
                 return int(left / right)
+            if expr.operator == "==":
+                return left == right
+            if expr.operator == "!=":
+                return left != right
+            if expr.operator == "<":
+                return left < right
+            if expr.operator == "<=":
+                return left <= right
+            if expr.operator == ">":
+                return left > right
+            if expr.operator == ">=":
+                return left >= right
             raise RuntimeError(f"Unsupported binary operator {expr.operator!r}")
         raise RuntimeError(f"Unsupported expression: {expr!r}")

@@ -52,6 +52,24 @@ class Parser:
         return LetStatement(name=name, value=value, mutable=mutable)
 
     def parse_expression(self) -> Expression:
+        return self.parse_comparison()
+
+    def parse_comparison(self) -> Expression:
+        node = self.parse_additive()
+        if self.current.type in (
+            TokenType.EQEQ,
+            TokenType.BANGEQ,
+            TokenType.LT,
+            TokenType.LTEQ,
+            TokenType.GT,
+            TokenType.GTEQ,
+        ):
+            op = self.current.value
+            self._advance()
+            node = BinaryExpression(left=node, operator=op, right=self.parse_additive())
+        return node
+
+    def parse_additive(self) -> Expression:
         node = self.parse_term()
         while self.current.type in (TokenType.PLUS, TokenType.MINUS):
             op = self.current.value

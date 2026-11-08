@@ -63,6 +63,12 @@ class Lexer:
         self.advance()  # closing quote
         return "".join(chars)
 
+    def _peek(self) -> str | None:
+        nxt = self.position + 1
+        if nxt < len(self.source):
+            return self.source[nxt]
+        return None
+
     def next_token(self) -> Token:
         self._skip_whitespace()
 
@@ -92,8 +98,32 @@ class Lexer:
             value = self._read_string()
             return Token(TokenType.STRING, value, line, column)
 
+        if ch == "=":
+            self.advance()
+            if self.current_char == "=":
+                self.advance()
+                return Token(TokenType.EQEQ, "==", line, column)
+            return Token(TokenType.EQUAL, "=", line, column)
+        if ch == "!":
+            self.advance()
+            if self.current_char == "=":
+                self.advance()
+                return Token(TokenType.BANGEQ, "!=", line, column)
+            raise SyntaxError(f"Unexpected character '!' at line {line}, column {column}")
+        if ch == "<":
+            self.advance()
+            if self.current_char == "=":
+                self.advance()
+                return Token(TokenType.LTEQ, "<=", line, column)
+            return Token(TokenType.LT, "<", line, column)
+        if ch == ">":
+            self.advance()
+            if self.current_char == "=":
+                self.advance()
+                return Token(TokenType.GTEQ, ">=", line, column)
+            return Token(TokenType.GT, ">", line, column)
+
         single_char = {
-            "=": TokenType.EQUAL,
             "+": TokenType.PLUS,
             "-": TokenType.MINUS,
             "*": TokenType.STAR,
