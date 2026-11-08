@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 
@@ -12,9 +14,19 @@ class IntegerLiteral:
 
 
 @dataclass(frozen=True)
+class BinaryExpression:
+    left: "Expression"
+    operator: str
+    right: "Expression"
+
+
+Expression = IntegerLiteral | BinaryExpression
+
+
+@dataclass(frozen=True)
 class LetStatement:
     name: Identifier
-    value: IntegerLiteral
+    value: Expression
     mutable: bool = False
 
 
