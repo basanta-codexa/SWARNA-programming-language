@@ -110,6 +110,12 @@ class Compiler:
                 return
             raise NotImplementedError(f"Unary operator not implemented: {expr.operator!r}")
         if isinstance(expr, BinaryExpression):
+            if expr.operator == "&&":
+                self.compile_and(expr)
+                return
+            if expr.operator == "||":
+                self.compile_or(expr)
+                return
             self.compile_expression(expr.left)
             self.compile_expression(expr.right)
             ops = {
@@ -130,3 +136,29 @@ class Compiler:
             self.emit(ops[expr.operator])
             return
         raise NotImplementedError(f"Expression codegen not implemented: {type(expr).__name__}")
+
+    def compile_and(self, expr: BinaryExpression) -> None:
+        self.compile_expression(expr.left)
+        self.emit(Op.DUP)
+        jump_to_false = self.emit(Op.JUMP_IF_FALSE, None)
+        self.emit(Op.POP)
+        self.compile_expression(expr.right)
+        self.emit(Op.BOOL)
+        jump_to_end = self.emit(Op.JUMP, None)
+        self.patch(jump_to_false, len(self.instructions))
+        self.emit(Op.POP)
+        self.emit(Op.CONST, False)
+        self.patch(jump_to_end, len(self.instructions))
+
+    def compile_or(self, expr: BinaryExpression) -> None:
+        self.compile_expression(expr.left)
+        self.emit(Op.DUP)
+        jump_to_false = self.emit(Op.JUMP_IF_FALSE, None)
+        self.emit(Op.POP)
+        self.emit(Op.CONST, True)
+        jump_to_end = self.emit(Op.JUMP, None)
+        self.patch(jump_to_false, len(self.instructions))
+        self.emit(Op.POP)
+        self.compile_expression(expr.right)
+        self.emit(Op.BOOL)
+        self.patch(jump_to_end, len(self.instructions))

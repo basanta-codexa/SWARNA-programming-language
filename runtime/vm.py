@@ -26,6 +26,10 @@ class VM:
                 if not self.stack:
                     raise RuntimeError("Stack underflow on STORE_NAME")
                 self.env[ins.arg] = self.stack.pop()
+            elif ins.op == Op.DUP:
+                if not self.stack:
+                    raise RuntimeError("Stack underflow on DUP")
+                self.stack.append(self.stack[-1])
             elif ins.op == Op.ADD:
                 b, a = self.stack.pop(), self.stack.pop()
                 self.stack.append(a + b)
@@ -51,6 +55,10 @@ class VM:
                 self.stack.append(-self.stack.pop())
             elif ins.op == Op.NOT:
                 self.stack.append(not bool(self.stack.pop()))
+            elif ins.op == Op.BOOL:
+                if not self.stack:
+                    raise RuntimeError("Stack underflow on BOOL")
+                self.stack[-1] = bool(self.stack[-1])
             elif ins.op == Op.EQ:
                 b, a = self.stack.pop(), self.stack.pop()
                 self.stack.append(a == b)

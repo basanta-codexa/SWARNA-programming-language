@@ -129,6 +129,38 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_short_circuit_and(self):
+        code = compile_source("let x = true && false")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST True",
+            "DUP",
+            "JUMP_IF_FALSE 7",
+            "POP",
+            "CONST False",
+            "BOOL",
+            "JUMP 9",
+            "POP",
+            "CONST False",
+            "STORE_NAME 'x'",
+            "HALT",
+        ])
+
+    def test_compile_short_circuit_or(self):
+        code = compile_source("let x = false || true")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST False",
+            "DUP",
+            "JUMP_IF_FALSE 6",
+            "POP",
+            "CONST True",
+            "JUMP 9",
+            "POP",
+            "CONST True",
+            "BOOL",
+            "STORE_NAME 'x'",
+            "HALT",
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()

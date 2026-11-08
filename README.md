@@ -14,7 +14,7 @@ Early development, v0.1. Implemented and tested:
 - Recursive-descent parser with operator precedence.
 - AST for `let`, assignment, `print`, `if`/`else`, `while`, and blocks.
 - Tree-walking interpreter with mutability checks.
-- Bytecode compiler and stack VM for the current subset, including jumps.
+- Bytecode compiler and stack VM for the current subset, including jumps and short-circuit `&&`/`||`.
 - CLI: `--lex`, `--parse`, `--emit-bytecode`, and a small REPL.
 
 Not implemented yet: static type checking, functions and call frames, garbage collection, modules, the standard library, string interpolation, concurrency, debugger, formatter, and LSP.

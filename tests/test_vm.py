@@ -203,6 +203,74 @@ class TestVM(unittest.TestCase):
                 self.assertEqual(actual_env, expected_env)
                 self.assertEqual(vm.output, interpreter.output)
 
+    def test_dup_duplicates_top(self):
+        code = [
+            Instruction(Op.CONST, 5),
+            Instruction(Op.DUP),
+            Instruction(Op.ADD),
+            Instruction(Op.PRINT),
+            Instruction(Op.HALT),
+        ]
+        vm = VM()
+        vm.run(code)
+        self.assertEqual(vm.output, [10])
+
+    def test_dup_requires_stack_value(self):
+        with self.assertRaises(RuntimeError):
+            VM().run([Instruction(Op.DUP), Instruction(Op.HALT)])
+
+    def test_bool_coerces_top(self):
+        code = [
+            Instruction(Op.CONST, 0),
+            Instruction(Op.BOOL),
+            Instruction(Op.PRINT),
+            Instruction(Op.CONST, 5),
+            Instruction(Op.BOOL),
+            Instruction(Op.PRINT),
+            Instruction(Op.HALT),
+        ]
+        vm = VM()
+        vm.run(code)
+        self.assertEqual(vm.output, [False, True])
+
+    def test_bool_requires_stack_value(self):
+        with self.assertRaises(RuntimeError):
+            VM().run([Instruction(Op.BOOL), Instruction(Op.HALT)])
+
+    def test_vm_short_circuit_and(self):
+        self.assertIs(run_vm("let x = true && false")["x"], False)
+        # The right operand would raise if evaluated.
+        self.assertIs(run_vm("let x = false && (1 / 0 == 0)")["x"], False)
+
+    def test_vm_short_circuit_or(self):
+        self.assertIs(run_vm("let x = false || true")["x"], True)
+        # The right operand would raise if evaluated.
+        self.assertIs(run_vm("let x = true || (1 / 0 == 0)")["x"], True)
+
+    def test_vm_logical_ops_match_interpreter(self):
+        sources = [
+            "let x = true && false print(x)",
+            "let x = false || true print(x)",
+            "let x = false && (1 / 0 == 0) print(x)",
+            "let x = true || (1 / 0 == 0) print(x)",
+            "let x = 0 && 5 print(x)",
+            "let x = 0 || 5 print(x)",
+            "let x = true && false || true print(x)",
+            "if true && false { print(1) } else { print(2) }",
+            "let mut i = 0 while i < 3 && i >= 0 { i = i + 1 } print(i)",
+        ]
+        for source in sources:
+            with self.subTest(source=source):
+                program = Parser(Lexer(source)).parse_program()
+                interpreter = Interpreter()
+                expected_env = interpreter.eval(program)
+
+                vm = VM()
+                actual_env = vm.run(Compiler().compile(program))
+
+                self.assertEqual(actual_env, expected_env)
+                self.assertEqual(vm.output, interpreter.output)
+
 
 if __name__ == "__main__":
     unittest.main()
