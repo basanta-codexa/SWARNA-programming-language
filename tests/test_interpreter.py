@@ -75,6 +75,10 @@ class TestInterpreter(unittest.TestCase):
         env = run("let a = !false let b = true && false let c = true || false let d = true || false && false")
         self.assertEqual(env, {"a": True, "b": False, "c": True, "d": True})
 
+    def test_word_operators(self):
+        env = run("let a = true and false let b = false or true let c = not false")
+        self.assertEqual(env, {"a": False, "b": True, "c": True})
+
     def test_if_else(self):
         env = run("let x = 0 if true { let x = 1 } else { let x = 2 }")
         self.assertEqual(env["x"], 1)

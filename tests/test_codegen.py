@@ -161,6 +161,11 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_word_operators_match_symbols(self):
+        symbolic = compile_source("let x = true && false || !true")
+        words = compile_source("let x = true and false or not true")
+        self.assertEqual([repr(i) for i in words], [repr(i) for i in symbolic])
+
 
 if __name__ == "__main__":
     unittest.main()

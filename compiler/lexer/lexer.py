@@ -94,6 +94,12 @@ class Lexer:
                 return Token(TokenType.KEYWORD_ELSE, value, line, column)
             if value == "while":
                 return Token(TokenType.KEYWORD_WHILE, value, line, column)
+            if value == "and":
+                return Token(TokenType.KEYWORD_AND, value, line, column)
+            if value == "or":
+                return Token(TokenType.KEYWORD_OR, value, line, column)
+            if value == "not":
+                return Token(TokenType.KEYWORD_NOT, value, line, column)
             return Token(TokenType.IDENTIFIER, value, line, column)
 
         if ch.isdigit():

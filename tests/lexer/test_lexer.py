@@ -143,6 +143,23 @@ class TestLexer(unittest.TestCase):
             [(TokenType.BANG, "!"), (TokenType.AMPAMP, "&&"), (TokenType.PIPEPIPE, "||")],
         )
 
+    def test_word_operators(self):
+        lexer = Lexer("and or not")
+        tokens = lexer.tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens[:-1]],
+            [
+                (TokenType.KEYWORD_AND, "and"),
+                (TokenType.KEYWORD_OR, "or"),
+                (TokenType.KEYWORD_NOT, "not"),
+            ],
+        )
+
+    def test_word_operator_prefix_is_identifier(self):
+        tokens = Lexer("android").tokenize()
+        self.assertEqual(tokens[0].type, TokenType.IDENTIFIER)
+        self.assertEqual(tokens[0].value, "android")
+
     def test_if_else_braces(self):
         lexer = Lexer("if x { } else { }")
         tokens = lexer.tokenize()

@@ -102,18 +102,16 @@ class Parser:
 
     def parse_or(self) -> Expression:
         node = self.parse_and()
-        while self.current.type == TokenType.PIPEPIPE:
-            op = self.current.value
+        while self.current.type in (TokenType.PIPEPIPE, TokenType.KEYWORD_OR):
             self._advance()
-            node = BinaryExpression(left=node, operator=op, right=self.parse_and())
+            node = BinaryExpression(left=node, operator="||", right=self.parse_and())
         return node
 
     def parse_and(self) -> Expression:
         node = self.parse_comparison()
-        while self.current.type == TokenType.AMPAMP:
-            op = self.current.value
+        while self.current.type in (TokenType.AMPAMP, TokenType.KEYWORD_AND):
             self._advance()
-            node = BinaryExpression(left=node, operator=op, right=self.parse_comparison())
+            node = BinaryExpression(left=node, operator="&&", right=self.parse_comparison())
         return node
 
     def parse_comparison(self) -> Expression:
@@ -148,8 +146,8 @@ class Parser:
         return node
 
     def parse_factor(self) -> Expression:
-        if self.current.type in (TokenType.MINUS, TokenType.BANG):
-            op = self.current.value
+        if self.current.type in (TokenType.MINUS, TokenType.BANG, TokenType.KEYWORD_NOT):
+            op = "-" if self.current.type == TokenType.MINUS else "!"
             self._advance()
             return UnaryExpression(operator=op, operand=self.parse_factor())
         if self.current.type == TokenType.INTEGER:

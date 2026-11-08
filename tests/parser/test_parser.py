@@ -136,6 +136,11 @@ class TestParser(unittest.TestCase):
         assert isinstance(stmt.value.right, BinaryExpression)
         self.assertEqual(stmt.value.right.operator, "&&")
 
+    def test_parse_word_operators_match_symbols(self):
+        symbolic = Parser(Lexer("let x = true && false || !true")).parse_program()
+        words = Parser(Lexer("let x = true and false or not true")).parse_program()
+        self.assertEqual(words, symbolic)
+
     def test_parse_unary_bang(self):
         parser = Parser(Lexer("let x = !true"))
         program = parser.parse_program()

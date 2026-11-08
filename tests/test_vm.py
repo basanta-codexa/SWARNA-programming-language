@@ -258,6 +258,10 @@ class TestVM(unittest.TestCase):
             "let x = true && false || true print(x)",
             "if true && false { print(1) } else { print(2) }",
             "let mut i = 0 while i < 3 && i >= 0 { i = i + 1 } print(i)",
+            "let x = true and false print(x)",
+            "let x = false or true print(x)",
+            "let x = not false print(x)",
+            "let x = not true and false print(x)",
         ]
         for source in sources:
             with self.subTest(source=source):

@@ -11,6 +11,7 @@ Early development, v0.1. Implemented and tested:
 - Lexer and token set: identifiers, integers, floats, strings, booleans, operators, keywords, braces, semicolons.
 - Numeric semantics: `/` is true division; `//` is floor integer division.
 - String literals with escape sequences and `+` concatenation.
+- `and`/`or`/`not` aliases for `&&`/`||`/`!`.
 - Recursive-descent parser with operator precedence.
 - AST for `let`, assignment, `print`, `if`/`else`, `while`, and blocks.
 - Tree-walking interpreter with mutability checks.

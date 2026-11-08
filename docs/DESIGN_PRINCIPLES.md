@@ -70,6 +70,8 @@ Status: accepted, not yet implemented. The interpreter currently raises host exc
 
 Reason: `and` and `or` are readable to someone who has never seen C. The symbolic forms stay for people who prefer them.
 
+Status: implemented. Both spellings produce the same AST and bytecode.
+
 ### 6. Braces and automatic formatting
 
 Blocks use `{ }`. Semicolons are optional. A formatter owns indentation and spacing.
@@ -116,5 +118,5 @@ Reason: braces remove indentation ambiguity and keep parsing and tooling simple.
 | 2 | `let` mutable, `const` immutable | Accepted, pending |
 | 3 | `if` is an expression | Accepted, pending |
 | 4 | Exceptions by default, `Result` opt-in | Accepted, pending |
-| 5 | `and` / `or` / `not` aliases | Accepted, pending |
+| 5 | `and` / `or` / `not` aliases | Implemented |
 | 6 | Braces, optional semicolons, automatic formatting | Partly implemented |
