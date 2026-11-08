@@ -14,6 +14,7 @@ from compiler.ast.nodes import (
     PrintStatement,
     Program,
     Statement,
+    StringLiteral,
     UnaryExpression,
     WhileStatement,
 )
@@ -88,6 +89,9 @@ class Compiler:
             self.emit(Op.CONST, expr.value)
             return
         if isinstance(expr, FloatLiteral):
+            self.emit(Op.CONST, expr.value)
+            return
+        if isinstance(expr, StringLiteral):
             self.emit(Op.CONST, expr.value)
             return
         if isinstance(expr, BoolLiteral):

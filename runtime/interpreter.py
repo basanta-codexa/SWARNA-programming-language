@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 
 
 class Interpreter:
     def __init__(self) -> None:
-        self.env: dict[str, int | float | bool] = {}
+        self.env: dict[str, int | float | bool | str] = {}
         self.mutable: dict[str, bool] = {}
-        self.output: list[int | float | bool] = []
+        self.output: list[int | float | bool | str] = []
 
-    def eval(self, program: Program) -> dict[str, int | float | bool]:
+    def eval(self, program: Program) -> dict[str, int | float | bool | str]:
         for stmt in program.statements:
             self.eval_statement(stmt)
         return dict(self.env)
@@ -50,10 +50,12 @@ class Interpreter:
         for stmt in block.statements:
             self.eval_statement(stmt)
 
-    def eval_expression(self, expr: Expression) -> int | float | bool:
+    def eval_expression(self, expr: Expression) -> int | float | bool | str:
         if isinstance(expr, IntegerLiteral):
             return expr.value
         if isinstance(expr, FloatLiteral):
+            return expr.value
+        if isinstance(expr, StringLiteral):
             return expr.value
         if isinstance(expr, BoolLiteral):
             return expr.value

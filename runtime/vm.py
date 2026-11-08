@@ -5,11 +5,11 @@ from compiler.bytecode.instructions import Instruction, Op
 
 class VM:
     def __init__(self) -> None:
-        self.stack: list[int | float | bool] = []
-        self.env: dict[str, int | float | bool] = {}
-        self.output: list[int | float | bool] = []
+        self.stack: list[int | float | bool | str] = []
+        self.env: dict[str, int | float | bool | str] = {}
+        self.output: list[int | float | bool | str] = []
 
-    def run(self, instructions: list[Instruction]) -> dict[str, int | float | bool]:
+    def run(self, instructions: list[Instruction]) -> dict[str, int | float | bool | str]:
         self.stack = []
         ip = 0
         while ip < len(instructions):

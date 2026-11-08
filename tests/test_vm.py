@@ -8,7 +8,7 @@ from runtime.interpreter import Interpreter
 from runtime.vm import VM
 
 
-def run_vm(source: str) -> dict[str, int | float | bool]:
+def run_vm(source: str) -> dict[str, int | float | bool | str]:
     program = Parser(Lexer(source)).parse_program()
     code = Compiler().compile(program)
     return VM().run(code)
@@ -172,6 +172,24 @@ class TestVM(unittest.TestCase):
             "let x = -7 // 2 print(x)",
             "let x = 3.5 / 2 print(x)",
             "let x = 7 // 2 / 2 print(x)",
+        ]
+        for source in sources:
+            with self.subTest(source=source):
+                program = Parser(Lexer(source)).parse_program()
+                interpreter = Interpreter()
+                expected_env = interpreter.eval(program)
+
+                vm = VM()
+                actual_env = vm.run(Compiler().compile(program))
+
+                self.assertEqual(actual_env, expected_env)
+                self.assertEqual(vm.output, interpreter.output)
+
+    def test_vm_strings_match_interpreter(self):
+        sources = [
+            'let s = "hello" print(s)',
+            'let s = "hello" let t = s + " world" print(t)',
+            'print("a" == "a")',
         ]
         for source in sources:
             with self.subTest(source=source):

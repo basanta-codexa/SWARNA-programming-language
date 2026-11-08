@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, FloatLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, FloatLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 
@@ -193,6 +193,14 @@ class TestParser(unittest.TestCase):
                 value=BinaryExpression(left=IntegerLiteral(7), operator="//", right=IntegerLiteral(2)),
                 mutable=False,
             )]),
+        )
+
+    def test_parse_string_literal(self):
+        parser = Parser(Lexer('let s = "hello"'))
+        program = parser.parse_program()
+        self.assertEqual(
+            program,
+            Program(statements=[LetStatement(name=Identifier("s"), value=StringLiteral("hello"), mutable=False)]),
         )
 
     def test_parse_optional_semicolons(self):

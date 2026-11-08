@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
 
@@ -158,6 +158,10 @@ class Parser:
             return value
         if self.current.type == TokenType.FLOAT:
             value = FloatLiteral(float(self.current.value))
+            self._advance()
+            return value
+        if self.current.type == TokenType.STRING:
+            value = StringLiteral(self.current.value)
             self._advance()
             return value
         if self.current.type == TokenType.KEYWORD_TRUE:

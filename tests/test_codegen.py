@@ -121,6 +121,14 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_string_literal(self):
+        code = compile_source('let s = "hi"')
+        self.assertEqual([repr(i) for i in code], [
+            "CONST 'hi'",
+            "STORE_NAME 's'",
+            "HALT",
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()
