@@ -28,7 +28,9 @@ class Parser:
 
     def parse_statement(self) -> Statement:
         if self.current.type == TokenType.KEYWORD_LET:
-            return self.parse_let_statement()
+            return self.parse_binding_statement(constant=False)
+        if self.current.type == TokenType.KEYWORD_CONST:
+            return self.parse_binding_statement(constant=True)
         if self.current.type == TokenType.KEYWORD_IF:
             return self.parse_if_statement()
         if self.current.type == TokenType.KEYWORD_WHILE:
@@ -86,16 +88,17 @@ class Parser:
         self._expect(TokenType.RPAREN, "Expected ')' after print argument")
         return PrintStatement(value=value)
 
-    def parse_let_statement(self) -> LetStatement:
-        self._expect(TokenType.KEYWORD_LET, "Expected 'let'")
-        mutable = False
-        if self.current.type == TokenType.KEYWORD_MUT:
-            mutable = True
-            self._advance()
+    def parse_binding_statement(self, constant: bool) -> LetStatement:
+        self._advance()  # 'let' or 'const'
+        if not constant and self.current.type == TokenType.IDENTIFIER and self.current.value == "mut":
+            raise SyntaxError(
+                "`let mut` was removed; use `let` for a mutable binding or `const` for an immutable one "
+                f"at line {self.current.line}, column {self.current.column}"
+            )
         name = Identifier(self._expect(TokenType.IDENTIFIER, "Expected identifier"))
         self._expect(TokenType.EQUAL, "Expected '='")
         value = self.parse_expression()
-        return LetStatement(name=name, value=value, mutable=mutable)
+        return LetStatement(name=name, value=value, constant=constant)
 
     def parse_expression(self) -> Expression:
         return self.parse_or()

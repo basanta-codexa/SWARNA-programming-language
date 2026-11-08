@@ -6,7 +6,7 @@ from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockState
 class Interpreter:
     def __init__(self) -> None:
         self.env: dict[str, int | float | bool | str] = {}
-        self.mutable: dict[str, bool] = {}
+        self.constant: dict[str, bool] = {}
         self.output: list[int | float | bool | str] = []
 
     def eval(self, program: Program) -> dict[str, int | float | bool | str]:
@@ -18,15 +18,16 @@ class Interpreter:
         if isinstance(stmt, LetStatement):
             name = stmt.name.name
             self.env[name] = self.eval_expression(stmt.value)
-            self.mutable[name] = stmt.mutable
+            self.constant[name] = stmt.constant
             return
         if isinstance(stmt, AssignmentStatement):
             name = stmt.name.name
+            value = self.eval_expression(stmt.value)
             if name not in self.env:
                 raise NameError(f"Undefined name '{name}'")
-            if not self.mutable.get(name, False):
-                raise RuntimeError(f"Cannot assign to immutable binding '{name}'")
-            self.env[name] = self.eval_expression(stmt.value)
+            if self.constant.get(name, False):
+                raise RuntimeError(f"Cannot assign to const binding '{name}'")
+            self.env[name] = value
             return
         if isinstance(stmt, PrintStatement):
             self.output.append(self.eval_expression(stmt.value))

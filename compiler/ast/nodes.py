@@ -48,7 +48,7 @@ Expression = IntegerLiteral | FloatLiteral | StringLiteral | BoolLiteral | Binar
 class LetStatement:
     name: Identifier
     value: Expression
-    mutable: bool = False
+    constant: bool = False
 
 
 @dataclass(frozen=True)

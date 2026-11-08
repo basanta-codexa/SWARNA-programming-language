@@ -11,11 +11,12 @@ Early development, v0.1. Implemented and tested:
 - Lexer and token set: identifiers, integers, floats, strings, booleans, operators, keywords, braces, semicolons.
 - Numeric semantics: `/` is true division; `//` is floor integer division.
 - String literals with escape sequences and `+` concatenation.
+- `let` mutable bindings and `const` immutable bindings; the old `let mut` form is removed.
 - `and`/`or`/`not` aliases for `&&`/`||`/`!`.
 - Recursive-descent parser with operator precedence.
-- AST for `let`, assignment, `print`, `if`/`else`, `while`, and blocks.
-- Tree-walking interpreter with mutability checks.
-- Bytecode compiler and stack VM for the current subset, including jumps and short-circuit `&&`/`||`.
+- AST for `let`/`const`, assignment, `print`, `if`/`else`, `while`, and blocks.
+- Tree-walking interpreter with `const` enforcement.
+- Bytecode compiler and stack VM for the current subset, including jumps, short-circuit `&&`/`||`, and `const` enforcement.
 - CLI: `--lex`, `--parse`, `--emit-bytecode`, and a small REPL.
 
 Not implemented yet: static type checking, functions and call frames, garbage collection, modules, the standard library, string interpolation, concurrency, debugger, formatter, and LSP.

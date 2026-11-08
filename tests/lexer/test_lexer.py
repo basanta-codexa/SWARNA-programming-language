@@ -57,20 +57,24 @@ class TestLexer(unittest.TestCase):
         )
         self.assertEqual(tokens[-1].type, TokenType.EOF)
 
-    def test_let_mut_binding(self):
-        lexer = Lexer("let mut x = 42")
+    def test_const_binding(self):
+        lexer = Lexer("const x = 42")
         tokens = lexer.tokenize()
         self.assertEqual(
             [(t.type, t.value) for t in tokens],
             [
-                (TokenType.KEYWORD_LET, "let"),
-                (TokenType.KEYWORD_MUT, "mut"),
+                (TokenType.KEYWORD_CONST, "const"),
                 (TokenType.IDENTIFIER, "x"),
                 (TokenType.EQUAL, "="),
                 (TokenType.INTEGER, "42"),
                 (TokenType.EOF, ""),
             ],
         )
+
+    def test_mut_is_identifier(self):
+        tokens = Lexer("mut").tokenize()
+        self.assertEqual(tokens[0].type, TokenType.IDENTIFIER)
+        self.assertEqual(tokens[0].value, "mut")
 
     def test_float_literal(self):
         lexer = Lexer("3.14 0.5 42")

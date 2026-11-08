@@ -89,20 +89,24 @@ class TestInterpreter(unittest.TestCase):
         env = run("let a = 5 let r = 0 if a > 3 { let r = 10 }")
         self.assertEqual(env["r"], 10)
 
-    def test_mut_assignment(self):
-        env = run("let mut x = 0 x = x + 1 x = x + 1")
+    def test_let_assignment(self):
+        env = run("let x = 0 x = x + 1 x = x + 1")
         self.assertEqual(env["x"], 2)
 
-    def test_assign_to_immutable_fails(self):
+    def test_const_binding(self):
+        env = run("const x = 42")
+        self.assertEqual(env["x"], 42)
+
+    def test_assign_to_const_fails(self):
         with self.assertRaises(RuntimeError):
-            run("let x = 0 x = 1")
+            run("const x = 0 x = 1")
 
     def test_assign_to_undefined_fails(self):
         with self.assertRaises(NameError):
             run("x = 1")
 
     def test_while_loop(self):
-        env = run("let mut i = 0 while i < 3 { i = i + 1 }")
+        env = run("let i = 0 while i < 3 { i = i + 1 }")
         self.assertEqual(env["i"], 3)
 
 

@@ -21,8 +21,12 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertIn("CONST 1", out)
         self.assertIn("CONST 2", out)
         self.assertIn("ADD", out)
-        self.assertIn("STORE_NAME 'x'", out)
+        self.assertIn("DECLARE_NAME 'x'", out)
         self.assertIn("HALT", out)
+
+    def test_emit_bytecode_const(self):
+        out = emit_bytecode_source("const x = 1")
+        self.assertIn("STORE_CONST 'x'", out)
 
 
 if __name__ == "__main__":

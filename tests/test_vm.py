@@ -20,8 +20,20 @@ class TestVM(unittest.TestCase):
         self.assertEqual(env["x"], 7)
 
     def test_vm_identifier_and_assignment(self):
-        env = run_vm("let mut x = 1 x = x + 2")
+        env = run_vm("let x = 1 x = x + 2")
         self.assertEqual(env["x"], 3)
+
+    def test_vm_const_binding(self):
+        env = run_vm("const x = 5")
+        self.assertEqual(env["x"], 5)
+
+    def test_vm_const_assignment_fails(self):
+        with self.assertRaises(RuntimeError):
+            run_vm("const x = 0 x = 1")
+
+    def test_vm_undefined_assignment_fails(self):
+        with self.assertRaises(NameError):
+            run_vm("x = 1")
 
     def test_vm_unary_and_div(self):
         env = run_vm("let x = -7 / 2")
@@ -112,8 +124,8 @@ class TestVM(unittest.TestCase):
 
     def test_vm_if_else_matches_interpreter(self):
         sources = [
-            "let mut x = 0 if 1 < 2 { x = 1 } else { x = 2 } print(x)",
-            "let mut x = 0 if 1 > 2 { x = 1 } else { x = 2 } print(x)",
+            "let x = 0 if 1 < 2 { x = 1 } else { x = 2 } print(x)",
+            "let x = 0 if 1 > 2 { x = 1 } else { x = 2 } print(x)",
             "if true { if false { print(1) } else { print(2) } } else { print(3) }",
         ]
         for source in sources:
@@ -130,9 +142,9 @@ class TestVM(unittest.TestCase):
 
     def test_vm_while_matches_interpreter(self):
         sources = [
-            "let mut i = 0 while i < 3 { i = i + 1 } print(i)",
-            "let mut i = 5 while i < 3 { i = i + 1 } print(i)",
-            "let mut i = 0 while i < 3 { if i == 1 { print(99) } i = i + 1 } print(i)",
+            "let i = 0 while i < 3 { i = i + 1 } print(i)",
+            "let i = 5 while i < 3 { i = i + 1 } print(i)",
+            "let i = 0 while i < 3 { if i == 1 { print(99) } i = i + 1 } print(i)",
         ]
         for source in sources:
             with self.subTest(source=source):
@@ -151,7 +163,7 @@ class TestVM(unittest.TestCase):
             "let x = 3.5 print(x)",
             "let x = 3.5 / 2 print(x)",
             "let x = 7 / 2 print(x)",
-            "let mut i = 0.5 while i < 2.5 { i = i + 0.5 } print(i)",
+            "let i = 0.5 while i < 2.5 { i = i + 0.5 } print(i)",
         ]
         for source in sources:
             with self.subTest(source=source):
@@ -184,6 +196,19 @@ class TestVM(unittest.TestCase):
 
                 self.assertEqual(actual_env, expected_env)
                 self.assertEqual(vm.output, interpreter.output)
+
+    def test_vm_assignment_errors_match_interpreter(self):
+        cases = [
+            ("x = 1", NameError),
+            ("const x = 0 x = 1", RuntimeError),
+        ]
+        for source, exc in cases:
+            with self.subTest(source=source):
+                program = Parser(Lexer(source)).parse_program()
+                with self.assertRaises(exc):
+                    Interpreter().eval(program)
+                with self.assertRaises(exc):
+                    VM().run(Compiler().compile(program))
 
     def test_vm_strings_match_interpreter(self):
         sources = [
@@ -257,7 +282,7 @@ class TestVM(unittest.TestCase):
             "let x = 0 || 5 print(x)",
             "let x = true && false || true print(x)",
             "if true && false { print(1) } else { print(2) }",
-            "let mut i = 0 while i < 3 && i >= 0 { i = i + 1 } print(i)",
+            "let i = 0 while i < 3 && i >= 0 { i = i + 1 } print(i)",
             "let x = true and false print(x)",
             "let x = false or true print(x)",
             "let x = not false print(x)",

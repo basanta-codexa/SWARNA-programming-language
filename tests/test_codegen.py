@@ -19,7 +19,7 @@ class TestCodegen(unittest.TestCase):
             "CONST 3",
             "MUL",
             "ADD",
-            "STORE_NAME 'x'",
+            "DECLARE_NAME 'x'",
             "HALT",
         ])
 
@@ -27,20 +27,20 @@ class TestCodegen(unittest.TestCase):
         code = compile_source("let x = 1 let y = -x + 2")
         self.assertEqual([repr(i) for i in code], [
             "CONST 1",
-            "STORE_NAME 'x'",
+            "DECLARE_NAME 'x'",
             "LOAD_NAME 'x'",
             "NEG",
             "CONST 2",
             "ADD",
-            "STORE_NAME 'y'",
+            "DECLARE_NAME 'y'",
             "HALT",
         ])
 
     def test_compile_assignment(self):
-        code = compile_source("let mut x = 1 x = x + 1")
+        code = compile_source("let x = 1 x = x + 1")
         self.assertEqual([repr(i) for i in code], [
             "CONST 1",
-            "STORE_NAME 'x'",
+            "DECLARE_NAME 'x'",
             "LOAD_NAME 'x'",
             "CONST 1",
             "ADD",
@@ -54,10 +54,10 @@ class TestCodegen(unittest.TestCase):
             "CONST 1",
             "CONST 2",
             "EQ",
-            "STORE_NAME 'a'",
+            "DECLARE_NAME 'a'",
             "CONST False",
             "NOT",
-            "STORE_NAME 'b'",
+            "DECLARE_NAME 'b'",
             "LOAD_NAME 'b'",
             "PRINT",
             "HALT",
@@ -107,7 +107,7 @@ class TestCodegen(unittest.TestCase):
             "CONST 3.5",
             "CONST 2",
             "DIV",
-            "STORE_NAME 'x'",
+            "DECLARE_NAME 'x'",
             "HALT",
         ])
 
@@ -117,7 +117,7 @@ class TestCodegen(unittest.TestCase):
             "CONST 7",
             "CONST 2",
             "IDIV",
-            "STORE_NAME 'x'",
+            "DECLARE_NAME 'x'",
             "HALT",
         ])
 
@@ -125,7 +125,15 @@ class TestCodegen(unittest.TestCase):
         code = compile_source('let s = "hi"')
         self.assertEqual([repr(i) for i in code], [
             "CONST 'hi'",
-            "STORE_NAME 's'",
+            "DECLARE_NAME 's'",
+            "HALT",
+        ])
+
+    def test_compile_const_binding(self):
+        code = compile_source("const x = 1")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST 1",
+            "STORE_CONST 'x'",
             "HALT",
         ])
 
@@ -141,7 +149,7 @@ class TestCodegen(unittest.TestCase):
             "JUMP 9",
             "POP",
             "CONST False",
-            "STORE_NAME 'x'",
+            "DECLARE_NAME 'x'",
             "HALT",
         ])
 
@@ -157,7 +165,7 @@ class TestCodegen(unittest.TestCase):
             "POP",
             "CONST True",
             "BOOL",
-            "STORE_NAME 'x'",
+            "DECLARE_NAME 'x'",
             "HALT",
         ])
 

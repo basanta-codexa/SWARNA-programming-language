@@ -7,6 +7,7 @@ class VM:
     def __init__(self) -> None:
         self.stack: list[int | float | bool | str] = []
         self.env: dict[str, int | float | bool | str] = {}
+        self.constant: set[str] = set()
         self.output: list[int | float | bool | str] = []
 
     def run(self, instructions: list[Instruction]) -> dict[str, int | float | bool | str]:
@@ -25,7 +26,24 @@ class VM:
             elif ins.op == Op.STORE_NAME:
                 if not self.stack:
                     raise RuntimeError("Stack underflow on STORE_NAME")
-                self.env[ins.arg] = self.stack.pop()
+                name = ins.arg
+                if name not in self.env:
+                    raise NameError(f"Undefined name '{name}'")
+                if name in self.constant:
+                    raise RuntimeError(f"Cannot assign to const binding '{name}'")
+                self.env[name] = self.stack.pop()
+            elif ins.op == Op.DECLARE_NAME:
+                if not self.stack:
+                    raise RuntimeError("Stack underflow on DECLARE_NAME")
+                name = ins.arg
+                self.env[name] = self.stack.pop()
+                self.constant.discard(name)
+            elif ins.op == Op.STORE_CONST:
+                if not self.stack:
+                    raise RuntimeError("Stack underflow on STORE_CONST")
+                name = ins.arg
+                self.env[name] = self.stack.pop()
+                self.constant.add(name)
             elif ins.op == Op.DUP:
                 if not self.stack:
                     raise RuntimeError("Stack underflow on DUP")

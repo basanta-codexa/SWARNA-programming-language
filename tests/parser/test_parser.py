@@ -11,16 +11,21 @@ class TestParser(unittest.TestCase):
         program = parser.parse_program()
         self.assertEqual(
             program,
-            Program(statements=[LetStatement(name=Identifier("x"), value=IntegerLiteral(42), mutable=False)]),
+            Program(statements=[LetStatement(name=Identifier("x"), value=IntegerLiteral(42), constant=False)]),
         )
 
-    def test_parse_let_mut_integer(self):
-        parser = Parser(Lexer("let mut x = 42"))
+    def test_parse_const_integer(self):
+        parser = Parser(Lexer("const x = 42"))
         program = parser.parse_program()
         self.assertEqual(
             program,
-            Program(statements=[LetStatement(name=Identifier("x"), value=IntegerLiteral(42), mutable=True)]),
+            Program(statements=[LetStatement(name=Identifier("x"), value=IntegerLiteral(42), constant=True)]),
         )
+
+    def test_parse_let_mut_migration_error(self):
+        parser = Parser(Lexer("let mut x = 1"))
+        with self.assertRaisesRegex(SyntaxError, "let mut"):
+            parser.parse_program()
 
     def test_parse_integer_expression_precedence(self):
         parser = Parser(Lexer("let x = 1 + 2 * 3"))
@@ -38,7 +43,7 @@ class TestParser(unittest.TestCase):
                             right=IntegerLiteral(3),
                         ),
                     ),
-                    mutable=False,
+                    constant=False,
                 )
             ]
         )
@@ -65,7 +70,7 @@ class TestParser(unittest.TestCase):
                         operator="+",
                         right=IntegerLiteral(1),
                     ),
-                    mutable=False,
+                    constant=False,
                 )
             ]
         )
@@ -83,7 +88,7 @@ class TestParser(unittest.TestCase):
                         operator="+",
                         right=IntegerLiteral(2),
                     ),
-                    mutable=False,
+                    constant=False,
                 )
             ]
         )
@@ -113,8 +118,8 @@ class TestParser(unittest.TestCase):
     def test_parse_bool_literals(self):
         parser = Parser(Lexer("let a = true let b = false"))
         program = parser.parse_program()
-        self.assertEqual(program.statements[0], LetStatement(name=Identifier("a"), value=BoolLiteral(True), mutable=False))
-        self.assertEqual(program.statements[1], LetStatement(name=Identifier("b"), value=BoolLiteral(False), mutable=False))
+        self.assertEqual(program.statements[0], LetStatement(name=Identifier("a"), value=BoolLiteral(True), constant=False))
+        self.assertEqual(program.statements[1], LetStatement(name=Identifier("b"), value=BoolLiteral(False), constant=False))
 
     def test_parse_comparison(self):
         parser = Parser(Lexer("let x = 1 + 2 <= 3"))
@@ -185,7 +190,7 @@ class TestParser(unittest.TestCase):
         program = parser.parse_program()
         self.assertEqual(
             program,
-            Program(statements=[LetStatement(name=Identifier("x"), value=FloatLiteral(3.5), mutable=False)]),
+            Program(statements=[LetStatement(name=Identifier("x"), value=FloatLiteral(3.5), constant=False)]),
         )
 
     def test_parse_integer_division(self):
@@ -196,7 +201,7 @@ class TestParser(unittest.TestCase):
             Program(statements=[LetStatement(
                 name=Identifier("x"),
                 value=BinaryExpression(left=IntegerLiteral(7), operator="//", right=IntegerLiteral(2)),
-                mutable=False,
+                constant=False,
             )]),
         )
 
@@ -205,7 +210,7 @@ class TestParser(unittest.TestCase):
         program = parser.parse_program()
         self.assertEqual(
             program,
-            Program(statements=[LetStatement(name=Identifier("s"), value=StringLiteral("hello"), mutable=False)]),
+            Program(statements=[LetStatement(name=Identifier("s"), value=StringLiteral("hello"), constant=False)]),
         )
 
     def test_parse_optional_semicolons(self):

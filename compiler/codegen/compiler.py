@@ -45,7 +45,7 @@ class Compiler:
     def compile_statement(self, stmt: Statement) -> None:
         if isinstance(stmt, LetStatement):
             self.compile_expression(stmt.value)
-            self.emit(Op.STORE_NAME, stmt.name.name)
+            self.emit(Op.STORE_CONST if stmt.constant else Op.DECLARE_NAME, stmt.name.name)
             return
         if isinstance(stmt, AssignmentStatement):
             self.compile_expression(stmt.value)

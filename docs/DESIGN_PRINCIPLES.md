@@ -42,7 +42,7 @@ Status: implemented in the interpreter and VM. `/` always produces `Float`; `//`
 
 Reason: the spreadsheet and scripting mental model is reassignment. Requiring `mut` on every counter adds friction for the audience we are targeting. Immutability remains available where it matters, and reassigning a `const` will produce a specific diagnostic.
 
-Status: accepted, not yet implemented. The current grammar has `let` and `let mut`. This reverses that choice: `mut` will be removed and `const` added in one focused change, with tests updated. Until then, the current behavior stands.
+Status: implemented. `let` is mutable, `const` is immutable, and `mut` was removed. Both the interpreter and the VM reject assignment to a `const`. `let mut` now produces a migration error.
 
 ### 3. `if` is an expression
 
@@ -115,7 +115,7 @@ Reason: braces remove indentation ambiguity and keep parsing and tooling simple.
 | # | Decision | Status |
 |---|---|---|
 | 1 | `/` true division, `//` integer division | Implemented |
-| 2 | `let` mutable, `const` immutable | Accepted, pending |
+| 2 | `let` mutable, `const` immutable | Implemented |
 | 3 | `if` is an expression | Accepted, pending |
 | 4 | Exceptions by default, `Result` opt-in | Accepted, pending |
 | 5 | `and` / `or` / `not` aliases | Implemented |
