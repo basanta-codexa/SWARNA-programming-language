@@ -37,5 +37,13 @@ class LetStatement:
 
 
 @dataclass(frozen=True)
+class PrintStatement:
+    value: Expression
+
+
+Statement = LetStatement | PrintStatement
+
+
+@dataclass(frozen=True)
 class Program:
-    statements: list[LetStatement]
+    statements: list[Statement]

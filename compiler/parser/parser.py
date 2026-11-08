@@ -1,4 +1,4 @@
-from compiler.ast.nodes import BinaryExpression, Expression, Identifier, IntegerLiteral, LetStatement, Program, UnaryExpression
+from compiler.ast.nodes import BinaryExpression, Expression, Identifier, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
 
@@ -19,10 +19,26 @@ class Parser:
         return value
 
     def parse_program(self) -> Program:
-        statements: list[LetStatement] = []
+        statements: list[Statement] = []
         while self.current.type != TokenType.EOF:
-            statements.append(self.parse_let_statement())
+            statements.append(self.parse_statement())
         return Program(statements=statements)
+
+    def parse_statement(self) -> Statement:
+        if self.current.type == TokenType.KEYWORD_LET:
+            return self.parse_let_statement()
+        if self.current.type == TokenType.IDENTIFIER and self.current.value == "print":
+            return self.parse_print_statement()
+        raise SyntaxError(
+            f"Expected statement at line {self.current.line}, column {self.current.column}"
+        )
+
+    def parse_print_statement(self) -> PrintStatement:
+        self._advance()  # 'print'
+        self._expect(TokenType.LPAREN, "Expected '(' after print")
+        value = self.parse_expression()
+        self._expect(TokenType.RPAREN, "Expected ')' after print argument")
+        return PrintStatement(value=value)
 
     def parse_let_statement(self) -> LetStatement:
         self._expect(TokenType.KEYWORD_LET, "Expected 'let'")

@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import BinaryExpression, Identifier, IntegerLiteral, LetStatement, Program, UnaryExpression
+from compiler.ast.nodes import BinaryExpression, Identifier, IntegerLiteral, LetStatement, PrintStatement, Program, UnaryExpression
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 
@@ -97,6 +97,18 @@ class TestParser(unittest.TestCase):
         self.assertEqual(program.statements[1].name.name, "y")
         assert isinstance(program.statements[1].value, BinaryExpression)
         self.assertEqual(program.statements[1].value.left, Identifier("x"))
+
+    def test_parse_print_statement(self):
+        parser = Parser(Lexer("print(42)"))
+        program = parser.parse_program()
+        self.assertEqual(program, Program(statements=[PrintStatement(value=IntegerLiteral(42))]))
+
+    def test_parse_print_expression(self):
+        parser = Parser(Lexer("let x = 1 print(x + 2)"))
+        program = parser.parse_program()
+        self.assertEqual(len(program.statements), 2)
+        assert isinstance(program.statements[1], PrintStatement)
+        assert isinstance(program.statements[1].value, BinaryExpression)
 
     def test_parse_requires_equals(self):
         parser = Parser(Lexer("let x 42"))

@@ -1,19 +1,26 @@
 from __future__ import annotations
 
-from compiler.ast.nodes import BinaryExpression, Expression, Identifier, IntegerLiteral, LetStatement, Program, UnaryExpression
+from compiler.ast.nodes import BinaryExpression, Expression, Identifier, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, UnaryExpression
 
 
 class Interpreter:
     def __init__(self) -> None:
         self.env: dict[str, int] = {}
+        self.output: list[int] = []
 
     def eval(self, program: Program) -> dict[str, int]:
         for stmt in program.statements:
             self.eval_statement(stmt)
         return dict(self.env)
 
-    def eval_statement(self, stmt: LetStatement) -> None:
-        self.env[stmt.name.name] = self.eval_expression(stmt.value)
+    def eval_statement(self, stmt: Statement) -> None:
+        if isinstance(stmt, LetStatement):
+            self.env[stmt.name.name] = self.eval_expression(stmt.value)
+            return
+        if isinstance(stmt, PrintStatement):
+            self.output.append(self.eval_expression(stmt.value))
+            return
+        raise RuntimeError(f"Unsupported statement: {stmt!r}")
 
     def eval_expression(self, expr: Expression) -> int:
         if isinstance(expr, IntegerLiteral):
