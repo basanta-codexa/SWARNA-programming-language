@@ -144,6 +144,13 @@ class TestLexer(unittest.TestCase):
         self.assertEqual(tokens[0].type, TokenType.KEYWORD_WHILE)
         self.assertEqual(tokens[0].value, "while")
 
+    def test_semicolon(self):
+        lexer = Lexer("let x = 1; let y = 2;")
+        tokens = lexer.tokenize()
+        types = [t.type for t in tokens]
+        self.assertIn(TokenType.SEMICOLON, types)
+        self.assertEqual(types.count(TokenType.SEMICOLON), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

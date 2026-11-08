@@ -22,6 +22,8 @@ class Parser:
         statements: list[Statement] = []
         while self.current.type != TokenType.EOF:
             statements.append(self.parse_statement())
+            while self.current.type == TokenType.SEMICOLON:
+                self._advance()
         return Program(statements=statements)
 
     def parse_statement(self) -> Statement:
@@ -72,6 +74,8 @@ class Parser:
             if self.current.type == TokenType.EOF:
                 raise SyntaxError("Expected '}' before end of input")
             statements.append(self.parse_statement())
+            while self.current.type == TokenType.SEMICOLON:
+                self._advance()
         self._advance()  # '}'
         return BlockStatement(statements=statements)
 

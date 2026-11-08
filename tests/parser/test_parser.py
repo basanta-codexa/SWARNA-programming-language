@@ -175,6 +175,13 @@ class TestParser(unittest.TestCase):
         self.assertEqual(stmt.condition.operator, "<")
         self.assertEqual(len(stmt.body.statements), 1)
 
+    def test_parse_optional_semicolons(self):
+        parser = Parser(Lexer("let x = 1; let y = 2; print(y);"))
+        program = parser.parse_program()
+        self.assertEqual(len(program.statements), 3)
+        self.assertEqual(program.statements[0].name.name, "x")
+        self.assertEqual(program.statements[1].name.name, "y")
+
     def test_parse_requires_equals(self):
         parser = Parser(Lexer("let x 42"))
         with self.assertRaises(SyntaxError):

@@ -150,6 +150,7 @@ class Lexer:
             ")": TokenType.RPAREN,
             "{": TokenType.LBRACE,
             "}": TokenType.RBRACE,
+            ";": TokenType.SEMICOLON,
         }
         if ch in single_char:
             self.advance()
