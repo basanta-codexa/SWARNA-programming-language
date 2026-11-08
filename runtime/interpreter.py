@@ -1,0 +1,44 @@
+from __future__ import annotations
+
+from compiler.ast.nodes import BinaryExpression, Expression, Identifier, IntegerLiteral, LetStatement, Program, UnaryExpression
+
+
+class Interpreter:
+    def __init__(self) -> None:
+        self.env: dict[str, int] = {}
+
+    def eval(self, program: Program) -> dict[str, int]:
+        for stmt in program.statements:
+            self.eval_statement(stmt)
+        return dict(self.env)
+
+    def eval_statement(self, stmt: LetStatement) -> None:
+        self.env[stmt.name.name] = self.eval_expression(stmt.value)
+
+    def eval_expression(self, expr: Expression) -> int:
+        if isinstance(expr, IntegerLiteral):
+            return expr.value
+        if isinstance(expr, Identifier):
+            if expr.name not in self.env:
+                raise NameError(f"Undefined name '{expr.name}'")
+            return self.env[expr.name]
+        if isinstance(expr, UnaryExpression):
+            value = self.eval_expression(expr.operand)
+            if expr.operator == "-":
+                return -value
+            raise RuntimeError(f"Unsupported unary operator {expr.operator!r}")
+        if isinstance(expr, BinaryExpression):
+            left = self.eval_expression(expr.left)
+            right = self.eval_expression(expr.right)
+            if expr.operator == "+":
+                return left + right
+            if expr.operator == "-":
+                return left - right
+            if expr.operator == "*":
+                return left * right
+            if expr.operator == "/":
+                if right == 0:
+                    raise ZeroDivisionError("division by zero")
+                return int(left / right)
+            raise RuntimeError(f"Unsupported binary operator {expr.operator!r}")
+        raise RuntimeError(f"Unsupported expression: {expr!r}")
