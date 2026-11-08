@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import BinaryExpression, Identifier, IntegerLiteral, LetStatement, Program
+from compiler.ast.nodes import BinaryExpression, Identifier, IntegerLiteral, LetStatement, Program, UnaryExpression
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 
@@ -64,6 +64,24 @@ class TestParser(unittest.TestCase):
                         left=Identifier("x"),
                         operator="+",
                         right=IntegerLiteral(1),
+                    ),
+                    mutable=False,
+                )
+            ]
+        )
+        self.assertEqual(program, expected)
+
+    def test_parse_unary_minus(self):
+        parser = Parser(Lexer("let x = -1 + 2"))
+        program = parser.parse_program()
+        expected = Program(
+            statements=[
+                LetStatement(
+                    name=Identifier("x"),
+                    value=BinaryExpression(
+                        left=UnaryExpression(operator="-", operand=IntegerLiteral(1)),
+                        operator="+",
+                        right=IntegerLiteral(2),
                     ),
                     mutable=False,
                 )

@@ -14,13 +14,19 @@ class IntegerLiteral:
 
 
 @dataclass(frozen=True)
+class UnaryExpression:
+    operator: str
+    operand: "Expression"
+
+
+@dataclass(frozen=True)
 class BinaryExpression:
     left: "Expression"
     operator: str
     right: "Expression"
 
 
-Expression = IntegerLiteral | BinaryExpression | Identifier
+Expression = IntegerLiteral | BinaryExpression | Identifier | UnaryExpression
 
 
 @dataclass(frozen=True)

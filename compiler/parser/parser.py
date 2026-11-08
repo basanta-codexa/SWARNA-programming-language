@@ -1,4 +1,4 @@
-from compiler.ast.nodes import BinaryExpression, Expression, Identifier, IntegerLiteral, LetStatement, Program
+from compiler.ast.nodes import BinaryExpression, Expression, Identifier, IntegerLiteral, LetStatement, Program, UnaryExpression
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
 
@@ -56,6 +56,10 @@ class Parser:
         return node
 
     def parse_factor(self) -> Expression:
+        if self.current.type == TokenType.MINUS:
+            op = self.current.value
+            self._advance()
+            return UnaryExpression(operator=op, operand=self.parse_factor())
         if self.current.type == TokenType.INTEGER:
             value = IntegerLiteral(int(self.current.value))
             self._advance()
