@@ -7,6 +7,12 @@ class TokenType(Enum):
     IDENTIFIER = auto()
     EQUAL = auto()
     INTEGER = auto()
+    PLUS = auto()
+    MINUS = auto()
+    STAR = auto()
+    SLASH = auto()
+    LPAREN = auto()
+    RPAREN = auto()
     EOF = auto()
 
 

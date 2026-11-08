@@ -38,6 +38,25 @@ class TestLexer(unittest.TestCase):
         with self.assertRaises(SyntaxError):
             lexer.tokenize()
 
+    def test_simple_expression_tokens(self):
+        lexer = Lexer("x + y * (2 - 1)")
+        tokens = lexer.tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens[:-1]],
+            [
+                (TokenType.IDENTIFIER, "x"),
+                (TokenType.PLUS, "+"),
+                (TokenType.IDENTIFIER, "y"),
+                (TokenType.STAR, "*"),
+                (TokenType.LPAREN, "("),
+                (TokenType.INTEGER, "2"),
+                (TokenType.MINUS, "-"),
+                (TokenType.INTEGER, "1"),
+                (TokenType.RPAREN, ")"),
+            ],
+        )
+        self.assertEqual(tokens[-1].type, TokenType.EOF)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -56,9 +56,18 @@ class Lexer:
             value = self._read_integer()
             return Token(TokenType.INTEGER, value, line, column)
 
-        if ch == "=":
+        single_char = {
+            "=": TokenType.EQUAL,
+            "+": TokenType.PLUS,
+            "-": TokenType.MINUS,
+            "*": TokenType.STAR,
+            "/": TokenType.SLASH,
+            "(": TokenType.LPAREN,
+            ")": TokenType.RPAREN,
+        }
+        if ch in single_char:
             self.advance()
-            return Token(TokenType.EQUAL, "=", line, column)
+            return Token(single_char[ch], ch, line, column)
 
         raise SyntaxError(f"Unexpected character {ch!r} at line {line}, column {column}")
 
