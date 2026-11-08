@@ -116,6 +116,24 @@ class TestVM(unittest.TestCase):
                 self.assertEqual(actual_env, expected_env)
                 self.assertEqual(vm.output, interpreter.output)
 
+    def test_vm_while_matches_interpreter(self):
+        sources = [
+            "let mut i = 0 while i < 3 { i = i + 1 } print(i)",
+            "let mut i = 5 while i < 3 { i = i + 1 } print(i)",
+            "let mut i = 0 while i < 3 { if i == 1 { print(99) } i = i + 1 } print(i)",
+        ]
+        for source in sources:
+            with self.subTest(source=source):
+                program = Parser(Lexer(source)).parse_program()
+                interpreter = Interpreter()
+                expected_env = interpreter.eval(program)
+
+                vm = VM()
+                actual_env = vm.run(Compiler().compile(program))
+
+                self.assertEqual(actual_env, expected_env)
+                self.assertEqual(vm.output, interpreter.output)
+
 
 if __name__ == "__main__":
     unittest.main()

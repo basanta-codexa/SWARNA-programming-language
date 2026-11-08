@@ -14,6 +14,7 @@ from compiler.ast.nodes import (
     Program,
     Statement,
     UnaryExpression,
+    WhileStatement,
 )
 from compiler.bytecode.instructions import Instruction, Op
 
@@ -63,6 +64,14 @@ class Compiler:
                 self.patch(jump_to_end, len(self.instructions))
             else:
                 self.patch(jump_to_else, len(self.instructions))
+            return
+        if isinstance(stmt, WhileStatement):
+            loop_start = len(self.instructions)
+            self.compile_expression(stmt.condition)
+            jump_to_end = self.emit(Op.JUMP_IF_FALSE, None)
+            self.compile_block(stmt.body)
+            self.emit(Op.JUMP, loop_start)
+            self.patch(jump_to_end, len(self.instructions))
             return
         if isinstance(stmt, BlockStatement):
             self.compile_block(stmt)

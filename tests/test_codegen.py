@@ -86,6 +86,21 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_while(self):
+        code = compile_source("while i < 3 { i = i + 1 }")
+        self.assertEqual([repr(i) for i in code], [
+            "LOAD_NAME 'i'",
+            "CONST 3",
+            "LT",
+            "JUMP_IF_FALSE 9",
+            "LOAD_NAME 'i'",
+            "CONST 1",
+            "ADD",
+            "STORE_NAME 'i'",
+            "JUMP 0",
+            "HALT",
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()
