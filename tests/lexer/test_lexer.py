@@ -72,6 +72,31 @@ class TestLexer(unittest.TestCase):
             ],
         )
 
+    def test_float_literal(self):
+        lexer = Lexer("3.14 0.5 42")
+        tokens = lexer.tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens[:-1]],
+            [
+                (TokenType.FLOAT, "3.14"),
+                (TokenType.FLOAT, "0.5"),
+                (TokenType.INTEGER, "42"),
+            ],
+        )
+
+    def test_string_literal(self):
+        lexer = Lexer('"hello" "a\\"b"')
+        tokens = lexer.tokenize()
+        self.assertEqual(tokens[0].type, TokenType.STRING)
+        self.assertEqual(tokens[0].value, "hello")
+        self.assertEqual(tokens[1].type, TokenType.STRING)
+        self.assertEqual(tokens[1].value, 'a"b')
+
+    def test_unterminated_string(self):
+        lexer = Lexer('"hello')
+        with self.assertRaises(SyntaxError):
+            lexer.tokenize()
+
 
 if __name__ == "__main__":
     unittest.main()

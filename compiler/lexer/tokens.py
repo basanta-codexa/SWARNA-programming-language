@@ -8,6 +8,8 @@ class TokenType(Enum):
     IDENTIFIER = auto()
     EQUAL = auto()
     INTEGER = auto()
+    FLOAT = auto()
+    STRING = auto()
     PLUS = auto()
     MINUS = auto()
     STAR = auto()

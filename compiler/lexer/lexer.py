@@ -31,11 +31,37 @@ class Lexer:
             self.advance()
         return self.source[start:self.position]
 
-    def _read_integer(self) -> str:
+    def _read_number(self) -> tuple[TokenType, str]:
         start = self.position
         while self.current_char is not None and self.current_char.isdigit():
             self.advance()
-        return self.source[start:self.position]
+        if self.current_char == ".":
+            nxt = self.position + 1
+            if nxt < len(self.source) and self.source[nxt].isdigit():
+                self.advance()  # consume '.'
+                while self.current_char is not None and self.current_char.isdigit():
+                    self.advance()
+                return TokenType.FLOAT, self.source[start:self.position]
+        return TokenType.INTEGER, self.source[start:self.position]
+
+    def _read_string(self) -> str:
+        self.advance()  # opening quote
+        chars: list[str] = []
+        while self.current_char is not None and self.current_char != '"':
+            if self.current_char == "\\":
+                self.advance()
+                if self.current_char is None:
+                    raise SyntaxError("Unterminated string literal")
+                escapes = {'"': '"', "\\": "\\", "n": "\n", "t": "\t"}
+                chars.append(escapes.get(self.current_char, self.current_char))
+                self.advance()
+            else:
+                chars.append(self.current_char)
+                self.advance()
+        if self.current_char != '"':
+            raise SyntaxError("Unterminated string literal")
+        self.advance()  # closing quote
+        return "".join(chars)
 
     def next_token(self) -> Token:
         self._skip_whitespace()
@@ -55,8 +81,12 @@ class Lexer:
             return Token(TokenType.IDENTIFIER, value, line, column)
 
         if ch.isdigit():
-            value = self._read_integer()
-            return Token(TokenType.INTEGER, value, line, column)
+            tok_type, value = self._read_number()
+            return Token(tok_type, value, line, column)
+
+        if ch == '"':
+            value = self._read_string()
+            return Token(TokenType.STRING, value, line, column)
 
         single_char = {
             "=": TokenType.EQUAL,
