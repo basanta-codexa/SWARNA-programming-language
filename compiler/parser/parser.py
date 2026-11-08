@@ -20,12 +20,8 @@ class Parser:
 
     def parse_program(self) -> Program:
         statements: list[LetStatement] = []
-        if self.current.type != TokenType.EOF:
+        while self.current.type != TokenType.EOF:
             statements.append(self.parse_let_statement())
-        if self.current.type != TokenType.EOF:
-            raise SyntaxError(
-                f"Unexpected token {self.current.value!r} at line {self.current.line}, column {self.current.column}"
-            )
         return Program(statements=statements)
 
     def parse_let_statement(self) -> LetStatement:

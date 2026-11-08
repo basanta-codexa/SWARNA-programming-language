@@ -89,6 +89,15 @@ class TestParser(unittest.TestCase):
         )
         self.assertEqual(program, expected)
 
+    def test_parse_multiple_let_statements(self):
+        parser = Parser(Lexer("let x = 1 let y = x + 2"))
+        program = parser.parse_program()
+        self.assertEqual(len(program.statements), 2)
+        self.assertEqual(program.statements[0].name.name, "x")
+        self.assertEqual(program.statements[1].name.name, "y")
+        assert isinstance(program.statements[1].value, BinaryExpression)
+        self.assertEqual(program.statements[1].value.left, Identifier("x"))
+
     def test_parse_requires_equals(self):
         parser = Parser(Lexer("let x 42"))
         with self.assertRaises(SyntaxError):
