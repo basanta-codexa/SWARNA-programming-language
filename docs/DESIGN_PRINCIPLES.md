@@ -87,6 +87,23 @@ Reason: braces remove indentation ambiguity and keep parsing and tooling simple.
 5. A standard-library gap is a language gap. If a common task needs a third-party package to be reasonable, the task is not finished.
 6. Every documented feature has a test. Documentation does not run ahead of the implementation.
 
+## Diagnostics
+
+Lexer and parser errors carry a `SourceSpan` (line, column, length) and an optional hint. The CLI renders the offending source line, a caret, and the hint:
+
+```
+error: Expected '='
+  --> 1:7
+    |
+  1 | let x 42
+    |       ^^
+    = hint: Bindings use `let name = value` or `const name = value`.
+```
+
+Runtime diagnostics will use the same shape once the runtime carries source spans.
+
+Status: lexer and parser errors implemented; runtime errors not yet.
+
 ## Non-goals
 
 - No visual or no-code interface. Users write text.

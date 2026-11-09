@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum, auto
 
+from compiler.diagnostics import SourceSpan
+
 
 class TokenType(Enum):
     KEYWORD_LET = auto()
@@ -46,3 +48,7 @@ class Token:
     value: str
     line: int
     column: int
+
+    @property
+    def span(self) -> SourceSpan:
+        return SourceSpan(self.line, self.column, max(1, len(self.value)))

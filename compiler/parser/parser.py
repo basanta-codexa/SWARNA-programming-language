@@ -1,4 +1,5 @@
 from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
 
@@ -11,9 +12,9 @@ class Parser:
     def _advance(self) -> None:
         self.current = self.lexer.next_token()
 
-    def _expect(self, token_type: TokenType, message: str) -> str:
+    def _expect(self, token_type: TokenType, message: str, hint: str | None = None) -> str:
         if self.current.type != token_type:
-            raise SyntaxError(f"{message} at line {self.current.line}, column {self.current.column}")
+            raise SwarnaSyntaxError(message, self.current.span, hint=hint)
         value = self.current.value
         self._advance()
         return value
@@ -39,19 +40,25 @@ class Parser:
             return self.parse_print_statement()
         if self.current.type == TokenType.IDENTIFIER:
             return self.parse_assignment_statement()
-        raise SyntaxError(
-            f"Expected statement at line {self.current.line}, column {self.current.column}"
+        raise SwarnaSyntaxError(
+            "Expected statement",
+            self.current.span,
+            hint="Expected `let`, `const`, `if`, `while`, `print`, or an assignment.",
         )
 
     def parse_assignment_statement(self) -> AssignmentStatement:
         name = Identifier(self.current.value)
         self._advance()
-        self._expect(TokenType.EQUAL, "Expected '=' in assignment")
+        self._expect(
+            TokenType.EQUAL,
+            "Expected '=' in assignment",
+            hint="Assignments use `name = value`.",
+        )
         value = self.parse_expression()
         return AssignmentStatement(name=name, value=value)
 
     def parse_if_statement(self) -> IfStatement:
-        self._expect(TokenType.KEYWORD_IF, "Expected 'if'")
+        self._expect(TokenType.KEYWORD_IF, "Expected 'if'", hint="Write `if condition { ... }`.")
         condition = self.parse_expression()
         then_branch = self.parse_block()
         else_branch = None
@@ -64,29 +71,53 @@ class Parser:
         return IfStatement(condition=condition, then_branch=then_branch, else_branch=else_branch)
 
     def parse_while_statement(self) -> WhileStatement:
-        self._expect(TokenType.KEYWORD_WHILE, "Expected 'while'")
+        self._expect(TokenType.KEYWORD_WHILE, "Expected 'while'", hint="Write `while condition { ... }`.")
         condition = self.parse_expression()
         body = self.parse_block()
         return WhileStatement(condition=condition, body=body)
 
     def parse_if_expression(self) -> IfExpression:
-        self._expect(TokenType.KEYWORD_IF, "Expected 'if'")
+        self._expect(TokenType.KEYWORD_IF, "Expected 'if'", hint="Write `if condition { value } else { value }`.")
         condition = self.parse_expression()
-        self._expect(TokenType.LBRACE, "Expected '{'")
+        self._expect(
+            TokenType.LBRACE,
+            "Expected '{'",
+            hint="An `if` expression branch is written as `{ value }`.",
+        )
         then_value = self.parse_expression()
-        self._expect(TokenType.RBRACE, "Expected '}'")
-        self._expect(TokenType.KEYWORD_ELSE, "if used as an expression requires an else branch")
-        self._expect(TokenType.LBRACE, "Expected '{'")
+        self._expect(
+            TokenType.RBRACE,
+            "Expected '}'",
+            hint="Close the `if` expression branch with `}`.",
+        )
+        self._expect(
+            TokenType.KEYWORD_ELSE,
+            "if used as an expression requires an else branch",
+            hint="Add `else { ... }`, or use `if` as a statement.",
+        )
+        self._expect(
+            TokenType.LBRACE,
+            "Expected '{'",
+            hint="An `if` expression branch is written as `{ value }`.",
+        )
         else_value = self.parse_expression()
-        self._expect(TokenType.RBRACE, "Expected '}'")
+        self._expect(
+            TokenType.RBRACE,
+            "Expected '}'",
+            hint="Close the `if` expression branch with `}`.",
+        )
         return IfExpression(condition=condition, then_value=then_value, else_value=else_value)
 
     def parse_block(self) -> BlockStatement:
-        self._expect(TokenType.LBRACE, "Expected '{'")
+        self._expect(TokenType.LBRACE, "Expected '{'", hint="Blocks use `{ ... }`.")
         statements: list[Statement] = []
         while self.current.type != TokenType.RBRACE:
             if self.current.type == TokenType.EOF:
-                raise SyntaxError("Expected '}' before end of input")
+                raise SwarnaSyntaxError(
+                    "Expected '}' before end of input",
+                    self.current.span,
+                    hint="Add a closing `}`.",
+                )
             statements.append(self.parse_statement())
             while self.current.type == TokenType.SEMICOLON:
                 self._advance()
@@ -95,20 +126,39 @@ class Parser:
 
     def parse_print_statement(self) -> PrintStatement:
         self._advance()  # 'print'
-        self._expect(TokenType.LPAREN, "Expected '(' after print")
+        self._expect(
+            TokenType.LPAREN,
+            "Expected '(' after print",
+            hint="`print` takes one argument in parentheses: `print(value)`.",
+        )
         value = self.parse_expression()
-        self._expect(TokenType.RPAREN, "Expected ')' after print argument")
+        self._expect(
+            TokenType.RPAREN,
+            "Expected ')' after print argument",
+            hint="Close the `print` call with `)`.",
+        )
         return PrintStatement(value=value)
 
     def parse_binding_statement(self, constant: bool) -> LetStatement:
         self._advance()  # 'let' or 'const'
         if not constant and self.current.type == TokenType.IDENTIFIER and self.current.value == "mut":
-            raise SyntaxError(
-                "`let mut` was removed; use `let` for a mutable binding or `const` for an immutable one "
-                f"at line {self.current.line}, column {self.current.column}"
+            raise SwarnaSyntaxError(
+                "`let mut` was removed",
+                self.current.span,
+                hint="Use `let` for a mutable binding or `const` for an immutable one.",
             )
-        name = Identifier(self._expect(TokenType.IDENTIFIER, "Expected identifier"))
-        self._expect(TokenType.EQUAL, "Expected '='")
+        name = Identifier(
+            self._expect(
+                TokenType.IDENTIFIER,
+                "Expected identifier",
+                hint="Provide a name after `let` or `const`.",
+            )
+        )
+        self._expect(
+            TokenType.EQUAL,
+            "Expected '='",
+            hint="Bindings use `let name = value` or `const name = value`.",
+        )
         value = self.parse_expression()
         return LetStatement(name=name, value=value, constant=constant)
 
@@ -192,8 +242,10 @@ class Parser:
         if self.current.type == TokenType.LPAREN:
             self._advance()
             node = self.parse_expression()
-            self._expect(TokenType.RPAREN, "Expected ')'")
+            self._expect(TokenType.RPAREN, "Expected ')'", hint="Add a closing `)`.")
             return node
-        raise SyntaxError(
-            f"Expected expression at line {self.current.line}, column {self.current.column}"
+        raise SwarnaSyntaxError(
+            "Expected expression",
+            self.current.span,
+            hint="Expected a literal, name, or parenthesized expression.",
         )

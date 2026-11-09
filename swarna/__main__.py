@@ -2,6 +2,7 @@ import argparse
 import sys
 
 from compiler.codegen.compiler import Compiler
+from compiler.diagnostics import DiagnosticError, render_diagnostic
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 
@@ -41,6 +42,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.source is not None:
         try:
             print(render(args.source))
+        except DiagnosticError as e:
+            print(render_diagnostic(args.source, e), file=sys.stderr)
+            return 1
         except SyntaxError as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
@@ -50,6 +54,9 @@ def main(argv: list[str] | None = None) -> int:
         source = sys.stdin.read()
         try:
             print(render(source))
+        except DiagnosticError as e:
+            print(render_diagnostic(source, e), file=sys.stderr)
+            return 1
         except SyntaxError as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
@@ -81,6 +88,8 @@ def main(argv: list[str] | None = None) -> int:
                 print(emit_bytecode_source(source))
             else:
                 print(lex_source(source))
+        except DiagnosticError as e:
+            print(render_diagnostic(source, e), file=sys.stderr)
         except (SyntaxError, NotImplementedError, NameError, RuntimeError, ZeroDivisionError) as e:
             print(f"error: {e}", file=sys.stderr)
 

@@ -1,3 +1,4 @@
+from compiler.diagnostics import SourceSpan, SwarnaSyntaxError
 from compiler.lexer.tokens import Token, TokenType
 
 
@@ -45,13 +46,18 @@ class Lexer:
         return TokenType.INTEGER, self.source[start:self.position]
 
     def _read_string(self) -> str:
+        start_line, start_column = self.line, self.column
         self.advance()  # opening quote
         chars: list[str] = []
         while self.current_char is not None and self.current_char != '"':
             if self.current_char == "\\":
                 self.advance()
                 if self.current_char is None:
-                    raise SyntaxError("Unterminated string literal")
+                    raise SwarnaSyntaxError(
+                        "Unterminated string literal",
+                        SourceSpan(start_line, start_column, 1),
+                        hint='Add a closing double quote (") before the end of the line.',
+                    )
                 escapes = {'"': '"', "\\": "\\", "n": "\n", "t": "\t"}
                 chars.append(escapes.get(self.current_char, self.current_char))
                 self.advance()
@@ -59,7 +65,11 @@ class Lexer:
                 chars.append(self.current_char)
                 self.advance()
         if self.current_char != '"':
-            raise SyntaxError("Unterminated string literal")
+            raise SwarnaSyntaxError(
+                "Unterminated string literal",
+                SourceSpan(start_line, start_column, 1),
+                hint='Add a closing double quote (") before the end of the line.',
+            )
         self.advance()  # closing quote
         return "".join(chars)
 
@@ -127,13 +137,21 @@ class Lexer:
             if self.current_char == "&":
                 self.advance()
                 return Token(TokenType.AMPAMP, "&&", line, column)
-            raise SyntaxError(f"Unexpected character '&' at line {line}, column {column}")
+            raise SwarnaSyntaxError(
+                "Unexpected character '&'",
+                SourceSpan(line, column, 1),
+                hint="Use '&&' for logical and, or remove the character.",
+            )
         if ch == "|":
             self.advance()
             if self.current_char == "|":
                 self.advance()
                 return Token(TokenType.PIPEPIPE, "||", line, column)
-            raise SyntaxError(f"Unexpected character '|' at line {line}, column {column}")
+            raise SwarnaSyntaxError(
+                "Unexpected character '|'",
+                SourceSpan(line, column, 1),
+                hint="Use '||' for logical or, or remove the character.",
+            )
         if ch == "<":
             self.advance()
             if self.current_char == "=":
@@ -167,7 +185,11 @@ class Lexer:
             self.advance()
             return Token(single_char[ch], ch, line, column)
 
-        raise SyntaxError(f"Unexpected character {ch!r} at line {line}, column {column}")
+        raise SwarnaSyntaxError(
+            f"Unexpected character {ch!r}",
+            SourceSpan(line, column, 1),
+            hint="Remove the character or check for a typo.",
+        )
 
     def tokenize(self) -> list[Token]:
         tokens: list[Token] = []
