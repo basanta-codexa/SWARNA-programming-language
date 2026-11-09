@@ -1,6 +1,7 @@
 import unittest
 
 from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
+from compiler.diagnostics import SourceSpan
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 
@@ -255,6 +256,46 @@ class TestParser(unittest.TestCase):
         parser = Parser(Lexer("let x 42"))
         with self.assertRaises(SyntaxError):
             parser.parse_program()
+
+    def test_nodes_carry_source_spans(self):
+        program = Parser(Lexer("let x = 1 + 2")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, BinaryExpression)
+        self.assertEqual(program.span, SourceSpan(1, 1, 3))
+        self.assertEqual(stmt.span, SourceSpan(1, 1, 3))
+        self.assertEqual(stmt.name.span, SourceSpan(1, 5, 1))
+        self.assertEqual(stmt.value.span, SourceSpan(1, 11, 1))
+        self.assertEqual(stmt.value.left.span, SourceSpan(1, 9, 1))
+        self.assertEqual(stmt.value.right.span, SourceSpan(1, 13, 1))
+
+    def test_statement_spans(self):
+        program = Parser(
+            Lexer("print(1) if true { let x = 1 } while false { let y = 2 }")
+        ).parse_program()
+        print_stmt, if_stmt, while_stmt = program.statements
+        assert isinstance(print_stmt, PrintStatement)
+        assert isinstance(if_stmt, IfStatement)
+        assert isinstance(while_stmt, WhileStatement)
+        self.assertEqual(print_stmt.span, SourceSpan(1, 1, 5))
+        self.assertEqual(if_stmt.span, SourceSpan(1, 10, 2))
+        self.assertEqual(if_stmt.then_branch.span, SourceSpan(1, 18, 1))
+        self.assertEqual(while_stmt.span, SourceSpan(1, 32, 5))
+        self.assertEqual(while_stmt.body.span, SourceSpan(1, 44, 1))
+
+    def test_if_expression_span(self):
+        program = Parser(Lexer("let x = if true { 1 } else { 2 }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, IfExpression)
+        self.assertEqual(stmt.value.span, SourceSpan(1, 9, 2))
+
+    def test_assignment_span(self):
+        program = Parser(Lexer("x = 1")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, AssignmentStatement)
+        self.assertEqual(stmt.span, SourceSpan(1, 1, 1))
+        self.assertEqual(stmt.name.span, SourceSpan(1, 1, 1))
 
 
 if __name__ == "__main__":

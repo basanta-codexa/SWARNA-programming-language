@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 
 
 class Interpreter:
@@ -24,9 +25,17 @@ class Interpreter:
             name = stmt.name.name
             value = self.eval_expression(stmt.value)
             if name not in self.env:
-                raise NameError(f"Undefined name '{name}'")
+                raise SwarnaNameError(
+                    f"Undefined name '{name}'",
+                    stmt.name.span,
+                    hint="Declare it first with `let name = value` or `const name = value`.",
+                )
             if self.constant.get(name, False):
-                raise RuntimeError(f"Cannot assign to const binding '{name}'")
+                raise SwarnaRuntimeError(
+                    f"Cannot assign to const binding '{name}'",
+                    stmt.name.span,
+                    hint="Change the binding to `let` if it needs to be reassigned.",
+                )
             self.env[name] = value
             return
         if isinstance(stmt, PrintStatement):
@@ -45,7 +54,11 @@ class Interpreter:
         if isinstance(stmt, BlockStatement):
             self.eval_block(stmt)
             return
-        raise RuntimeError(f"Unsupported statement: {stmt!r}")
+        raise SwarnaRuntimeError(
+            f"Unsupported statement: {type(stmt).__name__}",
+            stmt.span,
+            hint="This statement is not supported by the interpreter yet.",
+        )
 
     def eval_block(self, block: BlockStatement) -> None:
         for stmt in block.statements:
@@ -66,15 +79,30 @@ class Interpreter:
             return self.eval_expression(expr.else_value)
         if isinstance(expr, Identifier):
             if expr.name not in self.env:
-                raise NameError(f"Undefined name '{expr.name}'")
+                raise SwarnaNameError(
+                    f"Undefined name '{expr.name}'",
+                    expr.span,
+                    hint="Declare it first with `let name = value` or `const name = value`.",
+                )
             return self.env[expr.name]
         if isinstance(expr, UnaryExpression):
             value = self.eval_expression(expr.operand)
             if expr.operator == "-":
-                return -value
+                try:
+                    return -value
+                except TypeError as e:
+                    raise SwarnaTypeError(
+                        str(e),
+                        expr.span,
+                        hint="Unary `-` requires a number.",
+                    ) from e
             if expr.operator == "!":
                 return not bool(value)
-            raise RuntimeError(f"Unsupported unary operator {expr.operator!r}")
+            raise SwarnaRuntimeError(
+                f"Unsupported unary operator {expr.operator!r}",
+                expr.span,
+                hint="This operator is not implemented yet.",
+            )
         if isinstance(expr, BinaryExpression):
             if expr.operator == "&&":
                 left = self.eval_expression(expr.left)
@@ -84,33 +112,63 @@ class Interpreter:
                 return True if bool(left) else bool(self.eval_expression(expr.right))
             left = self.eval_expression(expr.left)
             right = self.eval_expression(expr.right)
-            if expr.operator == "+":
-                return left + right
-            if expr.operator == "-":
-                return left - right
-            if expr.operator == "*":
-                return left * right
-            if expr.operator == "/":
-                if right == 0:
-                    raise ZeroDivisionError("division by zero")
-                return left / right
+            if expr.operator == "/" and right == 0:
+                raise SwarnaZeroDivisionError(
+                    "division by zero",
+                    expr.span,
+                    hint="The divisor must be non-zero.",
+                )
             if expr.operator == "//":
                 if type(left) is not int or type(right) is not int:
-                    raise TypeError("'//' requires Int operands")
+                    raise SwarnaTypeError(
+                        "'//' requires Int operands",
+                        expr.span,
+                        hint="Use `/` for true division or convert the operands to Int.",
+                    )
                 if right == 0:
-                    raise ZeroDivisionError("integer division by zero")
-                return left // right
-            if expr.operator == "==":
-                return left == right
-            if expr.operator == "!=":
-                return left != right
-            if expr.operator == "<":
-                return left < right
-            if expr.operator == "<=":
-                return left <= right
-            if expr.operator == ">":
-                return left > right
-            if expr.operator == ">=":
-                return left >= right
-            raise RuntimeError(f"Unsupported binary operator {expr.operator!r}")
-        raise RuntimeError(f"Unsupported expression: {expr!r}")
+                    raise SwarnaZeroDivisionError(
+                        "integer division by zero",
+                        expr.span,
+                        hint="The divisor must be non-zero.",
+                    )
+            try:
+                if expr.operator == "+":
+                    return left + right
+                if expr.operator == "-":
+                    return left - right
+                if expr.operator == "*":
+                    return left * right
+                if expr.operator == "/":
+                    return left / right
+                if expr.operator == "//":
+                    return left // right
+                if expr.operator == "==":
+                    return left == right
+                if expr.operator == "!=":
+                    return left != right
+                if expr.operator == "<":
+                    return left < right
+                if expr.operator == "<=":
+                    return left <= right
+                if expr.operator == ">":
+                    return left > right
+                if expr.operator == ">=":
+                    return left >= right
+            except SwarnaTypeError:
+                raise
+            except TypeError as e:
+                raise SwarnaTypeError(
+                    str(e),
+                    expr.span,
+                    hint="The operands have incompatible types.",
+                ) from e
+            raise SwarnaRuntimeError(
+                f"Unsupported binary operator {expr.operator!r}",
+                expr.span,
+                hint="This operator is not implemented yet.",
+            )
+        raise SwarnaRuntimeError(
+            f"Unsupported expression: {type(expr).__name__}",
+            expr.span,
+            hint="This expression is not supported by the interpreter yet.",
+        )

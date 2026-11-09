@@ -31,6 +31,22 @@ class SwarnaSyntaxError(DiagnosticError, SyntaxError):
     """A syntax diagnostic that remains catchable as a built-in SyntaxError."""
 
 
+class SwarnaRuntimeError(DiagnosticError, RuntimeError):
+    """A runtime diagnostic that remains catchable as a built-in RuntimeError."""
+
+
+class SwarnaNameError(SwarnaRuntimeError, NameError):
+    """An undefined-name diagnostic that remains catchable as a built-in NameError."""
+
+
+class SwarnaTypeError(SwarnaRuntimeError, TypeError):
+    """A type diagnostic that remains catchable as a built-in TypeError."""
+
+
+class SwarnaZeroDivisionError(SwarnaRuntimeError, ZeroDivisionError):
+    """A division-by-zero diagnostic that remains catchable as a built-in ZeroDivisionError."""
+
+
 def render_diagnostic(source: str, error: DiagnosticError) -> str:
     """Render a diagnostic with the offending line, a caret, and its hint."""
 

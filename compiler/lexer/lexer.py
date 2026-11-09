@@ -117,8 +117,10 @@ class Lexer:
             return Token(tok_type, value, line, column)
 
         if ch == '"':
+            start_position = self.position
             value = self._read_string()
-            return Token(TokenType.STRING, value, line, column)
+            source_length = self.position - start_position
+            return Token(TokenType.STRING, value, line, column, source_length=source_length)
 
         if ch == "=":
             self.advance()

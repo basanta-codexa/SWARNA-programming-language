@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any
+
+from compiler.diagnostics import SourceSpan
 
 
 class Op(Enum):
@@ -37,6 +39,7 @@ class Op(Enum):
 class Instruction:
     op: Op
     arg: Any = None
+    span: SourceSpan | None = field(default=None, compare=False, repr=False)
 
     def __repr__(self) -> str:
         if self.arg is None:

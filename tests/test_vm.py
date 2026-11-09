@@ -2,6 +2,7 @@ import unittest
 
 from compiler.bytecode.instructions import Instruction, Op
 from compiler.codegen.compiler import Compiler
+from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 from runtime.interpreter import Interpreter
@@ -291,6 +292,34 @@ class TestVM(unittest.TestCase):
         self.assertIs(run_vm("let x = false || true")["x"], True)
         # The right operand would raise if evaluated.
         self.assertIs(run_vm("let x = true || (1 / 0 == 0)")["x"], True)
+
+    def test_compiled_instructions_carry_spans(self):
+        program = Parser(Lexer("let y = x + 1")).parse_program()
+        code = Compiler().compile(program)
+        load_x = next(ins for ins in code if ins.op == Op.LOAD_NAME and ins.arg == "x")
+        add = next(ins for ins in code if ins.op == Op.ADD)
+        self.assertEqual(load_x.span, SourceSpan(1, 9, 1))
+        self.assertEqual(add.span, SourceSpan(1, 11, 1))
+
+    def test_vm_undefined_name_diagnostic_has_span(self):
+        with self.assertRaises(SwarnaNameError) as raised:
+            run_vm("let y = x + 1")
+        self.assertEqual(raised.exception.span, SourceSpan(1, 9, 1))
+
+    def test_vm_const_assignment_diagnostic_has_span(self):
+        with self.assertRaises(SwarnaRuntimeError) as raised:
+            run_vm("const x = 0 x = 1")
+        self.assertEqual(raised.exception.span, SourceSpan(1, 13, 1))
+
+    def test_vm_division_by_zero_diagnostic_has_span(self):
+        with self.assertRaises(SwarnaZeroDivisionError) as raised:
+            run_vm("let x = 1 / 0")
+        self.assertEqual(raised.exception.span, SourceSpan(1, 11, 1))
+
+    def test_vm_integer_division_type_diagnostic_has_span(self):
+        with self.assertRaises(SwarnaTypeError) as raised:
+            run_vm("let x = 7.0 // 2")
+        self.assertEqual(raised.exception.span, SourceSpan(1, 13, 2))
 
     def test_vm_logical_ops_match_interpreter(self):
         sources = [

@@ -52,12 +52,12 @@ python -m swarna --run
 - `if`/`else` statements and single-expression `if` expressions
 - `while` loops
 - `print`
-- caret diagnostics with hints for lexer and parser errors
+- caret diagnostics with hints for lexer, parser, and runtime errors
 - a stack VM checked against the interpreter by differential tests
 
 ## What does not work yet
 
-Functions, collections, and static types are the big missing pieces. Modules, a standard library, comments, string interpolation, concurrency, tooling (debugger, formatter, LSP), and source-spanned runtime errors are also missing.
+Functions, collections, and static types are the big missing pieces. Modules, a standard library, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
 
 ## Inspect the pipeline
 

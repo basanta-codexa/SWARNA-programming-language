@@ -89,7 +89,7 @@ Reason: braces remove indentation ambiguity and keep parsing and tooling simple.
 
 ## Diagnostics
 
-Lexer and parser errors carry a `SourceSpan` (line, column, length) and an optional hint. The CLI renders the offending source line, a caret, and the hint:
+Lexer, parser, and runtime errors carry a `SourceSpan` (line, column, length) and an optional hint. The CLI renders the offending source line, a caret, and the hint:
 
 ```
 error: Expected '='
@@ -100,9 +100,18 @@ error: Expected '='
     = hint: Bindings use `let name = value` or `const name = value`.
 ```
 
-Runtime diagnostics will use the same shape once the runtime carries source spans.
+Runtime errors use the same shape:
 
-Status: lexer and parser errors implemented. The CLI reports runtime errors without source spans yet.
+```
+error: Undefined name 'x'
+  --> 1:9
+    |
+  1 | let y = x + 1
+    |         ^
+    = hint: Declare it first with `let name = value` or `const name = value`.
+```
+
+Status: implemented for lexer, parser, and the current runtime errors in both the interpreter and the VM.
 
 ## Non-goals
 

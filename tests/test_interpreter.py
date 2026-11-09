@@ -1,5 +1,6 @@
 import unittest
 
+from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 from runtime.interpreter import Interpreter
@@ -121,6 +122,40 @@ class TestInterpreter(unittest.TestCase):
     def test_while_loop(self):
         env = run("let i = 0 while i < 3 { i = i + 1 }")
         self.assertEqual(env["i"], 3)
+
+    def test_undefined_name_diagnostic_has_span(self):
+        with self.assertRaises(SwarnaNameError) as raised:
+            run("let y = x + 1")
+        error = raised.exception
+        self.assertEqual(error.span, SourceSpan(1, 9, 1))
+        self.assertIsNotNone(error.hint)
+
+    def test_undefined_assignment_diagnostic_has_span(self):
+        with self.assertRaises(SwarnaNameError) as raised:
+            run("x = 1")
+        self.assertEqual(raised.exception.span, SourceSpan(1, 1, 1))
+
+    def test_const_assignment_diagnostic_has_span(self):
+        with self.assertRaises(SwarnaRuntimeError) as raised:
+            run("const x = 0 x = 1")
+        error = raised.exception
+        self.assertEqual(error.span, SourceSpan(1, 13, 1))
+        self.assertIsNotNone(error.hint)
+
+    def test_division_by_zero_diagnostic_has_span(self):
+        with self.assertRaises(SwarnaZeroDivisionError) as raised:
+            run("let x = 1 / 0")
+        self.assertEqual(raised.exception.span, SourceSpan(1, 11, 1))
+
+    def test_integer_division_type_diagnostic_has_span(self):
+        with self.assertRaises(SwarnaTypeError) as raised:
+            run("let x = 7.0 // 2")
+        self.assertEqual(raised.exception.span, SourceSpan(1, 13, 2))
+
+    def test_type_mismatch_diagnostic_has_span(self):
+        with self.assertRaises(SwarnaTypeError) as raised:
+            run('let x = 1 + "a"')
+        self.assertEqual(raised.exception.span, SourceSpan(1, 11, 1))
 
 
 if __name__ == "__main__":

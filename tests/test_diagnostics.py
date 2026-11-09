@@ -1,6 +1,15 @@
 import unittest
 
-from compiler.diagnostics import DiagnosticError, SourceSpan, SwarnaSyntaxError, render_diagnostic
+from compiler.diagnostics import (
+    DiagnosticError,
+    SourceSpan,
+    SwarnaNameError,
+    SwarnaRuntimeError,
+    SwarnaSyntaxError,
+    SwarnaTypeError,
+    SwarnaZeroDivisionError,
+    render_diagnostic,
+)
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 
@@ -29,7 +38,43 @@ class TestDiagnosticError(unittest.TestCase):
         self.assertIsInstance(error, DiagnosticError)
 
 
+class TestRuntimeDiagnosticTypes(unittest.TestCase):
+    def test_runtime_error_remains_catchable_as_runtime_error(self):
+        error = SwarnaRuntimeError("boom", SourceSpan(1, 2), "fix it")
+        self.assertIsInstance(error, RuntimeError)
+        self.assertIsInstance(error, DiagnosticError)
+
+    def test_name_error_remains_catchable_as_name_error(self):
+        self.assertIsInstance(SwarnaNameError("missing"), NameError)
+
+    def test_type_error_remains_catchable_as_type_error(self):
+        self.assertIsInstance(SwarnaTypeError("bad type"), TypeError)
+
+    def test_zero_division_error_remains_catchable_as_zero_division_error(self):
+        self.assertIsInstance(SwarnaZeroDivisionError("zero"), ZeroDivisionError)
+
+    def test_renders_runtime_diagnostic(self):
+        error = SwarnaNameError(
+            "Undefined name 'x'",
+            SourceSpan(1, 9),
+            "Declare it first.",
+        )
+        rendered = render_diagnostic("let y = x + 1", error)
+        self.assertIn("error: Undefined name 'x'", rendered)
+        self.assertIn("--> 1:9", rendered)
+        self.assertIn("^", rendered)
+        self.assertIn("hint: Declare it first.", rendered)
+
+
 class TestLexerDiagnostics(unittest.TestCase):
+    def test_string_token_span_includes_quotes(self):
+        tokens = Lexer('let s = "hi"').tokenize()
+        self.assertEqual(tokens[3].span, SourceSpan(1, 9, 4))
+
+    def test_string_token_span_counts_escape_source(self):
+        tokens = Lexer('let s = "a\\nb"').tokenize()
+        self.assertEqual(tokens[3].span, SourceSpan(1, 9, 6))
+
     def test_unexpected_character_has_span_and_hint(self):
         with self.assertRaises(SwarnaSyntaxError) as raised:
             Lexer("let x @ 1").tokenize()

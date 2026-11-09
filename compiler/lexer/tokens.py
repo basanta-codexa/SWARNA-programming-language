@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 
 from compiler.diagnostics import SourceSpan
@@ -48,7 +48,9 @@ class Token:
     value: str
     line: int
     column: int
+    source_length: int | None = field(default=None, compare=False, repr=False)
 
     @property
     def span(self) -> SourceSpan:
-        return SourceSpan(self.line, self.column, max(1, len(self.value)))
+        length = self.source_length if self.source_length is not None else max(1, len(self.value))
+        return SourceSpan(self.line, self.column, length)

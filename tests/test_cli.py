@@ -131,6 +131,44 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("division by zero", stderr.getvalue())
 
+    def test_run_cli_renders_runtime_error_with_caret(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "let y = x + 1"])
+        self.assertEqual(code, 1)
+        output = stderr.getvalue()
+        self.assertIn("error: Undefined name 'x'", output)
+        self.assertIn("--> 1:9", output)
+        self.assertIn("^", output)
+        self.assertIn("hint: Declare it first", output)
+
+    def test_run_cli_renders_const_assignment_with_caret(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "const x = 0 x = 1"])
+        self.assertEqual(code, 1)
+        output = stderr.getvalue()
+        self.assertIn("--> 1:13", output)
+        self.assertIn("^", output)
+
+    def test_run_cli_renders_division_by_zero_with_caret(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "print(1 / 0)"])
+        self.assertEqual(code, 1)
+        output = stderr.getvalue()
+        self.assertIn("--> 1:9", output)
+        self.assertIn("hint: The divisor must be non-zero.", output)
+
+    def test_run_cli_renders_runtime_error_on_later_line(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "let x = 1\nprint(x + missing)"])
+        self.assertEqual(code, 1)
+        output = stderr.getvalue()
+        self.assertIn("--> 2:11", output)
+        self.assertIn("missing", output)
+
     def test_repl_runs_by_default_with_run_flag(self):
         stdout = io.StringIO()
         inputs = iter(["print(1 + 2)", ":q"])
