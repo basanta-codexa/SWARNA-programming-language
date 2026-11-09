@@ -19,9 +19,9 @@ Early development, v0.1. Implemented and tested:
 - `if` expressions with single-expression branches; multi-statement branches are pending.
 - Tree-walking interpreter with `const` enforcement.
 - Bytecode compiler and stack VM for the current subset, including jumps, short-circuit `&&`/`||`, and `const` enforcement.
-- CLI: `--lex`, `--parse`, `--emit-bytecode`, and a small REPL.
+- CLI: `--lex`, `--parse`, `--emit-bytecode`, `--run`, and a small executing REPL.
 
-Not implemented yet: static type checking, functions and call frames, garbage collection, modules, the standard library, string interpolation, concurrency, debugger, formatter, LSP, and runtime diagnostics.
+Not implemented yet: static type checking, functions and call frames, garbage collection, modules, the standard library, string interpolation, concurrency, debugger, formatter, LSP, and source-spanned runtime diagnostics.
 
 ## Try it
 
@@ -31,7 +31,20 @@ Requires Python 3.10 or newer. No third-party dependencies.
 python -m swarna --lex "let x = 42"
 python -m swarna --parse "let x = 1 + 2 * 3"
 python -m swarna --emit-bytecode "let x = 1 + 2"
+python -m swarna --run "let x = 1 + 2 print(x)"
 python -m swarna
+```
+
+`--run` executes through the tree-walking interpreter and prints `print` output. The last command starts the REPL; with `--run`, the REPL executes lines by default. `:lex`, `:parse`, `:bytecode`, and `:run` switch modes for one line.
+
+For multi-line programs, pipe the source through stdin. On PowerShell:
+
+```
+@'
+let score = 42
+let label = if score >= 50 { "pass" } else { "fail" }
+print(label)
+'@ | python -m swarna --run
 ```
 
 ## Tests

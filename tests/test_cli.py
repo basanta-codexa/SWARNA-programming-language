@@ -1,8 +1,17 @@
 import contextlib
 import io
 import unittest
+from unittest.mock import patch
 
-from swarna.__main__ import emit_bytecode_source, lex_source, main, parse_source
+from swarna.__main__ import emit_bytecode_source, lex_source, main, parse_source, run_source
+
+
+class FakeStdin:
+    def isatty(self) -> bool:
+        return True
+
+    def read(self) -> str:
+        return ""
 
 
 class TestCLIHelpers(unittest.TestCase):
@@ -49,6 +58,115 @@ class TestCLIHelpers(unittest.TestCase):
         output = stderr.getvalue()
         self.assertIn("Unexpected character", output)
         self.assertIn("hint:", output)
+
+    def test_run_source_prints_value(self):
+        self.assertEqual(run_source("print(1 + 2)"), "3")
+
+    def test_run_source_formats_booleans(self):
+        self.assertEqual(run_source("print(true) print(false)"), "true\nfalse")
+
+    def test_run_source_formats_strings_without_quotes(self):
+        self.assertEqual(run_source('print("hi")'), "hi")
+
+    def test_run_source_without_output_is_empty(self):
+        self.assertEqual(run_source("let x = 1"), "")
+
+    def test_run_source_executes_if_expression(self):
+        self.assertEqual(
+            run_source('let score = 42 print(if score >= 50 { "pass" } else { "fail" })'),
+            "fail",
+        )
+
+    def test_run_source_executes_while_loop(self):
+        self.assertEqual(
+            run_source("let i = 0 while i < 3 { print(i) i = i + 1 }"),
+            "0\n1\n2",
+        )
+
+    def test_run_source_reports_runtime_error(self):
+        with self.assertRaises(NameError):
+            run_source("x = 1")
+
+    def test_run_cli_prints_output(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            code = main(["--run", "print(1 + 2)"])
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.getvalue(), "3\n")
+
+    def test_run_cli_accepts_multiline_source(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            code = main(["--run", "let x = 1\nprint(x + 1)"])
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.getvalue(), "2\n")
+
+    def test_run_cli_renders_syntax_error(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "let x 42"])
+        self.assertEqual(code, 1)
+        output = stderr.getvalue()
+        self.assertIn("error: Expected '='", output)
+        self.assertIn("hint:", output)
+
+    def test_run_cli_reports_runtime_error(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "x = 1"])
+        self.assertEqual(code, 1)
+        self.assertIn("Undefined name 'x'", stderr.getvalue())
+
+    def test_run_cli_reports_const_assignment_error(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "const x = 1 x = 2"])
+        self.assertEqual(code, 1)
+        self.assertIn("Cannot assign to const binding 'x'", stderr.getvalue())
+
+    def test_run_cli_reports_division_by_zero(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "print(1 / 0)"])
+        self.assertEqual(code, 1)
+        self.assertIn("division by zero", stderr.getvalue())
+
+    def test_repl_runs_by_default_with_run_flag(self):
+        stdout = io.StringIO()
+        inputs = iter(["print(1 + 2)", ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("3", stdout.getvalue())
+
+    def test_repl_run_prefix(self):
+        stdout = io.StringIO()
+        inputs = iter([":run print(4 + 5)", ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+        ):
+            code = main([])
+        self.assertEqual(code, 0)
+        self.assertIn("9", stdout.getvalue())
+
+    def test_repl_reports_runtime_error(self):
+        stderr = io.StringIO()
+        inputs = iter(["x = 1", ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("Undefined name 'x'", stderr.getvalue())
 
 
 if __name__ == "__main__":

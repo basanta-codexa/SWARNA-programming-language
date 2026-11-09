@@ -102,7 +102,7 @@ error: Expected '='
 
 Runtime diagnostics will use the same shape once the runtime carries source spans.
 
-Status: lexer and parser errors implemented; runtime errors not yet.
+Status: lexer and parser errors implemented. The CLI reports runtime errors without source spans yet.
 
 ## Non-goals
 

@@ -5,6 +5,15 @@ from compiler.codegen.compiler import Compiler
 from compiler.diagnostics import DiagnosticError, render_diagnostic
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
+from runtime.interpreter import Interpreter
+
+
+def format_value(value: int | float | bool | str) -> str:
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    return str(value)
 
 
 def lex_source(source: str) -> str:
@@ -23,16 +32,26 @@ def emit_bytecode_source(source: str) -> str:
     return "\n".join(repr(i) for i in code)
 
 
+def run_source(source: str) -> str:
+    program = Parser(Lexer(source)).parse_program()
+    interpreter = Interpreter()
+    interpreter.eval(program)
+    return "\n".join(format_value(value) for value in interpreter.output)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="swarna", description="SWARNA language tools (minimal)")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--lex", action="store_true", help="Print tokens for the input")
     mode.add_argument("--parse", action="store_true", help="Print AST for the input")
     mode.add_argument("--emit-bytecode", action="store_true", help="Print compiled bytecode for the input")
+    mode.add_argument("--run", action="store_true", help="Run the input and print its output")
     parser.add_argument("source", nargs="?", help="Source line; if omitted, reads stdin or starts REPL")
     args = parser.parse_args(argv)
 
     def render(source: str) -> str:
+        if args.run:
+            return run_source(source)
         if args.parse:
             return parse_source(source)
         if args.emit_bytecode:
@@ -41,28 +60,44 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.source is not None:
         try:
-            print(render(args.source))
+            output = render(args.source)
         except DiagnosticError as e:
             print(render_diagnostic(args.source, e), file=sys.stderr)
             return 1
         except SyntaxError as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
+        except (NameError, TypeError, ZeroDivisionError, RuntimeError) as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        except KeyboardInterrupt:
+            print("interrupted", file=sys.stderr)
+            return 130
+        if output:
+            print(output)
         return 0
 
     if not sys.stdin.isatty():
         source = sys.stdin.read()
         try:
-            print(render(source))
+            output = render(source)
         except DiagnosticError as e:
             print(render_diagnostic(source, e), file=sys.stderr)
             return 1
         except SyntaxError as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
+        except (NameError, TypeError, ZeroDivisionError, RuntimeError) as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        except KeyboardInterrupt:
+            print("interrupted", file=sys.stderr)
+            return 130
+        if output:
+            print(output)
         return 0
 
-    print("SWARNA (minimal) — enter a line, :lex/:parse/:bytecode prefixes optional, :q to quit")
+    print("SWARNA (minimal) — enter a line, :lex/:parse/:bytecode/:run prefixes optional, :q to quit")
     while True:
         try:
             line = input("swarna> ")
@@ -73,12 +108,14 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if not line.strip():
             continue
-        action = "parse" if args.parse else "bytecode" if args.emit_bytecode else "lex"
+        action = "run" if args.run else "parse" if args.parse else "bytecode" if args.emit_bytecode else "lex"
         source = line
         if line.startswith(":parse "):
             action, source = "parse", line[7:]
         elif line.startswith(":bytecode "):
             action, source = "bytecode", line[10:]
+        elif line.startswith(":run "):
+            action, source = "run", line[5:]
         elif line.startswith(":lex "):
             action, source = "lex", line[5:]
         try:
@@ -86,12 +123,20 @@ def main(argv: list[str] | None = None) -> int:
                 print(parse_source(source))
             elif action == "bytecode":
                 print(emit_bytecode_source(source))
+            elif action == "run":
+                output = run_source(source)
+                if output:
+                    print(output)
             else:
                 print(lex_source(source))
         except DiagnosticError as e:
             print(render_diagnostic(source, e), file=sys.stderr)
-        except (SyntaxError, NotImplementedError, NameError, RuntimeError, ZeroDivisionError) as e:
+        except SyntaxError as e:
             print(f"error: {e}", file=sys.stderr)
+        except (NameError, TypeError, ZeroDivisionError, RuntimeError) as e:
+            print(f"error: {e}", file=sys.stderr)
+        except KeyboardInterrupt:
+            print("\ninterrupted", file=sys.stderr)
 
 
 if __name__ == "__main__":
