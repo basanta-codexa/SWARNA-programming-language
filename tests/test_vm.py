@@ -140,6 +140,26 @@ class TestVM(unittest.TestCase):
                 self.assertEqual(actual_env, expected_env)
                 self.assertEqual(vm.output, interpreter.output)
 
+    def test_vm_if_expression_matches_interpreter(self):
+        sources = [
+            "let x = if true { 1 } else { 2 } print(x)",
+            "let x = if false { 1 } else { 2 } print(x)",
+            'let x = if 10 >= 50 { "pass" } else { "fail" } print(x)',
+            "let x = if true { if false { 1 } else { 2 } } else { 3 } print(x)",
+            "let x = if 1 < 2 { 3 + 4 } else { 5 * 6 } print(x)",
+        ]
+        for source in sources:
+            with self.subTest(source=source):
+                program = Parser(Lexer(source)).parse_program()
+                interpreter = Interpreter()
+                expected_env = interpreter.eval(program)
+
+                vm = VM()
+                actual_env = vm.run(Compiler().compile(program))
+
+                self.assertEqual(actual_env, expected_env)
+                self.assertEqual(vm.output, interpreter.output)
+
     def test_vm_while_matches_interpreter(self):
         sources = [
             "let i = 0 while i < 3 { i = i + 1 } print(i)",

@@ -54,7 +54,7 @@ Both branches must produce compatible types. An `if` without `else` produces uni
 
 Reason: conditional values are common in real work: labels, defaults, formatting. Statement-only `if` forces a mutable temporary and more lines.
 
-Status: accepted, not yet implemented. The parser currently treats `if` as a statement. Expression form will be added after statement-form `if` is compiled to bytecode, so the jump machinery is already exercised.
+Status: partly implemented. `if` expressions with a single expression per branch work in both the interpreter and the VM, and an `else` branch is required in expression position. Multi-statement branches, block values, and static branch-type compatibility are pending.
 
 ### 4. Exceptions by default, `Result` by choice
 
@@ -116,7 +116,7 @@ Reason: braces remove indentation ambiguity and keep parsing and tooling simple.
 |---|---|---|
 | 1 | `/` true division, `//` integer division | Implemented |
 | 2 | `let` mutable, `const` immutable | Implemented |
-| 3 | `if` is an expression | Accepted, pending |
+| 3 | `if` is an expression | Partly implemented |
 | 4 | Exceptions by default, `Result` opt-in | Accepted, pending |
 | 5 | `and` / `or` / `not` aliases | Implemented |
 | 6 | Braces, optional semicolons, automatic formatting | Partly implemented |

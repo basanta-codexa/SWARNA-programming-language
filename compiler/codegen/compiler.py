@@ -8,6 +8,7 @@ from compiler.ast.nodes import (
     Expression,
     FloatLiteral,
     Identifier,
+    IfExpression,
     IfStatement,
     IntegerLiteral,
     LetStatement,
@@ -96,6 +97,15 @@ class Compiler:
             return
         if isinstance(expr, BoolLiteral):
             self.emit(Op.CONST, expr.value)
+            return
+        if isinstance(expr, IfExpression):
+            self.compile_expression(expr.condition)
+            jump_to_else = self.emit(Op.JUMP_IF_FALSE, None)
+            self.compile_expression(expr.then_value)
+            jump_to_end = self.emit(Op.JUMP, None)
+            self.patch(jump_to_else, len(self.instructions))
+            self.compile_expression(expr.else_value)
+            self.patch(jump_to_end, len(self.instructions))
             return
         if isinstance(expr, Identifier):
             self.emit(Op.LOAD_NAME, expr.name)

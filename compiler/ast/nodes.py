@@ -41,7 +41,14 @@ class BinaryExpression:
     right: "Expression"
 
 
-Expression = IntegerLiteral | FloatLiteral | StringLiteral | BoolLiteral | BinaryExpression | Identifier | UnaryExpression
+@dataclass(frozen=True)
+class IfExpression:
+    condition: "Expression"
+    then_value: "Expression"
+    else_value: "Expression"
+
+
+Expression = IntegerLiteral | FloatLiteral | StringLiteral | BoolLiteral | BinaryExpression | IfExpression | Identifier | UnaryExpression
 
 
 @dataclass(frozen=True)

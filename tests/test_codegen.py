@@ -86,6 +86,18 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_if_expression(self):
+        code = compile_source("let x = if true { 1 } else { 2 }")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST True",
+            "JUMP_IF_FALSE 4",
+            "CONST 1",
+            "JUMP 5",
+            "CONST 2",
+            "DECLARE_NAME 'x'",
+            "HALT",
+        ])
+
     def test_compile_while(self):
         code = compile_source("while i < 3 { i = i + 1 }")
         self.assertEqual([repr(i) for i in code], [

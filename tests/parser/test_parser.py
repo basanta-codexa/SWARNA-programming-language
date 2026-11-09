@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, FloatLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 
@@ -163,6 +163,37 @@ class TestParser(unittest.TestCase):
         self.assertIsNotNone(stmt.else_branch)
         assert isinstance(stmt.then_branch, BlockStatement)
         self.assertEqual(len(stmt.then_branch.statements), 1)
+
+    def test_parse_if_expression(self):
+        parser = Parser(Lexer("let x = if true { 1 } else { 2 }"))
+        program = parser.parse_program()
+        self.assertEqual(
+            program,
+            Program(statements=[
+                LetStatement(
+                    name=Identifier("x"),
+                    value=IfExpression(
+                        condition=BoolLiteral(True),
+                        then_value=IntegerLiteral(1),
+                        else_value=IntegerLiteral(2),
+                    ),
+                    constant=False,
+                )
+            ]),
+        )
+
+    def test_parse_if_expression_requires_else(self):
+        parser = Parser(Lexer("let x = if true { 1 }"))
+        with self.assertRaisesRegex(SyntaxError, "requires an else branch"):
+            parser.parse_program()
+
+    def test_parse_nested_if_expression(self):
+        parser = Parser(Lexer("let x = if true { if false { 1 } else { 2 } } else { 3 }"))
+        program = parser.parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, IfExpression)
+        assert isinstance(stmt.value.then_value, IfExpression)
 
     def test_parse_assignment(self):
         parser = Parser(Lexer("x = 1 + 2"))

@@ -15,6 +15,7 @@ Early development, v0.1. Implemented and tested:
 - `and`/`or`/`not` aliases for `&&`/`||`/`!`.
 - Recursive-descent parser with operator precedence.
 - AST for `let`/`const`, assignment, `print`, `if`/`else`, `while`, and blocks.
+- `if` expressions with single-expression branches; multi-statement branches are pending.
 - Tree-walking interpreter with `const` enforcement.
 - Bytecode compiler and stack VM for the current subset, including jumps, short-circuit `&&`/`||`, and `const` enforcement.
 - CLI: `--lex`, `--parse`, `--emit-bytecode`, and a small REPL.

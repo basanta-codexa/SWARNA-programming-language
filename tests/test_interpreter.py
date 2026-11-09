@@ -89,6 +89,19 @@ class TestInterpreter(unittest.TestCase):
         env = run("let a = 5 let r = 0 if a > 3 { let r = 10 }")
         self.assertEqual(env["r"], 10)
 
+    def test_if_expression(self):
+        env = run("let a = if true { 1 } else { 2 } let b = if false { 1 } else { 2 }")
+        self.assertEqual(env["a"], 1)
+        self.assertEqual(env["b"], 2)
+
+    def test_if_expression_with_condition(self):
+        env = run('let score = 42 let label = if score >= 50 { "pass" } else { "fail" }')
+        self.assertEqual(env["label"], "fail")
+
+    def test_nested_if_expression(self):
+        env = run("let x = if true { if false { 1 } else { 2 } } else { 3 }")
+        self.assertEqual(env["x"], 2)
+
     def test_let_assignment(self):
         env = run("let x = 0 x = x + 1 x = x + 1")
         self.assertEqual(env["x"], 2)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 
 
 class Interpreter:
@@ -60,6 +60,10 @@ class Interpreter:
             return expr.value
         if isinstance(expr, BoolLiteral):
             return expr.value
+        if isinstance(expr, IfExpression):
+            if bool(self.eval_expression(expr.condition)):
+                return self.eval_expression(expr.then_value)
+            return self.eval_expression(expr.else_value)
         if isinstance(expr, Identifier):
             if expr.name not in self.env:
                 raise NameError(f"Undefined name '{expr.name}'")
