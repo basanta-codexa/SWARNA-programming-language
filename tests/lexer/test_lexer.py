@@ -186,6 +186,48 @@ class TestLexer(unittest.TestCase):
         self.assertIn(TokenType.SEMICOLON, types)
         self.assertEqual(types.count(TokenType.SEMICOLON), 2)
 
+    def test_function_tokens(self):
+        lexer = Lexer("fn add(a: Int) -> Int { a }")
+        tokens = lexer.tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens[:-1]],
+            [
+                (TokenType.KEYWORD_FN, "fn"),
+                (TokenType.IDENTIFIER, "add"),
+                (TokenType.LPAREN, "("),
+                (TokenType.IDENTIFIER, "a"),
+                (TokenType.COLON, ":"),
+                (TokenType.IDENTIFIER, "Int"),
+                (TokenType.RPAREN, ")"),
+                (TokenType.ARROW, "->"),
+                (TokenType.IDENTIFIER, "Int"),
+                (TokenType.LBRACE, "{"),
+                (TokenType.IDENTIFIER, "a"),
+                (TokenType.RBRACE, "}"),
+            ],
+        )
+
+    def test_minus_and_arrow_are_distinct(self):
+        tokens = Lexer("-1 -> Int").tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens[:-1]],
+            [
+                (TokenType.MINUS, "-"),
+                (TokenType.INTEGER, "1"),
+                (TokenType.ARROW, "->"),
+                (TokenType.IDENTIFIER, "Int"),
+            ],
+        )
+
+    def test_fn_prefix_is_identifier(self):
+        tokens = Lexer("fnord").tokenize()
+        self.assertEqual(tokens[0].type, TokenType.IDENTIFIER)
+        self.assertEqual(tokens[0].value, "fnord")
+
+    def test_comma(self):
+        tokens = Lexer("f(1, 2)").tokenize()
+        self.assertIn(TokenType.COMMA, [t.type for t in tokens])
+
 
 if __name__ == "__main__":
     unittest.main()

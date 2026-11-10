@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, FloatLiteral, FunctionDeclaration, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, Parameter, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SourceSpan
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
@@ -386,6 +386,118 @@ class TestParser(unittest.TestCase):
         assert isinstance(stmt, AssignmentStatement)
         self.assertEqual(stmt.span, SourceSpan(1, 1, 1))
         self.assertEqual(stmt.name.span, SourceSpan(1, 1, 1))
+
+    def test_parse_function_declaration(self):
+        program = Parser(Lexer("fn add(a: Int, b: Int) -> Int { a + b }")).parse_program()
+        self.assertEqual(
+            program,
+            Program(statements=[
+                FunctionDeclaration(
+                    name=Identifier("add"),
+                    parameters=[
+                        Parameter(name=Identifier("a"), type_name=Identifier("Int")),
+                        Parameter(name=Identifier("b"), type_name=Identifier("Int")),
+                    ],
+                    return_type=Identifier("Int"),
+                    body=BinaryExpression(left=Identifier("a"), operator="+", right=Identifier("b")),
+                )
+            ]),
+        )
+
+    def test_parse_function_without_annotations(self):
+        program = Parser(Lexer("fn identity(x) { x }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, FunctionDeclaration)
+        self.assertEqual(stmt.parameters, [Parameter(name=Identifier("x"), type_name=None)])
+        self.assertIsNone(stmt.return_type)
+        self.assertEqual(stmt.body, Identifier("x"))
+
+    def test_parse_function_with_block_body(self):
+        program = Parser(Lexer("fn total(a: Int) -> Int { let b = a + 1 b }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, FunctionDeclaration)
+        body = stmt.body
+        assert isinstance(body, BlockExpression)
+        self.assertEqual(len(body.statements), 1)
+        self.assertIsInstance(body.statements[0], LetStatement)
+        self.assertEqual(body.value, Identifier("b"))
+
+    def test_parse_function_allows_trailing_parameter_comma(self):
+        program = Parser(Lexer("fn f(a: Int,) { a }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, FunctionDeclaration)
+        self.assertEqual(stmt.parameters, [Parameter(name=Identifier("a"), type_name=Identifier("Int"))])
+
+    def test_parse_call_expression(self):
+        program = Parser(Lexer("let x = add(1, 2)")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(
+            stmt.value,
+            CallExpression(
+                callee=Identifier("add"),
+                arguments=[IntegerLiteral(1), IntegerLiteral(2)],
+            ),
+        )
+
+    def test_parse_call_with_no_arguments(self):
+        program = Parser(Lexer("let x = now()")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(stmt.value, CallExpression(callee=Identifier("now"), arguments=[]))
+
+    def test_parse_call_in_binary_expression(self):
+        program = Parser(Lexer("let x = add(1, 2) * 3")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, BinaryExpression)
+        self.assertEqual(stmt.value.operator, "*")
+        self.assertEqual(
+            stmt.value.left,
+            CallExpression(callee=Identifier("add"), arguments=[IntegerLiteral(1), IntegerLiteral(2)]),
+        )
+        self.assertEqual(stmt.value.right, IntegerLiteral(3))
+
+    def test_parse_call_allows_trailing_argument_comma(self):
+        program = Parser(Lexer("let x = add(1, 2,)")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(
+            stmt.value,
+            CallExpression(callee=Identifier("add"), arguments=[IntegerLiteral(1), IntegerLiteral(2)]),
+        )
+
+    def test_parse_bare_call_statement_rejected(self):
+        parser = Parser(Lexer("add(1, 2)"))
+        with self.assertRaisesRegex(SyntaxError, "Function calls cannot be used as statements yet"):
+            parser.parse_program()
+
+    def test_parse_function_requires_body_value(self):
+        parser = Parser(Lexer("fn f() { }"))
+        with self.assertRaisesRegex(SyntaxError, "Block value needs a final expression"):
+            parser.parse_program()
+
+    def test_parse_function_requires_return_type_after_arrow(self):
+        parser = Parser(Lexer("fn f() -> { 1 }"))
+        with self.assertRaisesRegex(SyntaxError, "Expected a return type after '->'"):
+            parser.parse_program()
+
+    def test_parse_function_requires_parameter_type_after_colon(self):
+        parser = Parser(Lexer("fn f(a:) { a }"))
+        with self.assertRaisesRegex(SyntaxError, "Expected a type after ':'"):
+            parser.parse_program()
+
+    def test_function_and_call_spans(self):
+        program = Parser(Lexer("fn add(a: Int) -> Int { a } let x = add(1)")).parse_program()
+        declaration, binding = program.statements
+        assert isinstance(declaration, FunctionDeclaration)
+        assert isinstance(binding, LetStatement)
+        self.assertEqual(declaration.span, SourceSpan(1, 1, 2))
+        self.assertEqual(declaration.name.span, SourceSpan(1, 4, 3))
+        self.assertEqual(declaration.parameters[0].name.span, SourceSpan(1, 8, 1))
+        self.assertEqual(declaration.parameters[0].type_name.span, SourceSpan(1, 11, 3))
+        self.assertEqual(declaration.return_type.span, SourceSpan(1, 19, 3))
+        self.assertEqual(binding.value.span, SourceSpan(1, 37, 3))
 
 
 if __name__ == "__main__":

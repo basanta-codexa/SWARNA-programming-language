@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, FunctionDeclaration, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, Parameter, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
@@ -37,6 +37,8 @@ class Parser:
             return self.parse_if_statement()
         if self.current.type == TokenType.KEYWORD_WHILE:
             return self.parse_while_statement()
+        if self.current.type == TokenType.KEYWORD_FN:
+            return self.parse_function_declaration()
         if self.current.type == TokenType.IDENTIFIER and self.current.value == "print":
             return self.parse_print_statement()
         if self.current.type == TokenType.IDENTIFIER:
@@ -44,13 +46,19 @@ class Parser:
         raise SwarnaSyntaxError(
             "Expected statement",
             self.current.span,
-            hint="Expected `let`, `const`, `if`, `while`, `print`, or an assignment.",
+            hint="Expected `let`, `const`, `fn`, `if`, `while`, `print`, or an assignment.",
         )
 
     def parse_assignment_statement(self) -> AssignmentStatement:
         name_token = self.current
         name = Identifier(name_token.value, span=name_token.span)
         self._advance()
+        if self.current.type == TokenType.LPAREN:
+            raise SwarnaSyntaxError(
+                "Function calls cannot be used as statements yet",
+                self.current.span,
+                hint="Use the call in a `let` binding or inside `print(...)`.",
+            )
         self._expect(
             TokenType.EQUAL,
             "Expected '=' in assignment",
@@ -58,6 +66,75 @@ class Parser:
         )
         value = self.parse_expression()
         return AssignmentStatement(name=name, value=value, span=name_token.span)
+
+    def parse_function_declaration(self) -> FunctionDeclaration:
+        fn_token = self.current
+        self._expect(TokenType.KEYWORD_FN, "Expected 'fn'", hint="Write `fn name(...) { ... }`.")
+        name_token = self.current
+        name_value = self._expect(
+            TokenType.IDENTIFIER,
+            "Expected a function name",
+            hint="Write `fn name(...) { ... }`.",
+        )
+        name = Identifier(name_value, span=name_token.span)
+        self._expect(
+            TokenType.LPAREN,
+            "Expected '(' after function name",
+            hint="Write the parameters in parentheses: `fn name(a: Int) { ... }`.",
+        )
+        parameters: list[Parameter] = []
+        if self.current.type != TokenType.RPAREN:
+            while True:
+                parameters.append(self.parse_parameter())
+                if self.current.type == TokenType.COMMA:
+                    self._advance()
+                    if self.current.type == TokenType.RPAREN:
+                        break
+                    continue
+                break
+        self._expect(
+            TokenType.RPAREN,
+            "Expected ')' after parameters",
+            hint="Close the parameter list with `)`.",
+        )
+        return_type = None
+        if self.current.type == TokenType.ARROW:
+            self._advance()
+            type_token = self.current
+            type_value = self._expect(
+                TokenType.IDENTIFIER,
+                "Expected a return type after '->'",
+                hint="Use `Int`, `Float`, `String`, or `Bool`.",
+            )
+            return_type = Identifier(type_value, span=type_token.span)
+        body = self.parse_block_expression()
+        return FunctionDeclaration(
+            name=name,
+            parameters=parameters,
+            return_type=return_type,
+            body=body,
+            span=fn_token.span,
+        )
+
+    def parse_parameter(self) -> Parameter:
+        name_token = self.current
+        name_value = self._expect(
+            TokenType.IDENTIFIER,
+            "Expected parameter name",
+            hint="Write a parameter as `name` or `name: Type`.",
+        )
+        name = Identifier(name_value, span=name_token.span)
+        type_name = None
+        if self.current.type == TokenType.COLON:
+            self._advance()
+            type_token = self.current
+            type_value = self._expect(
+                TokenType.IDENTIFIER,
+                "Expected a type after ':'",
+                hint="Use `Int`, `Float`, `String`, or `Bool`.",
+            )
+            type_name = Identifier(type_value, span=type_token.span)
+        return Parameter(name=name, type_name=type_name)
 
     def parse_if_statement(self) -> IfStatement:
         if_token = self.current
@@ -99,7 +176,7 @@ class Parser:
         self._expect(
             TokenType.LBRACE,
             "Expected '{'",
-            hint="An `if` expression branch is written as `{ value }`.",
+            hint="A block value is written as `{ ... value }`.",
         )
         statements: list[Statement] = []
         while self.current.type == TokenType.SEMICOLON:
@@ -117,6 +194,7 @@ class Parser:
                 TokenType.KEYWORD_LET,
                 TokenType.KEYWORD_CONST,
                 TokenType.KEYWORD_WHILE,
+                TokenType.KEYWORD_FN,
             ):
                 statements.append(self.parse_statement())
             elif self.current.type == TokenType.IDENTIFIER and self.current.value == "print":
@@ -302,7 +380,10 @@ class Parser:
         if self.current.type == TokenType.IDENTIFIER:
             token = self.current
             self._advance()
-            return Identifier(token.value, span=token.span)
+            callee = Identifier(token.value, span=token.span)
+            if self.current.type == TokenType.LPAREN:
+                return self.parse_call(callee)
+            return callee
         if self.current.type == TokenType.LPAREN:
             self._advance()
             node = self.parse_expression()
@@ -311,5 +392,33 @@ class Parser:
         raise SwarnaSyntaxError(
             "Expected expression",
             self.current.span,
-            hint="Expected a literal, name, or parenthesized expression.",
+            hint="Expected a literal, name, function call, or parenthesized expression.",
+        )
+
+    def parse_call(self, callee: Identifier) -> CallExpression:
+        lparen_token = self.current
+        self._expect(
+            TokenType.LPAREN,
+            "Expected '(' after function name",
+            hint="Write a call as `name(arguments)`.",
+        )
+        arguments: list[Expression] = []
+        if self.current.type != TokenType.RPAREN:
+            while True:
+                arguments.append(self.parse_expression())
+                if self.current.type == TokenType.COMMA:
+                    self._advance()
+                    if self.current.type == TokenType.RPAREN:
+                        break
+                    continue
+                break
+        self._expect(
+            TokenType.RPAREN,
+            "Expected ')' after arguments",
+            hint="Close the call with `)`.",
+        )
+        return CallExpression(
+            callee=callee,
+            arguments=arguments,
+            span=callee.span if callee.span is not None else lparen_token.span,
         )

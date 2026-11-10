@@ -65,7 +65,14 @@ class BlockExpression:
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
 
 
-Expression = IntegerLiteral | FloatLiteral | StringLiteral | BoolLiteral | BinaryExpression | IfExpression | BlockExpression | Identifier | UnaryExpression
+@dataclass(frozen=True)
+class CallExpression:
+    callee: Identifier
+    arguments: list["Expression"]
+    span: SourceSpan | None = field(default=None, compare=False, repr=False)
+
+
+Expression = IntegerLiteral | FloatLiteral | StringLiteral | BoolLiteral | BinaryExpression | IfExpression | BlockExpression | CallExpression | Identifier | UnaryExpression
 
 
 @dataclass(frozen=True)
@@ -110,7 +117,22 @@ class WhileStatement:
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
 
 
-Statement = LetStatement | AssignmentStatement | PrintStatement | IfStatement | WhileStatement | BlockStatement
+@dataclass(frozen=True)
+class Parameter:
+    name: Identifier
+    type_name: Identifier | None = None
+
+
+@dataclass(frozen=True)
+class FunctionDeclaration:
+    name: Identifier
+    parameters: list[Parameter]
+    return_type: Identifier | None
+    body: Expression
+    span: SourceSpan | None = field(default=None, compare=False, repr=False)
+
+
+Statement = LetStatement | AssignmentStatement | PrintStatement | IfStatement | WhileStatement | BlockStatement | FunctionDeclaration
 
 
 @dataclass(frozen=True)

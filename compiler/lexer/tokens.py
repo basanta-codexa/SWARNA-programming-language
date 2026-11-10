@@ -12,6 +12,7 @@ class TokenType(Enum):
     KEYWORD_IF = auto()
     KEYWORD_ELSE = auto()
     KEYWORD_WHILE = auto()
+    KEYWORD_FN = auto()
     KEYWORD_AND = auto()
     KEYWORD_OR = auto()
     KEYWORD_NOT = auto()
@@ -39,6 +40,9 @@ class TokenType(Enum):
     LBRACE = auto()
     RBRACE = auto()
     SEMICOLON = auto()
+    COLON = auto()
+    COMMA = auto()
+    ARROW = auto()
     EOF = auto()
 
 

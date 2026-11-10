@@ -104,6 +104,8 @@ class Lexer:
                 return Token(TokenType.KEYWORD_ELSE, value, line, column)
             if value == "while":
                 return Token(TokenType.KEYWORD_WHILE, value, line, column)
+            if value == "fn":
+                return Token(TokenType.KEYWORD_FN, value, line, column)
             if value == "and":
                 return Token(TokenType.KEYWORD_AND, value, line, column)
             if value == "or":
@@ -172,16 +174,23 @@ class Lexer:
                 self.advance()
                 return Token(TokenType.SLASHSLASH, "//", line, column)
             return Token(TokenType.SLASH, "/", line, column)
+        if ch == "-":
+            self.advance()
+            if self.current_char == ">":
+                self.advance()
+                return Token(TokenType.ARROW, "->", line, column)
+            return Token(TokenType.MINUS, "-", line, column)
 
         single_char = {
             "+": TokenType.PLUS,
-            "-": TokenType.MINUS,
             "*": TokenType.STAR,
             "(": TokenType.LPAREN,
             ")": TokenType.RPAREN,
             "{": TokenType.LBRACE,
             "}": TokenType.RBRACE,
             ";": TokenType.SEMICOLON,
+            ":": TokenType.COLON,
+            ",": TokenType.COMMA,
         }
         if ch in single_char:
             self.advance()
