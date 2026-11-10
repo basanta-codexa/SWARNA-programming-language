@@ -38,7 +38,7 @@ Prints `fail`.
 
 PowerShell strips embedded double quotes when passing a source string to a native command. The here-string above avoids that.
 
-`--run` uses the tree-walking interpreter. The REPL also executes lines by default when started with `--run`:
+`--run` uses the tree-walking interpreter. The REPL also executes lines by default when started with `--run`, and bindings persist between lines:
 
 ```
 python -m swarna --run
@@ -52,6 +52,7 @@ python -m swarna --run
 - `if`/`else` statements and single-expression `if` expressions
 - `while` loops
 - `print`
+- a REPL that keeps bindings between lines
 - caret diagnostics with hints for lexer, parser, and runtime errors
 - a stack VM checked against the interpreter by differential tests
 

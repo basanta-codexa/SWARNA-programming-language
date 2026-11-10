@@ -3,6 +3,7 @@ import io
 import unittest
 from unittest.mock import patch
 
+from runtime.interpreter import Interpreter
 from swarna.__main__ import emit_bytecode_source, lex_source, main, parse_source, run_source
 
 
@@ -86,6 +87,21 @@ class TestCLIHelpers(unittest.TestCase):
     def test_run_source_reports_runtime_error(self):
         with self.assertRaises(NameError):
             run_source("x = 1")
+
+    def test_run_source_accepts_existing_interpreter(self):
+        interpreter = Interpreter()
+        self.assertEqual(run_source("let x = 1", interpreter), "")
+        self.assertEqual(run_source("print(x + 1)", interpreter), "2")
+
+    def test_run_source_returns_only_new_output(self):
+        interpreter = Interpreter()
+        self.assertEqual(run_source("print(1)", interpreter), "1")
+        self.assertEqual(run_source("print(2)", interpreter), "2")
+
+    def test_run_source_does_not_share_state_by_default(self):
+        self.assertEqual(run_source("let x = 1"), "")
+        with self.assertRaises(NameError):
+            run_source("print(x)")
 
     def test_run_cli_prints_output(self):
         stdout = io.StringIO()
@@ -205,6 +221,58 @@ class TestCLIHelpers(unittest.TestCase):
             code = main(["--run"])
         self.assertEqual(code, 0)
         self.assertIn("Undefined name 'x'", stderr.getvalue())
+
+    def test_repl_preserves_state_between_lines(self):
+        stdout = io.StringIO()
+        inputs = iter(["let x = 1", "print(x + 1)", ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("2", stdout.getvalue())
+
+    def test_repl_preserves_const_binding(self):
+        stderr = io.StringIO()
+        inputs = iter(["const x = 1", "x = 2", ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("Cannot assign to const binding 'x'", stderr.getvalue())
+
+    def test_repl_run_prefix_shares_state(self):
+        stdout = io.StringIO()
+        inputs = iter(["let x = 4", ":run print(x + 1)", ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("5", stdout.getvalue())
+
+    def test_repl_continues_after_error(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        inputs = iter(["print(missing)", "print(1 + 1)", ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("Undefined name 'missing'", stderr.getvalue())
+        self.assertIn("2", stdout.getvalue())
 
 
 if __name__ == "__main__":

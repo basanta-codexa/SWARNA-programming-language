@@ -32,11 +32,13 @@ def emit_bytecode_source(source: str) -> str:
     return "\n".join(repr(i) for i in code)
 
 
-def run_source(source: str) -> str:
+def run_source(source: str, interpreter: Interpreter | None = None) -> str:
     program = Parser(Lexer(source)).parse_program()
-    interpreter = Interpreter()
+    if interpreter is None:
+        interpreter = Interpreter()
+    output_start = len(interpreter.output)
     interpreter.eval(program)
-    return "\n".join(format_value(value) for value in interpreter.output)
+    return "\n".join(format_value(value) for value in interpreter.output[output_start:])
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -97,6 +99,7 @@ def main(argv: list[str] | None = None) -> int:
             print(output)
         return 0
 
+    interpreter = Interpreter()
     print("SWARNA (minimal) — enter a line, :lex/:parse/:bytecode/:run prefixes optional, :q to quit")
     while True:
         try:
@@ -124,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
             elif action == "bytecode":
                 print(emit_bytecode_source(source))
             elif action == "run":
-                output = run_source(source)
+                output = run_source(source, interpreter)
                 if output:
                     print(output)
             else:
