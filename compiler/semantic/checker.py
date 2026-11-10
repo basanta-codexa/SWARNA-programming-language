@@ -10,8 +10,10 @@ from compiler.ast.nodes import (
     BlockExpression,
     BlockStatement,
     BoolLiteral,
+    CallExpression,
     Expression,
     FloatLiteral,
+    FunctionDeclaration,
     Identifier,
     IfExpression,
     IfStatement,
@@ -46,6 +48,14 @@ class Binding:
     span: SourceSpan | None = None
 
 
+@dataclass(frozen=True)
+class FunctionSignature:
+    name: str
+    parameters: tuple[Type, ...]
+    return_type: Type | None
+    span: SourceSpan | None = None
+
+
 def type_of_value(value: object) -> Type:
     """Infer the static type of a value already held by the interpreter."""
 
@@ -67,20 +77,143 @@ class TypeChecker:
     checks so they can still be tested as reference implementations.
     """
 
-    def __init__(self, initial_bindings: dict[str, Binding] | None = None):
+    def __init__(
+        self,
+        initial_bindings: dict[str, Binding] | None = None,
+        initial_functions: dict[str, FunctionSignature] | None = None,
+    ):
         self.env: dict[str, Binding] = dict(initial_bindings or {})
+        self.functions: dict[str, FunctionSignature] = dict(initial_functions or {})
 
     def check(self, program: Program) -> None:
-        saved = dict(self.env)
+        saved_env = dict(self.env)
+        saved_functions = dict(self.functions)
         try:
+            self._declare_functions(program)
             for stmt in program.statements:
+                if isinstance(stmt, FunctionDeclaration):
+                    continue
                 self.check_statement(stmt)
+            for stmt in program.statements:
+                if isinstance(stmt, FunctionDeclaration):
+                    self.check_function(stmt)
         except SwarnaSemanticError:
-            self.env = saved
+            self.env = saved_env
+            self.functions = saved_functions
             raise
 
+    def _declare_functions(self, program: Program) -> None:
+        seen: set[str] = set()
+        for stmt in program.statements:
+            if not isinstance(stmt, FunctionDeclaration):
+                continue
+            name = stmt.name.name
+            if name in seen:
+                self._error(
+                    f"Duplicate function '{name}'",
+                    stmt.name.span,
+                    "Give each function a unique name.",
+                )
+            seen.add(name)
+            if name == "print":
+                self._error(
+                    "Function name 'print' is reserved",
+                    stmt.name.span,
+                    "Use a different function name.",
+                )
+            if name in self.env:
+                self._error(
+                    f"Cannot declare function '{name}' because a variable with that name exists",
+                    stmt.name.span,
+                    "Use a different name for the function.",
+                )
+            parameter_types: list[Type] = []
+            parameter_names: set[str] = set()
+            for parameter in stmt.parameters:
+                parameter_name = parameter.name.name
+                if parameter_name in parameter_names:
+                    self._error(
+                        f"Duplicate parameter '{parameter_name}' in function '{name}'",
+                        parameter.name.span,
+                        "Use a different name for each parameter.",
+                    )
+                parameter_names.add(parameter_name)
+                parameter_types.append(self._resolve_type(parameter.type_name, Type.UNKNOWN))
+            return_type = self._resolve_type(stmt.return_type, None)
+            self.functions[name] = FunctionSignature(
+                name=name,
+                parameters=tuple(parameter_types),
+                return_type=return_type,
+                span=stmt.name.span,
+            )
+
+    def check_function(self, stmt: FunctionDeclaration) -> None:
+        signature = self.functions[stmt.name.name]
+        saved_env = self.env
+        self.env = dict(self.env)
+        try:
+            for parameter, parameter_type in zip(stmt.parameters, signature.parameters):
+                if parameter.name.name in self.functions:
+                    self._error(
+                        f"Parameter '{parameter.name.name}' conflicts with a function name",
+                        parameter.name.span,
+                        "Use a different parameter name.",
+                    )
+                self.env[parameter.name.name] = Binding(
+                    parameter_type,
+                    constant=False,
+                    span=parameter.name.span,
+                )
+            body_type = self.check_expression(stmt.body)
+            if signature.return_type is None:
+                self.functions[stmt.name.name] = FunctionSignature(
+                    name=signature.name,
+                    parameters=signature.parameters,
+                    return_type=body_type,
+                    span=signature.span,
+                )
+            elif not self._is_assignable(signature.return_type, body_type):
+                self._error(
+                    f"Function '{stmt.name.name}' declares {signature.return_type.label} "
+                    f"but its body produces {body_type.label}",
+                    stmt.body.span if stmt.body.span is not None else stmt.span,
+                    "Make the final expression match the declared return type.",
+                )
+        finally:
+            self.env = saved_env
+
+    def _resolve_type(self, type_name: Identifier | None, default: Type | None) -> Type | None:
+        if type_name is None:
+            return default
+        types = {
+            "Int": Type.INT,
+            "Float": Type.FLOAT,
+            "String": Type.STRING,
+            "Bool": Type.BOOL,
+        }
+        resolved = types.get(type_name.name)
+        if resolved is None:
+            self._error(
+                f"Unknown type '{type_name.name}'",
+                type_name.span,
+                "Use `Int`, `Float`, `String`, or `Bool`.",
+            )
+        return resolved
+
     def check_statement(self, stmt: Statement) -> None:
+        if isinstance(stmt, FunctionDeclaration):
+            self._error(
+                "Function declarations are only allowed at the top level",
+                stmt.span,
+                "Move the function declaration outside the block.",
+            )
         if isinstance(stmt, LetStatement):
+            if stmt.name.name in self.functions:
+                self._error(
+                    f"Cannot bind a variable named '{stmt.name.name}' because a function with that name exists",
+                    stmt.name.span,
+                    "Use a different name for the binding.",
+                )
             value_type = self.check_expression(stmt.value)
             self.env[stmt.name.name] = Binding(
                 value_type,
@@ -94,6 +227,12 @@ class TypeChecker:
             value_type = self.check_expression(stmt.value)
             binding = self.env.get(name)
             if binding is None:
+                if name in self.functions:
+                    self._error(
+                        f"Cannot assign to function '{name}'",
+                        stmt.name.span,
+                        "Call the function and assign its result to a variable.",
+                    )
                 self._error(
                     f"Undefined name '{name}'",
                     stmt.name.span,
@@ -153,9 +292,44 @@ class TypeChecker:
         if isinstance(expr, BoolLiteral):
             return Type.BOOL
 
+        if isinstance(expr, CallExpression):
+            signature = self.functions.get(expr.callee.name)
+            if signature is None:
+                self._error(
+                    f"Undefined function '{expr.callee.name}'",
+                    expr.callee.span,
+                    "Declare it first with `fn name(...) { ... }`.",
+                )
+            if len(expr.arguments) != len(signature.parameters):
+                self._error(
+                    f"Function '{signature.name}' expects {len(signature.parameters)} arguments, "
+                    f"got {len(expr.arguments)}",
+                    expr.span,
+                    "Pass the number of arguments in the function declaration.",
+                )
+            for index, (argument, parameter_type) in enumerate(
+                zip(expr.arguments, signature.parameters),
+                start=1,
+            ):
+                argument_type = self.check_expression(argument)
+                if not self._is_assignable(parameter_type, argument_type):
+                    self._error(
+                        f"Argument {index} of '{signature.name}' must be {parameter_type.label}, "
+                        f"got {argument_type.label}",
+                        argument.span,
+                        "Pass a value of the declared parameter type.",
+                    )
+            return signature.return_type if signature.return_type is not None else Type.UNKNOWN
+
         if isinstance(expr, Identifier):
             binding = self.env.get(expr.name)
             if binding is None:
+                if expr.name in self.functions:
+                    self._error(
+                        f"Function '{expr.name}' must be called",
+                        expr.span,
+                        "Add parentheses and arguments, or bind the result to a name.",
+                    )
                 self._error(
                     f"Undefined name '{expr.name}'",
                     expr.span,

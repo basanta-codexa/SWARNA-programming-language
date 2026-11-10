@@ -85,6 +85,12 @@ class Interpreter:
             name = stmt.name.name
             value = self.eval_expression(stmt.value)
             if name not in self.env:
+                if name in self.functions:
+                    raise SwarnaNameError(
+                        f"Cannot assign to function '{name}'",
+                        stmt.name.span,
+                        hint="Call the function and assign its result to a variable.",
+                    )
                 raise SwarnaNameError(
                     f"Undefined name '{name}'",
                     stmt.name.span,

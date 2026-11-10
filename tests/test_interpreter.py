@@ -281,6 +281,10 @@ class TestInterpreterFunctions(unittest.TestCase):
         with self.assertRaisesRegex(NameError, "must be called"):
             run("fn f() -> Int { 1 } let x = f")
 
+    def test_assignment_to_function_is_rejected(self):
+        with self.assertRaisesRegex(NameError, "Cannot assign to function 'f'"):
+            run("fn f() -> Int { 1 } f = 2")
+
     def test_duplicate_function_declaration(self):
         with self.assertRaisesRegex(RuntimeError, "declared more than once"):
             run("fn f() -> Int { 1 } fn f() -> Int { 2 } let x = f()")
