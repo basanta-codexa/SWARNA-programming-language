@@ -1,6 +1,6 @@
 # SWARNA
 
-SWARNA is a programming language written from scratch in Python. It has its own lexer, parser, AST, interpreter, bytecode compiler, and stack VM.
+SWARNA is a programming language written from scratch in Python. It has its own lexer, parser, AST, type checker, interpreter, bytecode compiler, and stack VM.
 
 It is early, and it is not ready for real programs yet. The current subset is enough to run small scripts; the rest of the language is still being built.
 
@@ -52,13 +52,14 @@ python -m swarna --run
 - `if`/`else` statements and single-expression `if` expressions
 - `while` loops
 - `print`
+- inferred static types for the current expressions and bindings
 - a REPL that keeps bindings between lines
-- caret diagnostics with hints for lexer, parser, and runtime errors
+- caret diagnostics with hints for lexer, parser, semantic, and runtime errors
 - a stack VM checked against the interpreter by differential tests
 
 ## What does not work yet
 
-Functions, collections, and static types are the big missing pieces. Modules, a standard library, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
+Functions, collections, and a complete type system are the big missing pieces. Type annotations, generics, and type checking across functions are not implemented. Modules, a standard library, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
 
 ## Inspect the pipeline
 
@@ -77,7 +78,7 @@ python -m unittest discover -s tests -v
 ## Layout
 
 ```
-compiler/   lexer, parser, AST, bytecode, codegen
+compiler/   lexer, parser, AST, semantic checker, bytecode, codegen
 runtime/    interpreter, VM
 swarna/     CLI and REPL
 tests/      unit tests

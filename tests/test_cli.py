@@ -3,6 +3,7 @@ import io
 import unittest
 from unittest.mock import patch
 
+from compiler.diagnostics import SwarnaSemanticError
 from runtime.interpreter import Interpreter
 from swarna.__main__ import emit_bytecode_source, lex_source, main, parse_source, run_source
 
@@ -84,8 +85,8 @@ class TestCLIHelpers(unittest.TestCase):
             "0\n1\n2",
         )
 
-    def test_run_source_reports_runtime_error(self):
-        with self.assertRaises(NameError):
+    def test_run_source_reports_undefined_name(self):
+        with self.assertRaises(SwarnaSemanticError):
             run_source("x = 1")
 
     def test_run_source_accepts_existing_interpreter(self):
@@ -100,7 +101,7 @@ class TestCLIHelpers(unittest.TestCase):
 
     def test_run_source_does_not_share_state_by_default(self):
         self.assertEqual(run_source("let x = 1"), "")
-        with self.assertRaises(NameError):
+        with self.assertRaises(SwarnaSemanticError):
             run_source("print(x)")
 
     def test_run_cli_prints_output(self):
@@ -126,7 +127,7 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertIn("error: Expected '='", output)
         self.assertIn("hint:", output)
 
-    def test_run_cli_reports_runtime_error(self):
+    def test_run_cli_reports_undefined_name(self):
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
             code = main(["--run", "x = 1"])
@@ -147,7 +148,44 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("division by zero", stderr.getvalue())
 
-    def test_run_cli_renders_runtime_error_with_caret(self):
+    def test_run_cli_reports_type_error(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", 'print(1 + "a")'])
+        self.assertEqual(code, 1)
+        output = stderr.getvalue()
+        self.assertIn("`+` cannot combine Int and String", output)
+        self.assertIn("--> 1:9", output)
+
+    def test_run_cli_rejects_non_bool_condition(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "if 1 { print(1) }"])
+        self.assertEqual(code, 1)
+        self.assertIn("`if` condition must be Bool, got Int", stderr.getvalue())
+
+    def test_run_cli_rejects_mismatched_if_branches(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", 'let x = if true { 1 } else { "a" }'])
+        self.assertEqual(code, 1)
+        self.assertIn("`if` branches have incompatible types: Int and String", stderr.getvalue())
+
+    def test_emit_bytecode_rejects_type_error(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--emit-bytecode", 'let x = 1 + "a"'])
+        self.assertEqual(code, 1)
+        self.assertIn("`+` cannot combine Int and String", stderr.getvalue())
+
+    def test_parse_does_not_type_check(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            code = main(["--parse", 'let x = 1 + "a"'])
+        self.assertEqual(code, 0)
+        self.assertIn("BinaryExpression", stdout.getvalue())
+
+    def test_run_cli_renders_undefined_name_with_caret(self):
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
             code = main(["--run", "let y = x + 1"])
@@ -176,7 +214,7 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertIn("--> 1:9", output)
         self.assertIn("hint: The divisor must be non-zero.", output)
 
-    def test_run_cli_renders_runtime_error_on_later_line(self):
+    def test_run_cli_renders_undefined_name_on_later_line(self):
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
             code = main(["--run", "let x = 1\nprint(x + missing)"])
@@ -209,7 +247,7 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("9", stdout.getvalue())
 
-    def test_repl_reports_runtime_error(self):
+    def test_repl_reports_undefined_name(self):
         stderr = io.StringIO()
         inputs = iter(["x = 1", ":q"])
         with (
@@ -273,6 +311,34 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("Undefined name 'missing'", stderr.getvalue())
         self.assertIn("2", stdout.getvalue())
+
+    def test_repl_continues_after_type_error(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        inputs = iter(['print(1 + "a")', "print(1 + 1)", ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("`+` cannot combine Int and String", stderr.getvalue())
+        self.assertIn("2", stdout.getvalue())
+
+    def test_repl_rejects_assignment_type_change(self):
+        stderr = io.StringIO()
+        inputs = iter(["let x = 1", 'x = "a"', ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("Cannot assign String to Int binding 'x'", stderr.getvalue())
 
 
 if __name__ == "__main__":

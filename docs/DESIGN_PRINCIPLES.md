@@ -54,7 +54,7 @@ Both branches must produce compatible types. An `if` without `else` produces uni
 
 Reason: conditional values are common in real work: labels, defaults, formatting. Statement-only `if` forces a mutable temporary and more lines.
 
-Status: partly implemented. `if` expressions with a single expression per branch work in both the interpreter and the VM, and an `else` branch is required in expression position. Multi-statement branches, block values, and static branch-type compatibility are pending.
+Status: partly implemented. `if` expressions with a single expression per branch work in both the interpreter and the VM, and an `else` branch is required in expression position. The type checker enforces compatible branch types for those single-expression branches. Multi-statement branches and block values are pending.
 
 ### 4. Exceptions by default, `Result` by choice
 
@@ -62,7 +62,7 @@ Unhandled failures raise an exception with a source location and a readable mess
 
 Reason: exceptions keep the common path linear. Forcing `Result` everywhere makes short scripts noisy. Explicit `Result` stays for code that must not unwind: library boundaries, batch jobs, anything that needs to continue after a failure.
 
-Status: accepted, not yet implemented. The interpreter currently raises host exceptions. The VM will get a defined unwinding model when functions and call frames exist.
+Status: accepted, not yet implemented as a language feature. The runtime raises SWARNA diagnostic exceptions with source spans. A defined unwinding model and `Result` will arrive with functions and call frames.
 
 ### 5. Word operators are accepted
 
@@ -89,7 +89,7 @@ Reason: braces remove indentation ambiguity and keep parsing and tooling simple.
 
 ## Diagnostics
 
-Lexer, parser, and runtime errors carry a `SourceSpan` (line, column, length) and an optional hint. The CLI renders the offending source line, a caret, and the hint:
+Lexer, parser, semantic, and runtime errors carry a `SourceSpan` (line, column, length) and an optional hint. The CLI renders the offending source line, a caret, and the hint:
 
 ```
 error: Expected '='
@@ -100,7 +100,7 @@ error: Expected '='
     = hint: Bindings use `let name = value` or `const name = value`.
 ```
 
-Runtime errors use the same shape:
+Semantic errors use the same shape:
 
 ```
 error: Undefined name 'x'
@@ -111,7 +111,45 @@ error: Undefined name 'x'
     = hint: Declare it first with `let name = value` or `const name = value`.
 ```
 
-Status: implemented for lexer, parser, and the current runtime errors in both the interpreter and the VM.
+Runtime errors use the same shape:
+
+```
+error: division by zero
+  --> 1:9
+    |
+  1 | print(1 / 0)
+    |         ^
+    = hint: The divisor must be non-zero.
+```
+
+Status: implemented for lexer, parser, semantic, and the current runtime errors in both the interpreter and the VM.
+
+## Type checking
+
+The current language is statically checked but does not require annotations. A separate semantic pass infers `Int`, `Float`, `String`, or `Bool`; an internal `Unknown` type suppresses cascading errors.
+
+The rules for the current subset:
+
+- Literals infer their obvious type.
+- `+` accepts two numbers or two strings. Mixed `Int`/`Float` arithmetic produces `Float`.
+- `-`, `*`, and `/` accept numbers. `/` always produces `Float`.
+- `//` requires two `Int` operands and produces `Int`.
+- Equality accepts values of the same type, or two numbers. Ordered comparisons accept two numbers or two strings.
+- `&&`, `||`, and `!` require `Bool`.
+- `if` and `while` conditions require `Bool`.
+- Both branches of an `if` expression must produce the same type. `Int` and `Float` branches are not unified yet.
+- A binding keeps the type of its first value. Reassigning it to a different type is an error.
+- Reassigning a `const` is a semantic error.
+- Undefined names are semantic errors.
+- `print` accepts any type.
+
+The checker runs before execution in `--run` and before code generation in `--emit-bytecode`. `--parse` and `--lex` do not run it. In the executing REPL, the checker is seeded from the interpreter's current bindings, so types persist between lines without a second symbol table.
+
+Division by zero remains a runtime error; the checker does not evaluate expressions.
+
+Known gaps: no type annotations, no generics, no functions, no block scoping or definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. The interpreter and VM keep their runtime checks so they can still be tested independently.
+
+Status: implemented as a separate pass for the current subset.
 
 ## Non-goals
 
@@ -131,7 +169,7 @@ Status: implemented for lexer, parser, and the current runtime errors in both th
 
 ## What this changes in the roadmap
 
-- Diagnostics come before the type checker, not after it.
+- Diagnostics were built before the type checker, and the checker reuses the same spans and hints.
 - The standard library is ordered by real tasks: strings and interpolation, lists, maps, ranges, file I/O, CSV/JSON, dates, math.
 - The REPL and formatter are part of the core experience, not v1.0 extras.
 - Type inference is required, not optional, because rule 3 depends on it.
@@ -146,3 +184,4 @@ Status: implemented for lexer, parser, and the current runtime errors in both th
 | 4 | Exceptions by default, `Result` opt-in | Accepted, pending |
 | 5 | `and` / `or` / `not` aliases | Implemented |
 | 6 | Braces, optional semicolons, automatic formatting | Partly implemented |
+| 7 | Inferred static types, no annotations required | Implemented (minimal) |

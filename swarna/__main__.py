@@ -5,6 +5,7 @@ from compiler.codegen.compiler import Compiler
 from compiler.diagnostics import DiagnosticError, render_diagnostic
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
+from compiler.semantic.checker import Binding, TypeChecker, type_of_value
 from runtime.interpreter import Interpreter
 
 
@@ -28,14 +29,26 @@ def parse_source(source: str) -> str:
 
 def emit_bytecode_source(source: str) -> str:
     program = Parser(Lexer(source)).parse_program()
+    TypeChecker().check(program)
     code = Compiler().compile(program)
     return "\n".join(repr(i) for i in code)
+
+
+def _bindings_from_interpreter(interpreter: Interpreter) -> dict[str, Binding]:
+    return {
+        name: Binding(
+            type_of_value(value),
+            constant=interpreter.constant.get(name, False),
+        )
+        for name, value in interpreter.env.items()
+    }
 
 
 def run_source(source: str, interpreter: Interpreter | None = None) -> str:
     program = Parser(Lexer(source)).parse_program()
     if interpreter is None:
         interpreter = Interpreter()
+    TypeChecker(_bindings_from_interpreter(interpreter)).check(program)
     output_start = len(interpreter.output)
     interpreter.eval(program)
     return "\n".join(format_value(value) for value in interpreter.output[output_start:])

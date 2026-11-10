@@ -31,6 +31,10 @@ class SwarnaSyntaxError(DiagnosticError, SyntaxError):
     """A syntax diagnostic that remains catchable as a built-in SyntaxError."""
 
 
+class SwarnaSemanticError(DiagnosticError):
+    """A compile-time semantic diagnostic."""
+
+
 class SwarnaRuntimeError(DiagnosticError, RuntimeError):
     """A runtime diagnostic that remains catchable as a built-in RuntimeError."""
 
