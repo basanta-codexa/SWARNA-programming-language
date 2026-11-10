@@ -148,6 +148,12 @@ class TestVM(unittest.TestCase):
             'let x = if 10 >= 50 { "pass" } else { "fail" } print(x)',
             "let x = if true { if false { 1 } else { 2 } } else { 3 } print(x)",
             "let x = if 1 < 2 { 3 + 4 } else { 5 * 6 } print(x)",
+            "let x = if true { let y = 1 y + 2 } else { let y = 3 y + 4 } print(x)",
+            "let x = if false { let y = 1 y + 2 } else { let y = 3 y + 4 } print(x)",
+            "let y = 0 let x = if true { y = 5 y } else { y = 9 y } print(x) print(y)",
+            "let i = 0 let x = if true { while i < 3 { i = i + 1 } i } else { 0 } print(x)",
+            "let x = if true { print(1) 2 } else { print(3) 4 } print(x)",
+            "let x = if true { let y = 1 if y > 0 { 10 } else { 20 } } else { 30 } print(x)",
         ]
         for source in sources:
             with self.subTest(source=source):

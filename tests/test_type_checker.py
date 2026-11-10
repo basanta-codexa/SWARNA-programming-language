@@ -175,6 +175,39 @@ class TestSemanticErrors(unittest.TestCase):
             check("let x = if true { 1 } else { 2.0 }")
 
 
+class TestBlockExpressions(unittest.TestCase):
+    def test_block_branch_infers_final_value(self):
+        checker = check("let x = if true { let y = 1 y + 2 } else { let y = 3 y + 4 }")
+        self.assertIs(checker.env["x"].type, Type.INT)
+
+    def test_block_branch_checks_statements(self):
+        with self.assertRaises(SwarnaSemanticError) as raised:
+            check("let x = if true { let y = missing y } else { 0 }")
+        self.assertIn("Undefined name 'missing'", str(raised.exception))
+
+    def test_block_branch_assignment_type_is_checked(self):
+        with self.assertRaises(SwarnaSemanticError):
+            check('let x = if true { let y = 1 y = "a" y } else { 0 }')
+
+    def test_block_branch_const_assignment_is_checked(self):
+        with self.assertRaises(SwarnaSemanticError):
+            check("let x = if true { const y = 1 y = 2 y } else { 0 }")
+
+    def test_block_branch_mismatch_points_at_value(self):
+        with self.assertRaises(SwarnaSemanticError) as raised:
+            check('let x = if true { let y = 1 y } else { "a" }')
+        self.assertEqual(raised.exception.span, SourceSpan(1, 40, 3))
+        self.assertIn("`if` branches have incompatible types", str(raised.exception))
+
+    def test_block_branch_string_value_type(self):
+        checker = check('let x = if true { let y = 1 "a" } else { "b" }')
+        self.assertIs(checker.env["x"].type, Type.STRING)
+
+    def test_block_branch_bindings_leak_into_outer_scope(self):
+        checker = check("let x = if true { let y = 1 y } else { 0 }")
+        self.assertIs(checker.env["y"].type, Type.INT)
+
+
 class TestInitialBindings(unittest.TestCase):
     def test_existing_binding_is_visible(self):
         checker = check(

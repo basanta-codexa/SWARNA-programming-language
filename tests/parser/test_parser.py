@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SourceSpan
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
@@ -195,6 +195,96 @@ class TestParser(unittest.TestCase):
         assert isinstance(stmt, LetStatement)
         assert isinstance(stmt.value, IfExpression)
         assert isinstance(stmt.value.then_value, IfExpression)
+
+    def test_parse_if_expression_with_block_branches(self):
+        parser = Parser(Lexer("let x = if true { let y = 1 y + 2 } else { let y = 3 y + 4 }"))
+        program = parser.parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, IfExpression)
+        then_block = stmt.value.then_value
+        else_block = stmt.value.else_value
+        assert isinstance(then_block, BlockExpression)
+        assert isinstance(else_block, BlockExpression)
+        self.assertEqual(len(then_block.statements), 1)
+        self.assertIsInstance(then_block.statements[0], LetStatement)
+        self.assertEqual(
+            then_block.value,
+            BinaryExpression(left=Identifier("y"), operator="+", right=IntegerLiteral(2)),
+        )
+        self.assertEqual(len(else_block.statements), 1)
+        self.assertIsInstance(else_block.statements[0], LetStatement)
+        self.assertEqual(
+            else_block.value,
+            BinaryExpression(left=Identifier("y"), operator="+", right=IntegerLiteral(4)),
+        )
+
+    def test_parse_if_expression_block_with_assignment(self):
+        parser = Parser(Lexer("let x = if true { let y = 1 y = y + 1 y } else { 0 }"))
+        program = parser.parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, IfExpression)
+        block = stmt.value.then_value
+        assert isinstance(block, BlockExpression)
+        self.assertEqual(len(block.statements), 2)
+        self.assertIsInstance(block.statements[0], LetStatement)
+        self.assertIsInstance(block.statements[1], AssignmentStatement)
+        self.assertEqual(block.value, Identifier("y"))
+
+    def test_parse_if_expression_block_with_print_and_while(self):
+        parser = Parser(Lexer("let x = if true { print(1) while false { print(2) } 3 } else { 0 }"))
+        program = parser.parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, IfExpression)
+        block = stmt.value.then_value
+        assert isinstance(block, BlockExpression)
+        self.assertEqual(len(block.statements), 2)
+        self.assertIsInstance(block.statements[0], PrintStatement)
+        self.assertIsInstance(block.statements[1], WhileStatement)
+        self.assertEqual(block.value, IntegerLiteral(3))
+
+    def test_parse_if_expression_block_with_nested_if_value(self):
+        parser = Parser(Lexer("let x = if true { let y = 1 if y > 0 { 10 } else { 20 } } else { 30 }"))
+        program = parser.parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, IfExpression)
+        block = stmt.value.then_value
+        assert isinstance(block, BlockExpression)
+        self.assertEqual(len(block.statements), 1)
+        self.assertIsInstance(block.value, IfExpression)
+
+    def test_parse_if_expression_block_allows_trailing_semicolons(self):
+        parser = Parser(Lexer("let x = if true { let y = 1; y + 2; } else { 0; }"))
+        program = parser.parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, IfExpression)
+        block = stmt.value.then_value
+        assert isinstance(block, BlockExpression)
+        self.assertEqual(
+            block.value,
+            BinaryExpression(left=Identifier("y"), operator="+", right=IntegerLiteral(2)),
+        )
+
+    def test_parse_if_expression_block_requires_final_value(self):
+        parser = Parser(Lexer("let x = if true { let y = 1 } else { 0 }"))
+        with self.assertRaisesRegex(SyntaxError, "Block value needs a final expression"):
+            parser.parse_program()
+
+    def test_parse_if_expression_block_rejects_statement_after_value(self):
+        parser = Parser(Lexer("let x = if true { 1 let y = 2 } else { 0 }"))
+        with self.assertRaises(SyntaxError) as raised:
+            parser.parse_program()
+        self.assertEqual(raised.exception.message, "Expected '}' after block value")
+        self.assertIn("Only the last item", raised.exception.hint)
+
+    def test_parse_if_expression_block_rejects_invalid_assignment_target(self):
+        parser = Parser(Lexer("let x = if true { y + 1 = 2 0 } else { 0 }"))
+        with self.assertRaisesRegex(SyntaxError, "Invalid assignment target"):
+            parser.parse_program()
 
     def test_parse_assignment(self):
         parser = Parser(Lexer("x = 1 + 2"))

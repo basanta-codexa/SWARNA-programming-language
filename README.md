@@ -24,6 +24,14 @@ python -m swarna --run "let total = 0 let i = 1 while i <= 5 { total = total + i
 
 Prints `15`.
 
+A block-valued `if`:
+
+```
+python -m swarna --run "let total = if true { let base = 100 base + 20 } else { 100 } print(total)"
+```
+
+Prints `120`.
+
 For multi-line programs, pipe the source through stdin. On PowerShell:
 
 ```
@@ -49,7 +57,7 @@ python -m swarna --run
 - integers, floats, strings, booleans
 - `let` for mutable bindings, `const` for immutable ones
 - arithmetic, comparisons, `and`/`or`/`not`, `&&`/`||`/`!`
-- `if`/`else` statements and single-expression `if` expressions
+- `if`/`else` statements and `if` expressions with single-expression or block branches
 - `while` loops
 - `print`
 - inferred static types for the current expressions and bindings

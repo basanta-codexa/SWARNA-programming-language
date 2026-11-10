@@ -98,6 +98,22 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_if_expression_with_block_branch(self):
+        code = compile_source("let x = if true { let y = 1 y + 2 } else { 3 }")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST True",
+            "JUMP_IF_FALSE 8",
+            "CONST 1",
+            "DECLARE_NAME 'y'",
+            "LOAD_NAME 'y'",
+            "CONST 2",
+            "ADD",
+            "JUMP 9",
+            "CONST 3",
+            "DECLARE_NAME 'x'",
+            "HALT",
+        ])
+
     def test_compile_while(self):
         code = compile_source("while i < 3 { i = i + 1 }")
         self.assertEqual([repr(i) for i in code], [

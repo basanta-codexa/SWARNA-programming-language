@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
@@ -85,34 +85,79 @@ class Parser:
         if_token = self.current
         self._expect(TokenType.KEYWORD_IF, "Expected 'if'", hint="Write `if condition { value } else { value }`.")
         condition = self.parse_expression()
-        self._expect(
-            TokenType.LBRACE,
-            "Expected '{'",
-            hint="An `if` expression branch is written as `{ value }`.",
-        )
-        then_value = self.parse_expression()
-        self._expect(
-            TokenType.RBRACE,
-            "Expected '}'",
-            hint="Close the `if` expression branch with `}`.",
-        )
+        then_value = self.parse_block_expression()
         self._expect(
             TokenType.KEYWORD_ELSE,
             "if used as an expression requires an else branch",
             hint="Add `else { ... }`, or use `if` as a statement.",
         )
+        else_value = self.parse_block_expression()
+        return IfExpression(condition=condition, then_value=then_value, else_value=else_value, span=if_token.span)
+
+    def parse_block_expression(self) -> Expression:
+        lbrace_token = self.current
         self._expect(
             TokenType.LBRACE,
             "Expected '{'",
             hint="An `if` expression branch is written as `{ value }`.",
         )
-        else_value = self.parse_expression()
-        self._expect(
-            TokenType.RBRACE,
-            "Expected '}'",
-            hint="Close the `if` expression branch with `}`.",
+        statements: list[Statement] = []
+        while self.current.type == TokenType.SEMICOLON:
+            self._advance()
+
+        while True:
+            if self.current.type == TokenType.RBRACE:
+                raise SwarnaSyntaxError(
+                    "Block value needs a final expression",
+                    self.current.span,
+                    hint="End the block with a value, for example `{ let x = 1 x + 1 }`.",
+                )
+
+            if self.current.type in (
+                TokenType.KEYWORD_LET,
+                TokenType.KEYWORD_CONST,
+                TokenType.KEYWORD_WHILE,
+            ):
+                statements.append(self.parse_statement())
+            elif self.current.type == TokenType.IDENTIFIER and self.current.value == "print":
+                statements.append(self.parse_print_statement())
+            else:
+                expr = self.parse_expression()
+                if self.current.type == TokenType.EQUAL:
+                    if not isinstance(expr, Identifier):
+                        raise SwarnaSyntaxError(
+                            "Invalid assignment target",
+                            expr.span,
+                            hint="Assignments must target a name, as in `name = value`.",
+                        )
+                    self._advance()
+                    value = self.parse_expression()
+                    statements.append(
+                        AssignmentStatement(name=expr, value=value, span=expr.span)
+                    )
+                else:
+                    value = expr
+                    break
+
+            while self.current.type == TokenType.SEMICOLON:
+                self._advance()
+
+        while self.current.type == TokenType.SEMICOLON:
+            self._advance()
+        if self.current.type != TokenType.RBRACE:
+            raise SwarnaSyntaxError(
+                "Expected '}' after block value",
+                self.current.span,
+                hint="Only the last item in a block value can be an expression; use `let` to name intermediate values.",
+            )
+        self._advance()  # '}'
+        if not statements:
+            return value
+        return BlockExpression(
+            statements=statements,
+            value=value,
+            span=value.span if value.span is not None else lbrace_token.span,
         )
-        return IfExpression(condition=condition, then_value=then_value, else_value=else_value, span=if_token.span)
 
     def parse_block(self) -> BlockStatement:
         lbrace_token = self.current

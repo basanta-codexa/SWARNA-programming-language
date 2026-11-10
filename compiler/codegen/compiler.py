@@ -3,6 +3,7 @@ from __future__ import annotations
 from compiler.ast.nodes import (
     AssignmentStatement,
     BinaryExpression,
+    BlockExpression,
     BlockStatement,
     BoolLiteral,
     Expression,
@@ -102,6 +103,11 @@ class Compiler:
             return
         if isinstance(expr, BoolLiteral):
             self.emit(Op.CONST, expr.value, expr.span)
+            return
+        if isinstance(expr, BlockExpression):
+            for stmt in expr.statements:
+                self.compile_statement(stmt)
+            self.compile_expression(expr.value)
             return
         if isinstance(expr, IfExpression):
             self.compile_expression(expr.condition)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 
 
@@ -64,6 +64,11 @@ class Interpreter:
         for stmt in block.statements:
             self.eval_statement(stmt)
 
+    def eval_block_expression(self, block: BlockExpression) -> int | float | bool | str:
+        for stmt in block.statements:
+            self.eval_statement(stmt)
+        return self.eval_expression(block.value)
+
     def eval_expression(self, expr: Expression) -> int | float | bool | str:
         if isinstance(expr, IntegerLiteral):
             return expr.value
@@ -73,6 +78,8 @@ class Interpreter:
             return expr.value
         if isinstance(expr, BoolLiteral):
             return expr.value
+        if isinstance(expr, BlockExpression):
+            return self.eval_block_expression(expr)
         if isinstance(expr, IfExpression):
             if bool(self.eval_expression(expr.condition)):
                 return self.eval_expression(expr.then_value)

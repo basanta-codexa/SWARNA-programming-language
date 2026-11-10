@@ -171,6 +171,27 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("`if` branches have incompatible types: Int and String", stderr.getvalue())
 
+    def test_run_cli_executes_block_if_expression(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            code = main(["--run", "let x = if true { let y = 1 y + 2 } else { 0 } print(x)"])
+        self.assertEqual(code, 0)
+        self.assertIn("3", stdout.getvalue())
+
+    def test_run_cli_reports_error_inside_block_if_expression(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", 'let x = if true { let y = 1 y + "a" } else { 0 }'])
+        self.assertEqual(code, 1)
+        self.assertIn("`+` cannot combine Int and String", stderr.getvalue())
+
+    def test_run_cli_reports_missing_block_value(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "let x = if true { let y = 1 } else { 0 }"])
+        self.assertEqual(code, 1)
+        self.assertIn("Block value needs a final expression", stderr.getvalue())
+
     def test_emit_bytecode_rejects_type_error(self):
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):

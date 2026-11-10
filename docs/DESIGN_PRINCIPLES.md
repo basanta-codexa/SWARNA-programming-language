@@ -50,11 +50,22 @@ Status: implemented. `let` is mutable, `const` is immutable, and `mut` was remov
 let label = if score >= 50 { "pass" } else { "fail" }
 ```
 
-Both branches must produce compatible types. An `if` without `else` produces unit and is only valid where a statement is expected.
+Branches can be single expressions or block values. A block value runs its statements and uses its final expression as the branch value:
+
+```
+let total = if true {
+    let base = 100
+    base + 20
+} else {
+    100
+}
+```
+
+Both branches must produce the same type. An `if` without `else` is only valid as a statement.
 
 Reason: conditional values are common in real work: labels, defaults, formatting. Statement-only `if` forces a mutable temporary and more lines.
 
-Status: partly implemented. `if` expressions with a single expression per branch work in both the interpreter and the VM, and an `else` branch is required in expression position. The type checker enforces compatible branch types for those single-expression branches. Multi-statement branches and block values are pending.
+Status: implemented for the current language. `if` expressions with single-expression or block branches work in both the interpreter and the VM, and an `else` branch is required in expression position. The type checker enforces compatible branch types. A nested `if` statement before the final value of a block-valued branch is not supported yet; use a nested `if` expression as the final value.
 
 ### 4. Exceptions by default, `Result` by choice
 
@@ -138,6 +149,7 @@ The rules for the current subset:
 - `&&`, `||`, and `!` require `Bool`.
 - `if` and `while` conditions require `Bool`.
 - Both branches of an `if` expression must produce the same type. `Int` and `Float` branches are not unified yet.
+- An `if` expression branch may be a block value. Its statements run in the current scope, and its final expression determines the branch type.
 - A binding keeps the type of its first value. Reassigning it to a different type is an error.
 - Reassigning a `const` is a semantic error.
 - Undefined names are semantic errors.
@@ -147,7 +159,7 @@ The checker runs before execution in `--run` and before code generation in `--em
 
 Division by zero remains a runtime error; the checker does not evaluate expressions.
 
-Known gaps: no type annotations, no generics, no functions, no block scoping or definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. The interpreter and VM keep their runtime checks so they can still be tested independently.
+Known gaps: no type annotations, no generics, no functions, no block scoping or definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. The interpreter and VM keep their runtime checks so they can still be tested independently.
 
 Status: implemented as a separate pass for the current subset.
 
@@ -180,7 +192,7 @@ Status: implemented as a separate pass for the current subset.
 |---|---|---|
 | 1 | `/` true division, `//` integer division | Implemented |
 | 2 | `let` mutable, `const` immutable | Implemented |
-| 3 | `if` is an expression | Partly implemented |
+| 3 | `if` is an expression | Implemented |
 | 4 | Exceptions by default, `Result` opt-in | Accepted, pending |
 | 5 | `and` / `or` / `not` aliases | Implemented |
 | 6 | Braces, optional semicolons, automatic formatting | Partly implemented |

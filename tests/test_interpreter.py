@@ -103,6 +103,42 @@ class TestInterpreter(unittest.TestCase):
         env = run("let x = if true { if false { 1 } else { 2 } } else { 3 }")
         self.assertEqual(env["x"], 2)
 
+    def test_if_expression_with_block_branches(self):
+        env = run("let x = if true { let y = 1 y + 2 } else { let y = 3 y + 4 }")
+        self.assertEqual(env["x"], 3)
+        env = run("let x = if false { let y = 1 y + 2 } else { let y = 3 y + 4 }")
+        self.assertEqual(env["x"], 7)
+
+    def test_if_expression_block_assignment(self):
+        env = run("let y = 0 let x = if true { y = 5 y } else { y = 9 y }")
+        self.assertEqual(env["x"], 5)
+        self.assertEqual(env["y"], 5)
+
+    def test_if_expression_block_print(self):
+        program = Parser(Lexer("let x = if true { print(1) 2 } else { print(3) 4 } print(x)")).parse_program()
+        interpreter = Interpreter()
+        env = interpreter.eval(program)
+        self.assertEqual(env["x"], 2)
+        self.assertEqual(interpreter.output, [1, 2])
+
+    def test_if_expression_block_while(self):
+        env = run("let i = 0 let x = if true { while i < 3 { i = i + 1 } i } else { 0 }")
+        self.assertEqual(env["x"], 3)
+        self.assertEqual(env["i"], 3)
+
+    def test_if_expression_block_scope_leaks(self):
+        env = run("let x = if true { let y = 1 y } else { 0 }")
+        self.assertEqual(env["y"], 1)
+
+    def test_if_expression_block_nested_if_value(self):
+        env = run("let x = if true { let y = 1 if y > 0 { 10 } else { 20 } } else { 30 }")
+        self.assertEqual(env["x"], 10)
+
+    def test_if_expression_block_undefined_name_span(self):
+        with self.assertRaises(SwarnaNameError) as raised:
+            run("let x = if true { let y = 1 missing } else { 0 }")
+        self.assertEqual(raised.exception.span, SourceSpan(1, 29, 7))
+
     def test_let_assignment(self):
         env = run("let x = 0 x = x + 1 x = x + 1")
         self.assertEqual(env["x"], 2)

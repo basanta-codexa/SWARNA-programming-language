@@ -7,6 +7,7 @@ from typing import NoReturn
 from compiler.ast.nodes import (
     AssignmentStatement,
     BinaryExpression,
+    BlockExpression,
     BlockStatement,
     BoolLiteral,
     Expression,
@@ -190,6 +191,11 @@ class TypeChecker:
 
         if isinstance(expr, BinaryExpression):
             return self._check_binary(expr)
+
+        if isinstance(expr, BlockExpression):
+            for stmt in expr.statements:
+                self.check_statement(stmt)
+            return self.check_expression(expr.value)
 
         if isinstance(expr, IfExpression):
             self._check_condition(expr.condition, "`if` condition")

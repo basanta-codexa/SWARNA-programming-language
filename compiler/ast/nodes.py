@@ -58,7 +58,14 @@ class IfExpression:
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
 
 
-Expression = IntegerLiteral | FloatLiteral | StringLiteral | BoolLiteral | BinaryExpression | IfExpression | Identifier | UnaryExpression
+@dataclass(frozen=True)
+class BlockExpression:
+    statements: list["Statement"]
+    value: "Expression"
+    span: SourceSpan | None = field(default=None, compare=False, repr=False)
+
+
+Expression = IntegerLiteral | FloatLiteral | StringLiteral | BoolLiteral | BinaryExpression | IfExpression | BlockExpression | Identifier | UnaryExpression
 
 
 @dataclass(frozen=True)
