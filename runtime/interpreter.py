@@ -1,21 +1,81 @@
 from __future__ import annotations
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, Expression, FloatLiteral, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
-from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
+from dataclasses import dataclass
+
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, FunctionDeclaration, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
+
+
+Value = int | float | bool | str
+
+
+@dataclass(frozen=True)
+class Function:
+    name: str
+    parameters: tuple[str, ...]
+    body: Expression
+    span: SourceSpan | None = None
 
 
 class Interpreter:
     def __init__(self) -> None:
-        self.env: dict[str, int | float | bool | str] = {}
-        self.constant: dict[str, bool] = {}
-        self.output: list[int | float | bool | str] = []
+        self.global_env: dict[str, Value] = {}
+        self.global_constant: dict[str, bool] = {}
+        self.env: dict[str, Value] = self.global_env
+        self.constant: dict[str, bool] = self.global_constant
+        self.functions: dict[str, Function] = {}
+        self.output: list[Value] = []
+        self.call_depth = 0
+        self.max_call_depth = 200
 
-    def eval(self, program: Program) -> dict[str, int | float | bool | str]:
+    def eval(self, program: Program) -> dict[str, Value]:
+        self.env = self.global_env
+        self.constant = self.global_constant
+        seen: set[str] = set()
         for stmt in program.statements:
+            if not isinstance(stmt, FunctionDeclaration):
+                continue
+            name = stmt.name.name
+            if name in seen:
+                raise SwarnaRuntimeError(
+                    f"Function '{name}' is declared more than once",
+                    stmt.name.span,
+                    hint="Give each function a unique name.",
+                )
+            seen.add(name)
+            parameter_names = tuple(parameter.name.name for parameter in stmt.parameters)
+            if len(set(parameter_names)) != len(parameter_names):
+                seen_parameters: set[str] = set()
+                duplicate_parameter = stmt.parameters[0]
+                for parameter in stmt.parameters:
+                    if parameter.name.name in seen_parameters:
+                        duplicate_parameter = parameter
+                        break
+                    seen_parameters.add(parameter.name.name)
+                raise SwarnaRuntimeError(
+                    f"Duplicate parameter '{duplicate_parameter.name.name}' in function '{name}'",
+                    duplicate_parameter.name.span,
+                    hint="Use a different name for each parameter.",
+                )
+            self.functions[name] = Function(
+                name=name,
+                parameters=parameter_names,
+                body=stmt.body,
+                span=stmt.span,
+            )
+        for stmt in program.statements:
+            if isinstance(stmt, FunctionDeclaration):
+                continue
             self.eval_statement(stmt)
         return dict(self.env)
 
     def eval_statement(self, stmt: Statement) -> None:
+        if isinstance(stmt, FunctionDeclaration):
+            raise SwarnaRuntimeError(
+                "Function declarations are only allowed at the top level",
+                stmt.span,
+                hint="Move the function declaration outside the block.",
+            )
         if isinstance(stmt, LetStatement):
             name = stmt.name.name
             self.env[name] = self.eval_expression(stmt.value)
@@ -64,12 +124,50 @@ class Interpreter:
         for stmt in block.statements:
             self.eval_statement(stmt)
 
-    def eval_block_expression(self, block: BlockExpression) -> int | float | bool | str:
+    def eval_block_expression(self, block: BlockExpression) -> Value:
         for stmt in block.statements:
             self.eval_statement(stmt)
         return self.eval_expression(block.value)
 
-    def eval_expression(self, expr: Expression) -> int | float | bool | str:
+    def eval_call(self, expr: CallExpression) -> Value:
+        function = self.functions.get(expr.callee.name)
+        if function is None:
+            raise SwarnaNameError(
+                f"Undefined function '{expr.callee.name}'",
+                expr.callee.span,
+                hint="Declare it first with `fn name(...) { ... }`.",
+            )
+        if len(expr.arguments) != len(function.parameters):
+            raise SwarnaRuntimeError(
+                f"Function '{function.name}' expects {len(function.parameters)} arguments, got {len(expr.arguments)}",
+                expr.span,
+                hint="Pass the number of arguments in the function declaration.",
+            )
+        arguments = [self.eval_expression(argument) for argument in expr.arguments]
+        if self.call_depth >= self.max_call_depth:
+            raise SwarnaRuntimeError(
+                f"Maximum call depth of {self.max_call_depth} exceeded",
+                expr.span,
+                hint="Check for infinite recursion.",
+            )
+        saved_env = self.env
+        saved_constant = self.constant
+        local_env = dict(self.global_env)
+        local_constant = dict(self.global_constant)
+        for parameter, value in zip(function.parameters, arguments):
+            local_env[parameter] = value
+            local_constant[parameter] = False
+        self.env = local_env
+        self.constant = local_constant
+        self.call_depth += 1
+        try:
+            return self.eval_expression(function.body)
+        finally:
+            self.call_depth -= 1
+            self.env = saved_env
+            self.constant = saved_constant
+
+    def eval_expression(self, expr: Expression) -> Value:
         if isinstance(expr, IntegerLiteral):
             return expr.value
         if isinstance(expr, FloatLiteral):
@@ -84,8 +182,16 @@ class Interpreter:
             if bool(self.eval_expression(expr.condition)):
                 return self.eval_expression(expr.then_value)
             return self.eval_expression(expr.else_value)
+        if isinstance(expr, CallExpression):
+            return self.eval_call(expr)
         if isinstance(expr, Identifier):
             if expr.name not in self.env:
+                if expr.name in self.functions:
+                    raise SwarnaNameError(
+                        f"Function '{expr.name}' must be called",
+                        expr.span,
+                        hint="Add parentheses and arguments, or bind the result to a name.",
+                    )
                 raise SwarnaNameError(
                     f"Undefined name '{expr.name}'",
                     expr.span,

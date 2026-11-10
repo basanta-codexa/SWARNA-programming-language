@@ -194,5 +194,109 @@ class TestInterpreter(unittest.TestCase):
         self.assertEqual(raised.exception.span, SourceSpan(1, 11, 1))
 
 
+class TestInterpreterFunctions(unittest.TestCase):
+    def test_function_declaration_and_call(self):
+        env = run("fn add(a: Int, b: Int) -> Int { a + b } let x = add(2, 3)")
+        self.assertEqual(env["x"], 5)
+
+    def test_function_without_annotations(self):
+        env = run("fn add(a, b) { a + b } let x = add(2, 3)")
+        self.assertEqual(env["x"], 5)
+
+    def test_function_call_before_declaration_is_hoisted(self):
+        env = run("let x = add(2, 3) fn add(a: Int, b: Int) -> Int { a + b }")
+        self.assertEqual(env["x"], 5)
+
+    def test_function_call_with_zero_arguments(self):
+        env = run("fn answer() -> Int { 42 } let x = answer()")
+        self.assertEqual(env["x"], 42)
+
+    def test_function_call_as_argument(self):
+        env = run("fn add(a: Int, b: Int) -> Int { a + b } fn one() -> Int { 1 } let x = add(one(), 2)")
+        self.assertEqual(env["x"], 3)
+
+    def test_recursive_function(self):
+        env = run(
+            "fn factorial(n: Int) -> Int { if n <= 1 { 1 } else { n * factorial(n - 1) } } "
+            "let x = factorial(5)"
+        )
+        self.assertEqual(env["x"], 120)
+
+    def test_mutually_recursive_functions(self):
+        env = run(
+            "fn is_even(n: Int) -> Bool { if n == 0 { true } else { is_odd(n - 1) } } "
+            "fn is_odd(n: Int) -> Bool { if n == 0 { false } else { is_even(n - 1) } } "
+            "let x = is_even(4)"
+        )
+        self.assertIs(env["x"], True)
+
+    def test_function_with_while_loop(self):
+        env = run(
+            "fn sum_to(n: Int) -> Int { let total = 0 let i = 1 "
+            "while i <= n { total = total + i i = i + 1 } total } "
+            "let x = sum_to(5)"
+        )
+        self.assertEqual(env["x"], 15)
+
+    def test_function_local_binding_does_not_leak(self):
+        env = run("fn f() -> Int { let local = 1 local } let x = f()")
+        self.assertEqual(env, {"x": 1})
+
+    def test_function_reads_global_binding(self):
+        env = run("let base = 10 fn add_base(x: Int) -> Int { x + base } let y = add_base(5)")
+        self.assertEqual(env["y"], 15)
+
+    def test_function_assignment_does_not_mutate_global(self):
+        env = run("let x = 1 fn bump() -> Int { x = x + 1 x } let y = bump()")
+        self.assertEqual(env, {"x": 1, "y": 2})
+
+    def test_function_print_output(self):
+        program = Parser(Lexer("fn show(x: Int) -> Int { print(x) x + 1 } let y = show(4)")).parse_program()
+        interpreter = Interpreter()
+        env = interpreter.eval(program)
+        self.assertEqual(env["y"], 5)
+        self.assertEqual(interpreter.output, [4])
+
+    def test_print_function_call_result(self):
+        program = Parser(Lexer("fn f() -> Int { 7 } print(f())")).parse_program()
+        interpreter = Interpreter()
+        interpreter.eval(program)
+        self.assertEqual(interpreter.output, [7])
+
+    def test_function_persists_across_eval_calls(self):
+        interpreter = Interpreter()
+        interpreter.eval(Parser(Lexer("fn f() -> Int { 1 }")).parse_program())
+        env = interpreter.eval(Parser(Lexer("let x = f()")).parse_program())
+        self.assertEqual(env["x"], 1)
+
+    def test_wrong_argument_count(self):
+        with self.assertRaisesRegex(RuntimeError, "expects 2 arguments, got 1"):
+            run("fn add(a: Int, b: Int) -> Int { a + b } let x = add(1)")
+
+    def test_undefined_function(self):
+        with self.assertRaisesRegex(NameError, "Undefined function 'missing'"):
+            run("let x = missing(1)")
+
+    def test_bare_function_name_must_be_called(self):
+        with self.assertRaisesRegex(NameError, "must be called"):
+            run("fn f() -> Int { 1 } let x = f")
+
+    def test_duplicate_function_declaration(self):
+        with self.assertRaisesRegex(RuntimeError, "declared more than once"):
+            run("fn f() -> Int { 1 } fn f() -> Int { 2 } let x = f()")
+
+    def test_duplicate_parameter(self):
+        with self.assertRaisesRegex(RuntimeError, "Duplicate parameter 'a'"):
+            run("fn f(a: Int, a: Int) -> Int { a } let x = f(1, 2)")
+
+    def test_nested_function_declaration_is_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "only allowed at the top level"):
+            run("if true { fn f() -> Int { 1 } }")
+
+    def test_recursion_depth_limit(self):
+        with self.assertRaisesRegex(RuntimeError, "Maximum call depth"):
+            run("fn loop(n: Int) -> Int { loop(n + 1) } let x = loop(0)")
+
+
 if __name__ == "__main__":
     unittest.main()
