@@ -89,6 +89,32 @@ Blocks use `{ }`. Semicolons are optional. A formatter owns indentation and spac
 
 Reason: braces remove indentation ambiguity and keep parsing and tooling simple. Automatic formatting gives the visual calm of indentation-sensitive languages without the parser cost.
 
+### 7. Inferred static types
+
+Types are inferred and checked before execution. A ten-line script needs no annotations, imports, or build step. The detailed rules are in the Type checking section below.
+
+Reason: a beginner should not have to write types to get the benefit of a type checker. Annotations stay available where an interface needs to be explicit.
+
+Status: implemented as a separate pass for the current subset.
+
+### 8. Functions are named declarations with expression bodies
+
+```
+fn add(a: Int, b: Int) -> Int {
+    a + b
+}
+
+print(add(2, 3))
+```
+
+A function body is a block value: its statements run, and its final expression is the return value. There is no `return` keyword yet. Functions are declared at the top level and called by name. They are hoisted, so a call can appear before the declaration.
+
+Parameter and return type annotations are optional. An unannotated parameter is `Unknown`; annotating parameters gives precise checking. An unannotated return type is inferred from the body. Function-local bindings do not leak, and a function reads top-level bindings but does not mutate them yet. Recursion works.
+
+Reason: functions are the next foundational feature. Named declarations are the smallest useful form; expression bodies reuse the block-value rule and avoid a separate `return` statement. Optional annotations keep scripts short while letting interfaces be checked.
+
+Status: accepted, implementation in progress. No first-class functions, `return`, nested declarations, expression statements, or global mutation yet.
+
 ## Rules for changes
 
 1. An error must name the problem and the fix. A diagnostic without a suggested action is incomplete.
@@ -197,3 +223,4 @@ Status: implemented as a separate pass for the current subset.
 | 5 | `and` / `or` / `not` aliases | Implemented |
 | 6 | Braces, optional semicolons, automatic formatting | Partly implemented |
 | 7 | Inferred static types, no annotations required | Implemented (minimal) |
+| 8 | Functions are named declarations with expression bodies | Accepted, in progress |
