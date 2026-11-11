@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 import operator
+from collections.abc import Iterator
+from dataclasses import dataclass
 from typing import Any, Callable
 
 from compiler.bytecode.instructions import Instruction, Op
 from compiler.bytecode.program import CompiledProgram, FunctionInfo
 from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.values import Value, value_type_name
+
+
+@dataclass
+class ForFrame:
+    name: str
+    iterator: Iterator[Value]
+    had_previous: bool
+    previous_value: Value | None
+    previous_constant: bool
 
 
 class VM:
@@ -18,6 +29,7 @@ class VM:
         self.global_env: dict[str, Value] = self.env
         self.global_constant: set[str] = self.constant
         self.functions: dict[str, FunctionInfo] = {}
+        self.iterators: list[ForFrame] = []
         self.call_depth = 0
         self.max_call_depth = 200
 
@@ -29,6 +41,21 @@ class VM:
                 hint="The bytecode compiler produced an invalid stack operation.",
             )
         return self.stack.pop()
+
+    def _restore_for_frame(self, frame: ForFrame) -> None:
+        if frame.had_previous:
+            self.env[frame.name] = frame.previous_value
+            if frame.previous_constant:
+                self.constant.add(frame.name)
+            else:
+                self.constant.discard(frame.name)
+        else:
+            self.env.pop(frame.name, None)
+            self.constant.discard(frame.name)
+
+    def _cleanup_iterators(self, depth: int) -> None:
+        while len(self.iterators) > depth:
+            self._restore_for_frame(self.iterators.pop())
 
     def _binary(self, ins: Instruction, operation: Callable[[Any, Any], Any]) -> None:
         b = self._pop(ins)
@@ -51,8 +78,12 @@ class VM:
         self.global_constant = self.constant
         self.stack = []
         self.functions = program.functions
+        self.iterators = []
         self.call_depth = 0
-        self._execute(program.instructions, allow_return=False)
+        try:
+            self._execute(program.instructions, allow_return=False)
+        finally:
+            self._cleanup_iterators(0)
         return dict(self.env)
 
     def _execute(self, instructions: tuple[Instruction, ...], *, allow_return: bool) -> Value | None:
@@ -244,6 +275,47 @@ class VM:
                         ins.span,
                         hint="Pass a list or string to `len`.",
                     )
+            elif ins.op == Op.ITER_START:
+                iterable = self._pop(ins)
+                if not isinstance(iterable, list):
+                    raise SwarnaTypeError(
+                        f"`for` expects a List, got {value_type_name(iterable)}",
+                        ins.span,
+                        hint="Use a list after `in`.",
+                    )
+                name = ins.arg
+                if not isinstance(name, str):
+                    raise SwarnaRuntimeError(
+                        "Invalid ITER_START name",
+                        ins.span,
+                        hint="The bytecode compiler produced an invalid for loop.",
+                    )
+                self.iterators.append(
+                    ForFrame(
+                        name=name,
+                        iterator=iter(iterable),
+                        had_previous=name in self.env,
+                        previous_value=self.env.get(name),
+                        previous_constant=name in self.constant,
+                    )
+                )
+            elif ins.op == Op.ITER_NEXT:
+                if not self.iterators:
+                    raise SwarnaRuntimeError(
+                        "ITER_NEXT without ITER_START",
+                        ins.span,
+                        hint="The bytecode compiler produced an invalid for loop.",
+                    )
+                frame = self.iterators[-1]
+                try:
+                    item = next(frame.iterator)
+                except StopIteration:
+                    self.iterators.pop()
+                    self._restore_for_frame(frame)
+                    ip = self._jump_target(ins, len(instructions))
+                else:
+                    self.env[frame.name] = item
+                    self.constant.discard(frame.name)
             elif ins.op == Op.CALL:
                 self._call(ins)
             elif ins.op == Op.RETURN:
@@ -334,6 +406,7 @@ class VM:
         for parameter, value in zip(function.parameters, arguments):
             local_env[parameter] = value
             local_constant.discard(parameter)
+        iterator_depth = len(self.iterators)
         self.stack = []
         self.env = local_env
         self.constant = local_constant
@@ -348,6 +421,7 @@ class VM:
                 )
             return result
         finally:
+            self._cleanup_iterators(iterator_depth)
             self.call_depth -= 1
             self.stack = saved_stack
             self.env = saved_env

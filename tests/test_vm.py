@@ -356,6 +356,149 @@ class TestVM(unittest.TestCase):
                 self.assertEqual(vm.output, interpreter.output)
 
 
+class TestVMForLoops(unittest.TestCase):
+    def test_vm_for_loop_accumulates(self):
+        env = run_vm("let total = 0 for x in [1, 2, 3] { total = total + x }")
+        self.assertEqual(env["total"], 6)
+
+    def test_vm_for_loop_prints_each_item(self):
+        program = Parser(Lexer("for x in [1, 2, 3] { print(x) }")).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, [1, 2, 3])
+
+    def test_vm_for_loop_variable_does_not_leak(self):
+        env = run_vm("for x in [1, 2] { }")
+        self.assertNotIn("x", env)
+
+    def test_vm_for_loop_restores_outer_binding(self):
+        env = run_vm("let x = 10 for x in [1, 2] { }")
+        self.assertEqual(env["x"], 10)
+
+    def test_vm_for_loop_restores_const_outer_binding(self):
+        env = run_vm("const x = 10 for x in [1, 2] { x = 5 }")
+        self.assertEqual(env["x"], 10)
+
+    def test_vm_for_loop_variable_is_mutable(self):
+        env = run_vm("for x in [1] { x = x + 10 let y = x }")
+        self.assertEqual(env["y"], 11)
+        self.assertNotIn("x", env)
+
+    def test_vm_for_loop_body_declarations_leak(self):
+        env = run_vm("for x in [1, 2] { let y = x + 1 }")
+        self.assertEqual(env, {"y": 3})
+
+    def test_vm_for_loop_over_empty_list(self):
+        env = run_vm("let total = 0 for x in [] { total = total + 1 }")
+        self.assertEqual(env, {"total": 0})
+
+    def test_vm_nested_for_loops(self):
+        env = run_vm(
+            "let total = 0 "
+            "for x in [1, 2] { for y in [10, 20] { total = total + x + y } }"
+        )
+        self.assertEqual(env["total"], 66)
+
+    def test_vm_nested_for_loops_restore_same_name(self):
+        env = run_vm(
+            "let total = 0 "
+            "for x in [1, 2] { for x in [10, 20] { total = total + x } total = total + x }"
+        )
+        self.assertEqual(env["total"], 63)
+
+    def test_vm_for_loop_evaluates_iterable_once(self):
+        program = Parser(
+            Lexer("fn values() { print(1) [1, 2] } for x in values() { print(x) }")
+        ).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, [1, 1, 2])
+
+    def test_vm_for_loop_over_function_parameter(self):
+        program = Parser(
+            Lexer("fn show(xs) { for x in xs { print(x) } 0 } let y = show([1, 2])")
+        ).parse_program()
+        vm = VM()
+        env = vm.run(Compiler().compile(program))
+        self.assertEqual(env["y"], 0)
+        self.assertEqual(vm.output, [1, 2])
+
+    def test_vm_for_loop_restores_parameter(self):
+        env = run_vm("fn f(x) { for x in [1, 2] { } x } let y = f(10)")
+        self.assertEqual(env, {"y": 10})
+
+    def test_vm_for_loop_requires_list(self):
+        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List, got Int"):
+            run_vm("for x in 1 { print(x) }")
+
+    def test_vm_for_loop_rejects_string_iteration(self):
+        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List, got String"):
+            run_vm('for x in "abc" { print(x) }')
+
+    def test_vm_for_loops_match_interpreter(self):
+        sources = [
+            "let total = 0 for x in [1, 2, 3] { total = total + x } print(total)",
+            "let x = 10 for x in [1, 2] { print(x) } print(x)",
+            "for x in [] { print(x) } print(1)",
+            "let total = 0 for x in [1, 2] { for y in [10, 20] { total = total + x + y } } print(total)",
+            "let total = 0 for x in [1, 2] { for x in [10, 20] { total = total + x } total = total + x } print(total)",
+            "fn show(xs) { for x in xs { print(x) } 0 } print(show([1, 2]))",
+            "const x = 10 for x in [1, 2] { x = 5 } print(x)",
+        ]
+        for source in sources:
+            with self.subTest(source=source):
+                program = Parser(Lexer(source)).parse_program()
+                interpreter = Interpreter()
+                expected_env = interpreter.eval(program)
+
+                vm = VM()
+                actual_env = vm.run(Compiler().compile(program))
+
+                self.assertEqual(actual_env, expected_env)
+                self.assertEqual(vm.output, interpreter.output)
+
+    def test_vm_for_loop_errors_match_interpreter(self):
+        sources = [
+            "for x in 1 { print(x) }",
+            'for x in "abc" { print(x) }',
+        ]
+        for source in sources:
+            with self.subTest(source=source):
+                program = Parser(Lexer(source)).parse_program()
+                with self.assertRaises(TypeError):
+                    Interpreter().eval(program)
+                with self.assertRaises(TypeError):
+                    VM().run(Compiler().compile(program))
+
+    def test_vm_for_loop_restores_outer_binding_on_error(self):
+        vm = VM()
+        program = Parser(Lexer("let x = 10 for x in [1] { let y = missing }")).parse_program()
+        with self.assertRaises(SwarnaNameError):
+            vm.run(Compiler().compile(program))
+        self.assertEqual(vm.env["x"], 10)
+
+    def test_vm_for_loop_removes_loop_variable_on_error(self):
+        vm = VM()
+        program = Parser(Lexer("for x in [1] { let y = missing }")).parse_program()
+        with self.assertRaises(SwarnaNameError):
+            vm.run(Compiler().compile(program))
+        self.assertNotIn("x", vm.env)
+
+    def test_vm_nested_for_loop_restores_bindings_on_error(self):
+        vm = VM()
+        program = Parser(
+            Lexer("let x = 10 for x in [1] { for x in [2] { let y = missing } }")
+        ).parse_program()
+        with self.assertRaises(SwarnaNameError):
+            vm.run(Compiler().compile(program))
+        self.assertEqual(vm.env["x"], 10)
+
+    def test_iter_next_requires_iter_start(self):
+        code = [Instruction(Op.ITER_NEXT, 1), Instruction(Op.HALT)]
+        with self.assertRaisesRegex(RuntimeError, "ITER_NEXT without ITER_START"):
+            VM().run(code)
+
+
 class TestVMFunctions(unittest.TestCase):
     def test_vm_uses_seeded_bindings(self):
         vm = VM()

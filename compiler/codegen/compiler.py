@@ -9,6 +9,7 @@ from compiler.ast.nodes import (
     CallExpression,
     Expression,
     FloatLiteral,
+    ForStatement,
     FunctionDeclaration,
     Identifier,
     IfExpression,
@@ -72,7 +73,7 @@ class Compiler:
 
     def patch(self, index: int, target: int) -> None:
         ins = self.instructions[index]
-        if ins.op not in (Op.JUMP, Op.JUMP_IF_FALSE):
+        if ins.op not in (Op.JUMP, Op.JUMP_IF_FALSE, Op.ITER_NEXT):
             raise RuntimeError(f"Cannot patch non-jump instruction at {index}: {ins!r}")
         self.instructions[index] = Instruction(ins.op, target, span=ins.span)
 
@@ -109,6 +110,15 @@ class Compiler:
             loop_start = len(self.instructions)
             self.compile_expression(stmt.condition)
             jump_to_end = self.emit(Op.JUMP_IF_FALSE, None, stmt.condition.span)
+            self.compile_block(stmt.body)
+            self.emit(Op.JUMP, loop_start, stmt.span)
+            self.patch(jump_to_end, len(self.instructions))
+            return
+        if isinstance(stmt, ForStatement):
+            self.compile_expression(stmt.iterable)
+            self.emit(Op.ITER_START, stmt.name.name, stmt.iterable.span)
+            loop_start = len(self.instructions)
+            jump_to_end = self.emit(Op.ITER_NEXT, None, stmt.name.span)
             self.compile_block(stmt.body)
             self.emit(Op.JUMP, loop_start, stmt.span)
             self.patch(jump_to_end, len(self.instructions))

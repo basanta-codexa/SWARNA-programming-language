@@ -129,6 +129,43 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_for(self):
+        code = compile_source("for x in [1, 2] { print(x) }")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST 1",
+            "CONST 2",
+            "BUILD_LIST 2",
+            "ITER_START 'x'",
+            "ITER_NEXT 8",
+            "LOAD_NAME 'x'",
+            "PRINT",
+            "JUMP 4",
+            "HALT",
+        ])
+
+    def test_compile_for_with_empty_body(self):
+        code = compile_source("for x in [] { }")
+        self.assertEqual([repr(i) for i in code], [
+            "BUILD_LIST 0",
+            "ITER_START 'x'",
+            "ITER_NEXT 4",
+            "JUMP 2",
+            "HALT",
+        ])
+
+    def test_compile_function_with_for(self):
+        compiled = compile_source("fn show(xs) { for x in xs { print(x) } 0 }")
+        self.assertEqual([repr(i) for i in compiled.functions["show"].instructions], [
+            "LOAD_NAME 'xs'",
+            "ITER_START 'x'",
+            "ITER_NEXT 6",
+            "LOAD_NAME 'x'",
+            "PRINT",
+            "JUMP 2",
+            "CONST 0",
+            "RETURN",
+        ])
+
     def test_compile_float_division(self):
         code = compile_source("let x = 3.5 / 2")
         self.assertEqual([repr(i) for i in code], [

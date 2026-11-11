@@ -35,6 +35,8 @@ class Op(Enum):
     BUILD_LIST = auto()
     INDEX = auto()
     LEN = auto()
+    ITER_START = auto()
+    ITER_NEXT = auto()
     CALL = auto()
     RETURN = auto()
     HALT = auto()
