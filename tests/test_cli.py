@@ -48,6 +48,12 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertIn("LOAD_NAME 'a'", out)
         self.assertIn("RETURN", out)
 
+    def test_emit_bytecode_includes_list_ops(self):
+        out = emit_bytecode_source("let xs = [1, 2] print(xs[0] + len(xs))")
+        self.assertIn("BUILD_LIST 2", out)
+        self.assertIn("INDEX", out)
+        self.assertIn("LEN", out)
+
     def test_parse_error_renders_span_and_hint(self):
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
@@ -106,6 +112,26 @@ class TestCLIHelpers(unittest.TestCase):
             ),
             "120",
         )
+
+    def test_run_source_executes_list_index_and_len(self):
+        self.assertEqual(
+            run_source("let xs = [1, 2, 3] print(xs[0] + len(xs))"),
+            "4",
+        )
+
+    def test_run_source_formats_lists(self):
+        self.assertEqual(
+            run_source('print([1, 2, 3]) print(["Ada", "Grace"]) print([true, false])'),
+            '[1, 2, 3]\n["Ada", "Grace"]\n[true, false]',
+        )
+
+    def test_run_source_reports_list_index_type_error(self):
+        with self.assertRaises(SwarnaSemanticError):
+            run_source('let xs = [1, 2] print(xs["a"])')
+
+    def test_run_source_reports_mixed_list_error(self):
+        with self.assertRaises(SwarnaSemanticError):
+            run_source('let xs = [1, "a"]')
 
     def test_run_source_reports_undefined_name(self):
         with self.assertRaises(SwarnaSemanticError):
@@ -383,6 +409,39 @@ class TestCLIHelpers(unittest.TestCase):
             code = main(["--run"])
         self.assertEqual(code, 0)
         self.assertIn("2", stdout.getvalue())
+
+    def test_repl_preserves_list_type_between_lines(self):
+        stdout = io.StringIO()
+        inputs = iter([
+            "let xs = [1, 2, 3]",
+            "print(xs[0] + len(xs))",
+            ":q",
+        ])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("4", stdout.getvalue())
+
+    def test_repl_rejects_list_type_change(self):
+        stderr = io.StringIO()
+        inputs = iter([
+            "let xs = [1, 2]",
+            "xs = [1.0]",
+            ":q",
+        ])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("Cannot assign List[Float] to List[Int]", stderr.getvalue())
 
     def test_repl_preserves_const_binding(self):
         stderr = io.StringIO()

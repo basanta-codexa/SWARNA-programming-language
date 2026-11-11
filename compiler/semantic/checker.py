@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum, auto
 from typing import NoReturn
 
 from compiler.ast.nodes import (
@@ -17,8 +16,10 @@ from compiler.ast.nodes import (
     Identifier,
     IfExpression,
     IfStatement,
+    IndexExpression,
     IntegerLiteral,
     LetStatement,
+    ListLiteral,
     PrintStatement,
     Program,
     Statement,
@@ -29,16 +30,40 @@ from compiler.ast.nodes import (
 from compiler.diagnostics import SourceSpan, SwarnaSemanticError
 
 
-class Type(Enum):
-    INT = auto()
-    FLOAT = auto()
-    STRING = auto()
-    BOOL = auto()
-    UNKNOWN = auto()
+@dataclass(frozen=True)
+class Type:
+    name: str
+    arguments: tuple["Type", ...] = ()
 
     @property
     def label(self) -> str:
-        return self.name.title()
+        if not self.arguments:
+            return self.name
+        return f"{self.name}[{', '.join(argument.label for argument in self.arguments)}]"
+
+    @property
+    def is_list(self) -> bool:
+        return self.name == "List" and len(self.arguments) == 1
+
+    @property
+    def element_type(self) -> "Type":
+        return self.arguments[0] if self.is_list else Type.UNKNOWN
+
+    @classmethod
+    def list_of(cls, element: Type) -> "Type":
+        return cls("List", (element,))
+
+
+# Scalar types stay as singleton class attributes so identity checks and the
+# existing public Type.INT-style API remain stable.
+Type.INT = Type("Int")
+Type.FLOAT = Type("Float")
+Type.STRING = Type("String")
+Type.BOOL = Type("Bool")
+Type.UNKNOWN = Type("Unknown")
+
+
+BUILTIN_NAMES = frozenset({"print", "len"})
 
 
 @dataclass(frozen=True)
@@ -56,6 +81,23 @@ class FunctionSignature:
     span: SourceSpan | None = None
 
 
+def common_element_type(left: Type, right: Type) -> Type | None:
+    """Unify two list element types without raising a diagnostic."""
+
+    if left is Type.UNKNOWN:
+        return right
+    if right is Type.UNKNOWN:
+        return left
+    if left == right:
+        return left
+    if left.is_list and right.is_list:
+        element_type = common_element_type(left.element_type, right.element_type)
+        if element_type is None:
+            return None
+        return Type.list_of(element_type)
+    return None
+
+
 def type_of_value(value: object) -> Type:
     """Infer the static type of a value already held by the interpreter."""
 
@@ -67,6 +109,15 @@ def type_of_value(value: object) -> Type:
         return Type.FLOAT
     if type(value) is str:
         return Type.STRING
+    if isinstance(value, list):
+        element_type = Type.UNKNOWN
+        for item in value:
+            item_type = type_of_value(item)
+            unified = common_element_type(element_type, item_type)
+            if unified is None:
+                return Type.list_of(Type.UNKNOWN)
+            element_type = unified
+        return Type.list_of(element_type)
     return Type.UNKNOWN
 
 
@@ -115,9 +166,9 @@ class TypeChecker:
                     "Give each function a unique name.",
                 )
             seen.add(name)
-            if name == "print":
+            if name in BUILTIN_NAMES:
                 self._error(
-                    "Function name 'print' is reserved",
+                    f"Function name '{name}' is reserved",
                     stmt.name.span,
                     "Use a different function name.",
                 )
@@ -159,6 +210,12 @@ class TypeChecker:
                         parameter.name.span,
                         "Use a different parameter name.",
                     )
+                if parameter.name.name in BUILTIN_NAMES:
+                    self._error(
+                        f"Parameter '{parameter.name.name}' conflicts with a built-in name",
+                        parameter.name.span,
+                        "Use a different parameter name.",
+                    )
                 self.env[parameter.name.name] = Binding(
                     parameter_type,
                     constant=False,
@@ -193,6 +250,12 @@ class TypeChecker:
         }
         resolved = types.get(type_name.name)
         if resolved is None:
+            if type_name.name in ("List", "Map"):
+                self._error(
+                    f"{type_name.name} type annotations are not supported yet",
+                    type_name.span,
+                    "Leave the annotation off; the checker infers collection element types.",
+                )
             self._error(
                 f"Unknown type '{type_name.name}'",
                 type_name.span,
@@ -214,6 +277,12 @@ class TypeChecker:
                     stmt.name.span,
                     "Use a different name for the binding.",
                 )
+            if stmt.name.name in BUILTIN_NAMES:
+                self._error(
+                    f"Cannot bind a variable named '{stmt.name.name}' because it is reserved",
+                    stmt.name.span,
+                    "Use a different name for the binding.",
+                )
             value_type = self.check_expression(stmt.value)
             self.env[stmt.name.name] = Binding(
                 value_type,
@@ -225,6 +294,12 @@ class TypeChecker:
         if isinstance(stmt, AssignmentStatement):
             name = stmt.name.name
             value_type = self.check_expression(stmt.value)
+            if name in BUILTIN_NAMES:
+                self._error(
+                    f"Cannot assign to reserved name '{name}'",
+                    stmt.name.span,
+                    "Use a different name for the binding.",
+                )
             binding = self.env.get(name)
             if binding is None:
                 if name in self.functions:
@@ -292,7 +367,67 @@ class TypeChecker:
         if isinstance(expr, BoolLiteral):
             return Type.BOOL
 
+        if isinstance(expr, ListLiteral):
+            element_type = Type.UNKNOWN
+            for element in expr.elements:
+                current_type = self.check_expression(element)
+                unified = common_element_type(element_type, current_type)
+                if unified is None:
+                    hint = "Use values of one type, or convert them explicitly."
+                    if self._is_numeric(element_type) and self._is_numeric(current_type):
+                        hint = "Write the whole list with decimal points for Float, or without them for Int."
+                    self._error(
+                        f"List elements must have the same type, got "
+                        f"{element_type.label} and {current_type.label}",
+                        element.span,
+                        hint,
+                    )
+                element_type = unified
+            return Type.list_of(element_type)
+
+        if isinstance(expr, IndexExpression):
+            collection_type = self.check_expression(expr.collection)
+            index_type = self.check_expression(expr.index)
+            if collection_type is not Type.UNKNOWN and not collection_type.is_list:
+                self._error(
+                    f"Cannot index {collection_type.label}; only lists can be indexed",
+                    expr.collection.span if expr.collection.span is not None else expr.span,
+                    "Use a list value before the brackets.",
+                )
+            if index_type is not Type.UNKNOWN and index_type is not Type.INT:
+                self._error(
+                    f"List index must be Int, got {index_type.label}",
+                    expr.index.span,
+                    "Use an Int index, such as `values[0]`.",
+                )
+            if collection_type is Type.UNKNOWN:
+                return Type.UNKNOWN
+            return collection_type.element_type
+
         if isinstance(expr, CallExpression):
+            if expr.callee.name == "print":
+                self._error(
+                    "`print` is a statement, not an expression",
+                    expr.span,
+                    "Use `print(value)` on its own line.",
+                )
+            if expr.callee.name == "len":
+                if len(expr.arguments) != 1:
+                    self._error(
+                        f"Function 'len' expects 1 argument, got {len(expr.arguments)}",
+                        expr.span,
+                        "Pass one list or string to `len`.",
+                    )
+                argument_type = self.check_expression(expr.arguments[0])
+                if argument_type is Type.UNKNOWN:
+                    return Type.INT
+                if not (argument_type.is_list or argument_type is Type.STRING):
+                    self._error(
+                        f"`len` expects a List or String, got {argument_type.label}",
+                        expr.arguments[0].span,
+                        "Pass a list or string to `len`.",
+                    )
+                return Type.INT
             signature = self.functions.get(expr.callee.name)
             if signature is None:
                 self._error(
@@ -329,6 +464,12 @@ class TypeChecker:
                         f"Function '{expr.name}' must be called",
                         expr.span,
                         "Add parentheses and arguments, or bind the result to a name.",
+                    )
+                if expr.name in BUILTIN_NAMES:
+                    self._error(
+                        f"Built-in '{expr.name}' must be called",
+                        expr.span,
+                        "Add parentheses and arguments, or use a different name.",
                     )
                 self._error(
                     f"Undefined name '{expr.name}'",
@@ -407,6 +548,14 @@ class TypeChecker:
             return Type.UNKNOWN
 
         if expr.operator == "+":
+            if left_type.is_list and right_type.is_list:
+                element_type = self._require_common_element_type(
+                    left_type.element_type,
+                    right_type.element_type,
+                    expr.right.span,
+                    "List concatenation",
+                )
+                return Type.list_of(element_type)
             if left_type is Type.STRING and right_type is Type.STRING:
                 return Type.STRING
             if self._is_numeric(left_type) and self._is_numeric(right_type):
@@ -414,7 +563,7 @@ class TypeChecker:
             self._error(
                 f"`+` cannot combine {left_type.label} and {right_type.label}",
                 expr.span,
-                "Use two numbers or two strings.",
+                "Use two numbers, two strings, or two lists.",
             )
 
         if expr.operator in ("-", "*"):
@@ -482,13 +631,37 @@ class TypeChecker:
             return else_type
         if else_type is Type.UNKNOWN:
             return then_type
-        if then_type is else_type:
+        if then_type == else_type:
             return then_type
+        if then_type.is_list and else_type.is_list:
+            element_type = self._require_common_element_type(
+                then_type.element_type,
+                else_type.element_type,
+                expr.else_value.span,
+                "`if` branches",
+            )
+            return Type.list_of(element_type)
         self._error(
             f"`if` branches have incompatible types: {then_type.label} and {else_type.label}",
             expr.else_value.span if expr.else_value.span is not None else expr.span,
             "Both branches must produce the same type.",
         )
+
+    def _require_common_element_type(
+        self,
+        left: Type,
+        right: Type,
+        span: SourceSpan | None,
+        context: str,
+    ) -> Type:
+        unified = common_element_type(left, right)
+        if unified is None:
+            self._error(
+                f"{context} cannot combine element types {left.label} and {right.label}",
+                span,
+                "Use list elements of the same type.",
+            )
+        return unified
 
     @staticmethod
     def _is_numeric(type: Type) -> bool:
@@ -508,15 +681,23 @@ class TypeChecker:
     def _is_assignable(target: Type, value: Type) -> bool:
         if target is Type.UNKNOWN or value is Type.UNKNOWN:
             return True
-        return target is value
+        if target == value:
+            return True
+        if target.is_list and value.is_list:
+            return TypeChecker._is_assignable(target.element_type, value.element_type)
+        return False
 
     @staticmethod
     def _is_comparable(left: Type, right: Type) -> bool:
         if left is Type.UNKNOWN or right is Type.UNKNOWN:
             return True
-        if left is right:
+        if left == right:
             return True
-        return left in (Type.INT, Type.FLOAT) and right in (Type.INT, Type.FLOAT)
+        if left in (Type.INT, Type.FLOAT) and right in (Type.INT, Type.FLOAT):
+            return True
+        if left.is_list and right.is_list:
+            return common_element_type(left.element_type, right.element_type) is not None
+        return False
 
     @staticmethod
     def _is_ordered(left: Type, right: Type) -> bool:

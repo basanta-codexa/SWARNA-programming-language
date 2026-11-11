@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, FloatLiteral, FunctionDeclaration, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, Parameter, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, FloatLiteral, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, Parameter, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SourceSpan
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
@@ -485,6 +485,99 @@ class TestParser(unittest.TestCase):
     def test_parse_function_requires_parameter_type_after_colon(self):
         parser = Parser(Lexer("fn f(a:) { a }"))
         with self.assertRaisesRegex(SyntaxError, "Expected a type after ':'"):
+            parser.parse_program()
+
+    def test_parse_list_literal(self):
+        program = Parser(Lexer("let xs = [1, 2, 3]")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(
+            stmt.value,
+            ListLiteral(elements=[IntegerLiteral(1), IntegerLiteral(2), IntegerLiteral(3)]),
+        )
+
+    def test_parse_empty_list_literal(self):
+        program = Parser(Lexer("let xs = []")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(stmt.value, ListLiteral(elements=[]))
+
+    def test_parse_list_literal_allows_trailing_comma(self):
+        program = Parser(Lexer("let xs = [1, 2,]")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(stmt.value, ListLiteral(elements=[IntegerLiteral(1), IntegerLiteral(2)]))
+
+    def test_parse_nested_list_literal(self):
+        program = Parser(Lexer("let xs = [[1], [2, 3]]")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(
+            stmt.value,
+            ListLiteral(
+                elements=[
+                    ListLiteral(elements=[IntegerLiteral(1)]),
+                    ListLiteral(elements=[IntegerLiteral(2), IntegerLiteral(3)]),
+                ]
+            ),
+        )
+
+    def test_parse_index_expression(self):
+        program = Parser(Lexer("let x = xs[0]")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(
+            stmt.value,
+            IndexExpression(collection=Identifier("xs"), index=IntegerLiteral(0)),
+        )
+
+    def test_parse_chained_index_expression(self):
+        program = Parser(Lexer("let x = xs[0][1]")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(
+            stmt.value,
+            IndexExpression(
+                collection=IndexExpression(collection=Identifier("xs"), index=IntegerLiteral(0)),
+                index=IntegerLiteral(1),
+            ),
+        )
+
+    def test_parse_index_on_call_result(self):
+        program = Parser(Lexer("let x = values()[0]")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(
+            stmt.value,
+            IndexExpression(
+                collection=CallExpression(callee=Identifier("values"), arguments=[]),
+                index=IntegerLiteral(0),
+            ),
+        )
+
+    def test_parse_empty_index_rejected(self):
+        parser = Parser(Lexer("let x = xs[]"))
+        with self.assertRaisesRegex(SyntaxError, "List index is empty"):
+            parser.parse_program()
+
+    def test_parse_index_assignment_rejected(self):
+        parser = Parser(Lexer("xs[0] = 1"))
+        with self.assertRaisesRegex(SyntaxError, "Index assignment is not supported yet"):
+            parser.parse_program()
+
+    def test_parse_index_assignment_in_block_rejected(self):
+        parser = Parser(Lexer("let x = if true { xs[0] = 1 0 } else { 0 }"))
+        with self.assertRaisesRegex(SyntaxError, "Index assignment is not supported yet"):
+            parser.parse_program()
+
+    def test_parse_generic_type_annotation_rejected(self):
+        parser = Parser(Lexer("fn f(xs: List[Int]) -> Int { 0 }"))
+        with self.assertRaisesRegex(SyntaxError, "Generic type annotations are not supported yet"):
+            parser.parse_program()
+
+    def test_parse_list_missing_comma_rejected(self):
+        parser = Parser(Lexer("let xs = [1 2]"))
+        with self.assertRaisesRegex(SyntaxError, "Expected ']' after list elements"):
             parser.parse_program()
 
     def test_function_and_call_spans(self):

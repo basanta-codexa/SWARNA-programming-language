@@ -76,6 +76,20 @@ class TestLexer(unittest.TestCase):
         self.assertEqual(tokens[0].type, TokenType.IDENTIFIER)
         self.assertEqual(tokens[0].value, "mut")
 
+    def test_list_brackets(self):
+        tokens = Lexer("[1, 2]").tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens],
+            [
+                (TokenType.LBRACKET, "["),
+                (TokenType.INTEGER, "1"),
+                (TokenType.COMMA, ","),
+                (TokenType.INTEGER, "2"),
+                (TokenType.RBRACKET, "]"),
+                (TokenType.EOF, ""),
+            ],
+        )
+
     def test_float_literal(self):
         lexer = Lexer("3.14 0.5 42")
         tokens = lexer.tokenize()

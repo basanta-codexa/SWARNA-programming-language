@@ -289,6 +289,68 @@ class TestCodegen(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "Duplicate function 'f'"):
             compile_source("fn f() -> Int { 1 } fn f() -> Int { 2 }")
 
+    def test_compile_list_literal(self):
+        compiled = compile_source("let xs = [1, 2, 3]")
+        self.assertEqual([repr(i) for i in compiled], [
+            "CONST 1",
+            "CONST 2",
+            "CONST 3",
+            "BUILD_LIST 3",
+            "DECLARE_NAME 'xs'",
+            "HALT",
+        ])
+
+    def test_compile_empty_list_literal(self):
+        compiled = compile_source("let xs = []")
+        self.assertEqual([repr(i) for i in compiled], [
+            "BUILD_LIST 0",
+            "DECLARE_NAME 'xs'",
+            "HALT",
+        ])
+
+    def test_compile_index_expression(self):
+        compiled = compile_source("let xs = [1, 2] let x = xs[0]")
+        self.assertEqual([repr(i) for i in compiled], [
+            "CONST 1",
+            "CONST 2",
+            "BUILD_LIST 2",
+            "DECLARE_NAME 'xs'",
+            "LOAD_NAME 'xs'",
+            "CONST 0",
+            "INDEX",
+            "DECLARE_NAME 'x'",
+            "HALT",
+        ])
+
+    def test_compile_len_builtin(self):
+        compiled = compile_source("let xs = [1, 2] let n = len(xs)")
+        self.assertEqual([repr(i) for i in compiled], [
+            "CONST 1",
+            "CONST 2",
+            "BUILD_LIST 2",
+            "DECLARE_NAME 'xs'",
+            "LOAD_NAME 'xs'",
+            "LEN",
+            "DECLARE_NAME 'n'",
+            "HALT",
+        ])
+
+    def test_compile_list_concatenation(self):
+        compiled = compile_source("let xs = [1] + [2]")
+        self.assertEqual([repr(i) for i in compiled], [
+            "CONST 1",
+            "BUILD_LIST 1",
+            "CONST 2",
+            "BUILD_LIST 1",
+            "ADD",
+            "DECLARE_NAME 'xs'",
+            "HALT",
+        ])
+
+    def test_compile_len_rejects_wrong_argument_count(self):
+        with self.assertRaisesRegex(RuntimeError, "`len` expects exactly one argument"):
+            compile_source("let n = len([1], [2])")
+
 
 if __name__ == "__main__":
     unittest.main()

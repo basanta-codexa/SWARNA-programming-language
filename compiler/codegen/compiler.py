@@ -13,8 +13,10 @@ from compiler.ast.nodes import (
     Identifier,
     IfExpression,
     IfStatement,
+    IndexExpression,
     IntegerLiteral,
     LetStatement,
+    ListLiteral,
     PrintStatement,
     Program,
     Statement,
@@ -152,7 +154,23 @@ class Compiler:
         if isinstance(expr, Identifier):
             self.emit(Op.LOAD_NAME, expr.name, expr.span)
             return
+        if isinstance(expr, ListLiteral):
+            for element in expr.elements:
+                self.compile_expression(element)
+            self.emit(Op.BUILD_LIST, len(expr.elements), expr.span)
+            return
+        if isinstance(expr, IndexExpression):
+            self.compile_expression(expr.collection)
+            self.compile_expression(expr.index)
+            self.emit(Op.INDEX, span=expr.span)
+            return
         if isinstance(expr, CallExpression):
+            if expr.callee.name == "len":
+                if len(expr.arguments) != 1:
+                    raise RuntimeError("`len` expects exactly one argument")
+                self.compile_expression(expr.arguments[0])
+                self.emit(Op.LEN, span=expr.span)
+                return
             for argument in expr.arguments:
                 self.compile_expression(argument)
             self.emit(Op.CALL, (expr.callee.name, len(expr.arguments)), expr.span)

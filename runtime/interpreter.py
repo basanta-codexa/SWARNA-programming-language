@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, FunctionDeclaration, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
-
-
-Value = int | float | bool | str
+from runtime.values import Value, value_type_name
 
 
 @dataclass(frozen=True)
@@ -143,6 +141,21 @@ class Interpreter:
         return self.eval_expression(block.value)
 
     def eval_call(self, expr: CallExpression) -> Value:
+        if expr.callee.name == "len":
+            if len(expr.arguments) != 1:
+                raise SwarnaRuntimeError(
+                    f"Function 'len' expects 1 argument, got {len(expr.arguments)}",
+                    expr.span,
+                    hint="Pass one list or string to `len`.",
+                )
+            value = self.eval_expression(expr.arguments[0])
+            if isinstance(value, (list, str)):
+                return len(value)
+            raise SwarnaTypeError(
+                f"`len` expects a List or String, got {value_type_name(value)}",
+                expr.arguments[0].span,
+                hint="Pass a list or string to `len`.",
+            )
         function = self.functions.get(expr.callee.name)
         if function is None:
             raise SwarnaNameError(
@@ -195,6 +208,31 @@ class Interpreter:
             if bool(self.eval_expression(expr.condition)):
                 return self.eval_expression(expr.then_value)
             return self.eval_expression(expr.else_value)
+        if isinstance(expr, ListLiteral):
+            return [self.eval_expression(element) for element in expr.elements]
+        if isinstance(expr, IndexExpression):
+            collection = self.eval_expression(expr.collection)
+            index = self.eval_expression(expr.index)
+            if not isinstance(collection, list):
+                raise SwarnaTypeError(
+                    f"Cannot index {value_type_name(collection)}",
+                    expr.span,
+                    hint="Only lists can be indexed right now.",
+                )
+            if type(index) is not int:
+                raise SwarnaTypeError(
+                    "List index must be Int",
+                    expr.index.span,
+                    hint="Use an integer index, such as `values[0]`.",
+                )
+            try:
+                return collection[index]
+            except IndexError:
+                raise SwarnaRuntimeError(
+                    f"Index {index} is out of range for a list of length {len(collection)}",
+                    expr.index.span,
+                    hint="Use an index from 0 to len(list) - 1, or a negative index from -len(list) to -1.",
+                ) from None
         if isinstance(expr, CallExpression):
             return self.eval_call(expr)
         if isinstance(expr, Identifier):

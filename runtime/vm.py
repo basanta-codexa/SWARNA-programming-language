@@ -6,9 +6,7 @@ from typing import Any, Callable
 from compiler.bytecode.instructions import Instruction, Op
 from compiler.bytecode.program import CompiledProgram, FunctionInfo
 from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
-
-
-Value = int | float | bool | str
+from runtime.values import Value, value_type_name
 
 
 class VM:
@@ -196,6 +194,56 @@ class VM:
                     ip = self._jump_target(ins, len(instructions))
             elif ins.op == Op.POP:
                 self._pop(ins)
+            elif ins.op == Op.BUILD_LIST:
+                count = ins.arg
+                if not isinstance(count, int) or count < 0:
+                    raise SwarnaRuntimeError(
+                        "Invalid BUILD_LIST count",
+                        ins.span,
+                        hint="The bytecode compiler produced an invalid list instruction.",
+                    )
+                if len(self.stack) < count:
+                    raise SwarnaRuntimeError(
+                        "Stack underflow on BUILD_LIST",
+                        ins.span,
+                        hint="The bytecode compiler produced an invalid stack operation.",
+                    )
+                elements = [self._pop(ins) for _ in range(count)]
+                elements.reverse()
+                self.stack.append(elements)
+            elif ins.op == Op.INDEX:
+                index = self._pop(ins)
+                collection = self._pop(ins)
+                if not isinstance(collection, list):
+                    raise SwarnaTypeError(
+                        f"Cannot index {value_type_name(collection)}",
+                        ins.span,
+                        hint="Only lists can be indexed right now.",
+                    )
+                if type(index) is not int:
+                    raise SwarnaTypeError(
+                        "List index must be Int",
+                        ins.span,
+                        hint="Use an integer index, such as `values[0]`.",
+                    )
+                try:
+                    self.stack.append(collection[index])
+                except IndexError:
+                    raise SwarnaRuntimeError(
+                        f"Index {index} is out of range for a list of length {len(collection)}",
+                        ins.span,
+                        hint="Use an index from 0 to len(list) - 1, or a negative index from -len(list) to -1.",
+                    ) from None
+            elif ins.op == Op.LEN:
+                value = self._pop(ins)
+                if isinstance(value, (list, str)):
+                    self.stack.append(len(value))
+                else:
+                    raise SwarnaTypeError(
+                        f"`len` expects a List or String, got {value_type_name(value)}",
+                        ins.span,
+                        hint="Pass a list or string to `len`.",
+                    )
             elif ins.op == Op.CALL:
                 self._call(ins)
             elif ins.op == Op.RETURN:

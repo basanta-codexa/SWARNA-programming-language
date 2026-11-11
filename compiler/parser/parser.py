@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, FunctionDeclaration, Identifier, IfExpression, IfStatement, IntegerLiteral, LetStatement, Parameter, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, Parameter, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
@@ -59,6 +59,12 @@ class Parser:
                 self.current.span,
                 hint="Use the call in a `let` binding or inside `print(...)`.",
             )
+        if self.current.type == TokenType.LBRACKET:
+            raise SwarnaSyntaxError(
+                "Index assignment is not supported yet",
+                self.current.span,
+                hint="Lists are immutable for now; create a new list with `+`.",
+            )
         self._expect(
             TokenType.EQUAL,
             "Expected '=' in assignment",
@@ -107,6 +113,12 @@ class Parser:
                 hint="Use `Int`, `Float`, `String`, or `Bool`.",
             )
             return_type = Identifier(type_value, span=type_token.span)
+            if self.current.type == TokenType.LBRACKET:
+                raise SwarnaSyntaxError(
+                    "Generic type annotations are not supported yet",
+                    self.current.span,
+                    hint="Leave the annotation off; the checker infers collection element types.",
+                )
         body = self.parse_block_expression()
         return FunctionDeclaration(
             name=name,
@@ -134,6 +146,12 @@ class Parser:
                 hint="Use `Int`, `Float`, `String`, or `Bool`.",
             )
             type_name = Identifier(type_value, span=type_token.span)
+            if self.current.type == TokenType.LBRACKET:
+                raise SwarnaSyntaxError(
+                    "Generic type annotations are not supported yet",
+                    self.current.span,
+                    hint="Leave the annotation off; the checker infers collection element types.",
+                )
         return Parameter(name=name, type_name=type_name)
 
     def parse_if_statement(self) -> IfStatement:
@@ -202,6 +220,12 @@ class Parser:
             else:
                 expr = self.parse_expression()
                 if self.current.type == TokenType.EQUAL:
+                    if isinstance(expr, IndexExpression):
+                        raise SwarnaSyntaxError(
+                            "Index assignment is not supported yet",
+                            expr.span,
+                            hint="Lists are immutable for now; create a new list with `+`.",
+                        )
                     if not isinstance(expr, Identifier):
                         raise SwarnaSyntaxError(
                             "Invalid assignment target",
@@ -355,6 +379,12 @@ class Parser:
             op = "-" if self.current.type == TokenType.MINUS else "!"
             self._advance()
             return UnaryExpression(operator=op, operand=self.parse_factor(), span=op_token.span)
+        node = self.parse_primary()
+        while self.current.type == TokenType.LBRACKET:
+            node = self.parse_index(node)
+        return node
+
+    def parse_primary(self) -> Expression:
         if self.current.type == TokenType.INTEGER:
             token = self.current
             self._advance()
@@ -377,6 +407,8 @@ class Parser:
             return BoolLiteral(False, span=token.span)
         if self.current.type == TokenType.KEYWORD_IF:
             return self.parse_if_expression()
+        if self.current.type == TokenType.LBRACKET:
+            return self.parse_list_literal()
         if self.current.type == TokenType.IDENTIFIER:
             token = self.current
             self._advance()
@@ -392,8 +424,53 @@ class Parser:
         raise SwarnaSyntaxError(
             "Expected expression",
             self.current.span,
-            hint="Expected a literal, name, function call, or parenthesized expression.",
+            hint="Expected a literal, list, name, function call, or parenthesized expression.",
         )
+
+    def parse_list_literal(self) -> ListLiteral:
+        lbracket_token = self.current
+        self._expect(
+            TokenType.LBRACKET,
+            "Expected '['",
+            hint="A list is written as `[1, 2, 3]`.",
+        )
+        elements: list[Expression] = []
+        if self.current.type != TokenType.RBRACKET:
+            while True:
+                elements.append(self.parse_expression())
+                if self.current.type == TokenType.COMMA:
+                    self._advance()
+                    if self.current.type == TokenType.RBRACKET:
+                        break
+                    continue
+                break
+        self._expect(
+            TokenType.RBRACKET,
+            "Expected ']' after list elements",
+            hint="Close the list with `]`, or separate elements with commas.",
+        )
+        return ListLiteral(elements=elements, span=lbracket_token.span)
+
+    def parse_index(self, collection: Expression) -> IndexExpression:
+        lbracket_token = self.current
+        self._expect(
+            TokenType.LBRACKET,
+            "Expected '['",
+            hint="Index a list as `values[index]`.",
+        )
+        if self.current.type == TokenType.RBRACKET:
+            raise SwarnaSyntaxError(
+                "List index is empty",
+                self.current.span,
+                hint="Put an Int index inside the brackets, for example `values[0]`.",
+            )
+        index = self.parse_expression()
+        self._expect(
+            TokenType.RBRACKET,
+            "Expected ']' after index",
+            hint="Close the index with `]`.",
+        )
+        return IndexExpression(collection=collection, index=index, span=lbracket_token.span)
 
     def parse_call(self, callee: Identifier) -> CallExpression:
         lparen_token = self.current

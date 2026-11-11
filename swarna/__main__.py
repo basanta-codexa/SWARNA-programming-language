@@ -7,14 +7,7 @@ from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 from compiler.semantic.checker import Binding, FunctionSignature, Type, TypeChecker, type_of_value
 from runtime.interpreter import Interpreter
-
-
-def format_value(value: int | float | bool | str) -> str:
-    if value is True:
-        return "true"
-    if value is False:
-        return "false"
-    return str(value)
+from runtime.values import format_value
 
 
 def lex_source(source: str) -> str:

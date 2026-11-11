@@ -72,7 +72,20 @@ class CallExpression:
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
 
 
-Expression = IntegerLiteral | FloatLiteral | StringLiteral | BoolLiteral | BinaryExpression | IfExpression | BlockExpression | CallExpression | Identifier | UnaryExpression
+@dataclass(frozen=True)
+class ListLiteral:
+    elements: list["Expression"]
+    span: SourceSpan | None = field(default=None, compare=False, repr=False)
+
+
+@dataclass(frozen=True)
+class IndexExpression:
+    collection: "Expression"
+    index: "Expression"
+    span: SourceSpan | None = field(default=None, compare=False, repr=False)
+
+
+Expression = IntegerLiteral | FloatLiteral | StringLiteral | BoolLiteral | BinaryExpression | IfExpression | BlockExpression | CallExpression | ListLiteral | IndexExpression | Identifier | UnaryExpression
 
 
 @dataclass(frozen=True)

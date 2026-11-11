@@ -188,6 +188,8 @@ class Lexer:
             ")": TokenType.RPAREN,
             "{": TokenType.LBRACE,
             "}": TokenType.RBRACE,
+            "[": TokenType.LBRACKET,
+            "]": TokenType.RBRACKET,
             ";": TokenType.SEMICOLON,
             ":": TokenType.COLON,
             ",": TokenType.COMMA,

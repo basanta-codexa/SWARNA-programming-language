@@ -6,7 +6,7 @@ from compiler.parser.parser import Parser
 from runtime.interpreter import Interpreter
 
 
-def run(source: str) -> dict[str, int | float | bool | str]:
+def run(source: str) -> dict[str, object]:
     program = Parser(Lexer(source)).parse_program()
     return Interpreter().eval(program)
 
@@ -300,6 +300,65 @@ class TestInterpreterFunctions(unittest.TestCase):
     def test_recursion_depth_limit(self):
         with self.assertRaisesRegex(RuntimeError, "Maximum call depth"):
             run("fn loop(n: Int) -> Int { loop(n + 1) } let x = loop(0)")
+
+    def test_list_literal_and_index(self):
+        env = run("let xs = [1, 2, 3] let x = xs[0] let y = xs[-1]")
+        self.assertEqual(env["xs"], [1, 2, 3])
+        self.assertEqual(env["x"], 1)
+        self.assertEqual(env["y"], 3)
+
+    def test_nested_list_index(self):
+        env = run("let xs = [[1], [2, 3]] let x = xs[1][0]")
+        self.assertEqual(env["x"], 2)
+
+    def test_list_concatenation(self):
+        env = run("let xs = [1, 2] + [3, 4]")
+        self.assertEqual(env["xs"], [1, 2, 3, 4])
+
+    def test_list_equality(self):
+        env = run("let x = [1, 2] == [1, 2] let y = [1] != [2]")
+        self.assertIs(env["x"], True)
+        self.assertIs(env["y"], True)
+
+    def test_len_of_list_and_string(self):
+        env = run('let xs = [1, 2, 3] let a = len(xs) let b = len("hello")')
+        self.assertEqual(env["a"], 3)
+        self.assertEqual(env["b"], 5)
+
+    def test_empty_list(self):
+        env = run("let xs = [] let n = len(xs)")
+        self.assertEqual(env["xs"], [])
+        self.assertEqual(env["n"], 0)
+
+    def test_list_print_output(self):
+        program = Parser(Lexer("print([1, 2, 3])")).parse_program()
+        interpreter = Interpreter()
+        interpreter.eval(program)
+        self.assertEqual(interpreter.output, [[1, 2, 3]])
+
+    def test_index_out_of_range(self):
+        with self.assertRaisesRegex(RuntimeError, "Index 3 is out of range for a list of length 2"):
+            run("let xs = [1, 2] let x = xs[3]")
+
+    def test_negative_index_out_of_range(self):
+        with self.assertRaisesRegex(RuntimeError, "Index -3 is out of range for a list of length 2"):
+            run("let xs = [1, 2] let x = xs[-3]")
+
+    def test_index_must_be_int(self):
+        with self.assertRaisesRegex(TypeError, "List index must be Int"):
+            run('let xs = [1, 2] let x = xs["a"]')
+
+    def test_only_lists_can_be_indexed(self):
+        with self.assertRaisesRegex(TypeError, "Cannot index Int"):
+            run("let x = 1[0]")
+
+    def test_len_requires_list_or_string(self):
+        with self.assertRaisesRegex(TypeError, "`len` expects a List or String, got Int"):
+            run("let n = len(1)")
+
+    def test_len_requires_one_argument(self):
+        with self.assertRaisesRegex(RuntimeError, "Function 'len' expects 1 argument, got 2"):
+            run("let n = len([1], [2])")
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from runtime.interpreter import Interpreter
 from runtime.vm import VM
 
 
-def run_vm(source: str) -> dict[str, int | float | bool | str]:
+def run_vm(source: str) -> dict[str, object]:
     program = Parser(Lexer(source)).parse_program()
     code = Compiler().compile(program)
     return VM().run(code)
@@ -470,6 +470,79 @@ class TestVMFunctions(unittest.TestCase):
     def test_vm_recursion_depth_limit(self):
         with self.assertRaisesRegex(RuntimeError, "Maximum call depth"):
             run_vm("fn loop(n: Int) -> Int { loop(n + 1) } let x = loop(0)")
+
+
+class TestVMCollections(unittest.TestCase):
+    def test_vm_list_literal_and_index(self):
+        env = run_vm("let xs = [1, 2, 3] let x = xs[0] let y = xs[-1]")
+        self.assertEqual(env["xs"], [1, 2, 3])
+        self.assertEqual(env["x"], 1)
+        self.assertEqual(env["y"], 3)
+
+    def test_vm_nested_list_index(self):
+        env = run_vm("let xs = [[1], [2, 3]] let x = xs[1][0]")
+        self.assertEqual(env["x"], 2)
+
+    def test_vm_list_concatenation(self):
+        env = run_vm("let xs = [1, 2] + [3, 4]")
+        self.assertEqual(env["xs"], [1, 2, 3, 4])
+
+    def test_vm_list_equality(self):
+        env = run_vm("let x = [1, 2] == [1, 2] let y = [1] != [2]")
+        self.assertIs(env["x"], True)
+        self.assertIs(env["y"], True)
+
+    def test_vm_len_of_list_and_string(self):
+        env = run_vm('let xs = [1, 2, 3] let a = len(xs) let b = len("hello")')
+        self.assertEqual(env["a"], 3)
+        self.assertEqual(env["b"], 5)
+
+    def test_vm_empty_list(self):
+        env = run_vm("let xs = [] let n = len(xs)")
+        self.assertEqual(env["xs"], [])
+        self.assertEqual(env["n"], 0)
+
+    def test_vm_list_print_output(self):
+        program = Parser(Lexer("print([1, 2, 3])")).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, [[1, 2, 3]])
+
+    def test_vm_index_out_of_range(self):
+        with self.assertRaisesRegex(RuntimeError, "Index 3 is out of range for a list of length 2"):
+            run_vm("let xs = [1, 2] let x = xs[3]")
+
+    def test_vm_index_must_be_int(self):
+        with self.assertRaisesRegex(TypeError, "List index must be Int"):
+            run_vm('let xs = [1, 2] let x = xs["a"]')
+
+    def test_vm_only_lists_can_be_indexed(self):
+        with self.assertRaisesRegex(TypeError, "Cannot index Int"):
+            run_vm("let x = 1[0]")
+
+    def test_vm_len_requires_list_or_string(self):
+        with self.assertRaisesRegex(TypeError, "`len` expects a List or String, got Int"):
+            run_vm("let n = len(1)")
+
+    def test_vm_collections_match_interpreter(self):
+        sources = [
+            "let xs = [1, 2, 3] print(xs[0] + len(xs))",
+            "let xs = [1] + [2, 3] print(xs)",
+            "let xs = [[1], [2, 3]] print(xs[1][0])",
+            "let x = [1, 2] == [1, 2] print(x)",
+            "fn first(xs) { xs[0] } print(first([9, 8]))",
+        ]
+        for source in sources:
+            with self.subTest(source=source):
+                program = Parser(Lexer(source)).parse_program()
+                interpreter = Interpreter()
+                expected_env = interpreter.eval(program)
+
+                vm = VM()
+                actual_env = vm.run(Compiler().compile(program))
+
+                self.assertEqual(actual_env, expected_env)
+                self.assertEqual(vm.output, interpreter.output)
 
 
 if __name__ == "__main__":

@@ -81,6 +81,70 @@ class TestTypeInference(unittest.TestCase):
     def test_print_accepts_any_type(self):
         check('print(1) print(1.5) print("a") print(true)')
 
+    def test_list_literals(self):
+        checker = check(
+            "let ints = [1, 2] "
+            "let floats = [1.0, 2.5] "
+            "let empty = [] "
+            'let names = ["a", "b"] '
+            "let flags = [true, false] "
+            "let nested = [[1], [2, 3]]"
+        )
+        self.assertEqual(checker.env["ints"].type, Type.list_of(Type.INT))
+        self.assertEqual(checker.env["floats"].type, Type.list_of(Type.FLOAT))
+        self.assertEqual(checker.env["empty"].type, Type.list_of(Type.UNKNOWN))
+        self.assertEqual(checker.env["names"].type, Type.list_of(Type.STRING))
+        self.assertEqual(checker.env["flags"].type, Type.list_of(Type.BOOL))
+        self.assertEqual(
+            checker.env["nested"].type,
+            Type.list_of(Type.list_of(Type.INT)),
+        )
+
+    def test_list_index_and_len(self):
+        checker = check(
+            "let xs = [1, 2, 3] "
+            "let x = xs[0] "
+            "let n = len(xs) "
+            'let m = len("abc")'
+        )
+        self.assertIs(checker.env["x"].type, Type.INT)
+        self.assertIs(checker.env["n"].type, Type.INT)
+        self.assertIs(checker.env["m"].type, Type.INT)
+
+    def test_list_concatenation(self):
+        checker = check(
+            "let ints = [1] + [2] "
+            "let floats = [1.0] + [2.5] "
+            "let nested = [[1]] + [[]]"
+        )
+        self.assertEqual(checker.env["ints"].type, Type.list_of(Type.INT))
+        self.assertEqual(checker.env["floats"].type, Type.list_of(Type.FLOAT))
+        self.assertEqual(
+            checker.env["nested"].type,
+            Type.list_of(Type.list_of(Type.INT)),
+        )
+
+    def test_list_equality(self):
+        checker = check("let x = [1, 2] == [1, 2] let y = [1] != [2]")
+        self.assertIs(checker.env["x"].type, Type.BOOL)
+        self.assertIs(checker.env["y"].type, Type.BOOL)
+
+    def test_list_if_branches_unify_empty_list(self):
+        checker = check("let xs = if true { [] } else { [1, 2] }")
+        self.assertEqual(checker.env["xs"].type, Type.list_of(Type.INT))
+
+    def test_function_returning_list_infers_signature(self):
+        checker = check("fn pair() { [1, 2] }")
+        self.assertEqual(
+            checker.functions["pair"].return_type,
+            Type.list_of(Type.INT),
+        )
+
+    def test_unannotated_list_parameter_is_unknown(self):
+        checker = check("fn first(xs) { xs[0] }")
+        self.assertIs(checker.functions["first"].parameters[0], Type.UNKNOWN)
+        self.assertIs(checker.functions["first"].return_type, Type.UNKNOWN)
+
 
 class TestSemanticErrors(unittest.TestCase):
     def test_undefined_name(self):
@@ -361,6 +425,92 @@ class TestFunctions(unittest.TestCase):
         with self.assertRaisesRegex(SwarnaSemanticError, "Function name 'print' is reserved"):
             check("fn print(x: Int) -> Int { x }")
 
+    def test_len_function_name_is_reserved(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Function name 'len' is reserved"):
+            check("fn len(x: Int) -> Int { x }")
+
+    def test_builtin_binding_names_are_reserved(self):
+        for name in ("print", "len"):
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(SwarnaSemanticError, f"Cannot bind a variable named '{name}'"):
+                    check(f"let {name} = 1")
+
+    def test_builtin_parameter_names_are_reserved(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Parameter 'len' conflicts with a built-in name"):
+            check("fn f(len: Int) -> Int { len }")
+
+    def test_assignment_to_builtin_is_rejected(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Cannot assign to reserved name 'len'"):
+            check("len = 1")
+
+    def test_builtin_must_be_called(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Built-in 'len' must be called"):
+            check("let x = len")
+
+    def test_print_is_not_an_expression(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "`print` is a statement, not an expression"):
+            check("let x = print(1)")
+
+    def test_list_elements_must_have_one_type(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "List elements must have the same type, got Int and String",
+        ):
+            check('let xs = [1, "a"]')
+
+    def test_mixed_numeric_list_requires_explicit_float(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "List elements must have the same type, got Int and Float",
+        ):
+            check("let xs = [1, 2.5]")
+
+    def test_list_concatenation_requires_exact_element_types(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "List concatenation cannot combine element types Int and Float",
+        ):
+            check("let xs = [1] + [2.5]")
+
+    def test_list_index_must_be_int(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "List index must be Int, got String"):
+            check('let xs = [1] let x = xs["a"]')
+
+    def test_unknown_collection_still_checks_index_type(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "List index must be Int, got String"):
+            check('fn f(xs) { xs["a"] }')
+
+    def test_only_lists_can_be_indexed(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Cannot index Int; only lists can be indexed"):
+            check("let x = 1[0]")
+
+    def test_len_requires_list_or_string(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "`len` expects a List or String, got Int"):
+            check("let n = len(1)")
+
+    def test_len_requires_one_argument(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Function 'len' expects 1 argument, got 2"):
+            check("let n = len([1], [2])")
+
+    def test_list_concatenation_requires_compatible_elements(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "List concatenation cannot combine element types Int and String",
+        ):
+            check('let xs = [1] + ["a"]')
+
+    def test_list_assignment_keeps_element_type(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Cannot assign List\\[Float\\] to List\\[Int\\]"):
+            check("let xs = [1] xs = [1.0]")
+
+    def test_lists_are_not_ordered(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "cannot compare List\\[Int\\] and List\\[Int\\]"):
+            check("let x = [1] < [2]")
+
+    def test_list_annotation_is_not_supported_yet(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "List type annotations are not supported yet"):
+            check("fn f(xs: List) -> Int { 0 }")
+
     def test_initial_function_is_visible(self):
         checker = check(
             "let x = f()",
@@ -412,6 +562,22 @@ class TestInitialBindings(unittest.TestCase):
         self.assertIs(type_of_value(1.0), Type.FLOAT)
         self.assertIs(type_of_value("a"), Type.STRING)
         self.assertIs(type_of_value(object()), Type.UNKNOWN)
+
+    def test_type_of_value_infers_list_element_types(self):
+        self.assertEqual(type_of_value([1, 2]), Type.list_of(Type.INT))
+        self.assertEqual(type_of_value([1.0, 2.5]), Type.list_of(Type.FLOAT))
+        self.assertEqual(type_of_value([True]), Type.list_of(Type.BOOL))
+        self.assertEqual(type_of_value([[1], [2]]), Type.list_of(Type.list_of(Type.INT)))
+        self.assertEqual(type_of_value([]), Type.list_of(Type.UNKNOWN))
+        self.assertEqual(type_of_value([1, 2.5]), Type.list_of(Type.UNKNOWN))
+        self.assertEqual(type_of_value([1, "a"]), Type.list_of(Type.UNKNOWN))
+
+    def test_existing_list_binding_is_visible(self):
+        checker = check(
+            "let x = xs[0]",
+            initial_bindings={"xs": Binding(Type.list_of(Type.INT))},
+        )
+        self.assertIs(checker.env["x"].type, Type.INT)
 
 
 if __name__ == "__main__":
