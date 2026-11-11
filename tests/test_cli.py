@@ -54,6 +54,12 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertIn("INDEX", out)
         self.assertIn("LEN", out)
 
+    def test_emit_bytecode_includes_for_ops(self):
+        out = emit_bytecode_source("for x in [1, 2] { print(x) }")
+        self.assertIn("ITER_START 'x'", out)
+        self.assertIn("ITER_NEXT", out)
+        self.assertIn("JUMP", out)
+
     def test_parse_error_renders_span_and_hint(self):
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
@@ -97,6 +103,20 @@ class TestCLIHelpers(unittest.TestCase):
             run_source("let i = 0 while i < 3 { print(i) i = i + 1 }"),
             "0\n1\n2",
         )
+
+    def test_run_source_executes_for_loop(self):
+        self.assertEqual(
+            run_source("let total = 0 for x in [1, 2, 3] { total = total + x } print(total)"),
+            "6",
+        )
+
+    def test_run_source_for_loop_variable_does_not_leak(self):
+        with self.assertRaises(SwarnaSemanticError):
+            run_source("for x in [1] { } print(x)")
+
+    def test_run_source_for_loop_requires_list(self):
+        with self.assertRaises(SwarnaSemanticError):
+            run_source("for x in 1 { print(x) }")
 
     def test_run_source_executes_function(self):
         self.assertEqual(
@@ -165,6 +185,13 @@ class TestCLIHelpers(unittest.TestCase):
             code = main(["--run", "let x = 1\nprint(x + 1)"])
         self.assertEqual(code, 0)
         self.assertEqual(stdout.getvalue(), "2\n")
+
+    def test_run_cli_executes_for_loop(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            code = main(["--run", "for x in [1, 2] { print(x) }"])
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.getvalue(), "1\n2\n")
 
     def test_run_cli_renders_syntax_error(self):
         stderr = io.StringIO()
@@ -340,6 +367,21 @@ class TestCLIHelpers(unittest.TestCase):
             code = main(["--run"])
         self.assertEqual(code, 0)
         self.assertIn("2", stdout.getvalue())
+
+    def test_repl_executes_for_loop(self):
+        stdout = io.StringIO()
+        inputs = iter(["for x in [1, 2, 3] { print(x) }", ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        output = stdout.getvalue()
+        self.assertIn("1", output)
+        self.assertIn("2", output)
+        self.assertIn("3", output)
 
     def test_repl_preserves_function_between_lines(self):
         stdout = io.StringIO()

@@ -16,13 +16,21 @@ python -m swarna --run "let total = 1 + 2 * 3 print(total)"
 
 Prints `7`.
 
-A loop:
+A `while` loop:
 
 ```
 python -m swarna --run "let total = 0 let i = 1 while i <= 5 { total = total + i i = i + 1 } print(total)"
 ```
 
 Prints `15`.
+
+A `for` loop over a list:
+
+```
+python -m swarna --run "let scores = [72, 85, 90] let total = 0 for score in scores { total = total + score } print(total)"
+```
+
+Prints `247`.
 
 A block-valued `if`:
 
@@ -77,6 +85,7 @@ python -m swarna --run
 - arithmetic, comparisons, `and`/`or`/`not`, `&&`/`||`/`!`
 - `if`/`else` statements and `if` expressions with single-expression or block branches
 - `while` loops
+- `for` loops over lists, with a loop variable scoped to the loop
 - named `fn` declarations with optional parameter and return annotations
 - recursion, mutual recursion, hoisted calls, and function-local scopes
 - functions in the interpreter, the VM, and the REPL
@@ -86,11 +95,11 @@ python -m swarna --run
 - inferred static types for the current expressions and bindings
 - a REPL that keeps bindings and functions between lines
 - caret diagnostics with hints for lexer, parser, semantic, and runtime errors
-- a stack VM checked against the interpreter by differential tests, including function calls and lists
+- a stack VM checked against the interpreter by differential tests, including function calls, lists, and `for` loops
 
 ## What does not work yet
 
-Maps, records, modules, file I/O, and the standard library are still missing. There is no `for` loop yet, and lists cannot be mutated or appended to; build a new list with `+`. Lists are homogeneous: `[1, 2.5]` is rejected, so write `[1.0, 2.5]` when you want a list of floats. List type annotations such as `List[Int]` are not supported yet, so an unannotated list parameter is `Unknown`. Function limitations: no first-class functions, no `return` keyword, no nested declarations, no expression statements, and no global mutation. A function body must end with a value, so procedures are not supported. Generics, type aliases, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
+Maps, records, modules, file I/O, and the standard library are still missing. `for` loops iterate over lists only; there are no ranges, maps, or string iteration yet, and there is no `break` or `continue`. Lists cannot be mutated or appended to; build a new list with `+`. Lists are homogeneous: `[1, 2.5]` is rejected, so write `[1.0, 2.5]` when you want a list of floats. List type annotations such as `List[Int]` are not supported yet, so an unannotated list parameter is `Unknown`. Function limitations: no first-class functions, no `return` keyword, no nested declarations, no expression statements, and no global mutation. A function body must end with a value, so procedures are not supported. Generics, type aliases, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
 
 Unannotated parameter types are `Unknown`. An unannotated return type is inferred from the body after top-level statements are checked, so a top-level call to that function is checked as `Unknown`; annotate the return type when the call site needs precision. The REPL reuses the inferred signature on later lines.
 
