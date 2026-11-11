@@ -245,6 +245,17 @@ class TestParser(unittest.TestCase):
         self.assertIsInstance(block.statements[1], WhileStatement)
         self.assertEqual(block.value, IntegerLiteral(3))
 
+    def test_parse_function_block_with_for(self):
+        parser = Parser(Lexer("fn f(xs) { for x in xs { print(x) } 0 }"))
+        program = parser.parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, FunctionDeclaration)
+        body = stmt.body
+        assert isinstance(body, BlockExpression)
+        self.assertEqual(len(body.statements), 1)
+        self.assertIsInstance(body.statements[0], ForStatement)
+        self.assertEqual(body.value, IntegerLiteral(0))
+
     def test_parse_if_expression_block_with_nested_if_value(self):
         parser = Parser(Lexer("let x = if true { let y = 1 if y > 0 { 10 } else { 20 } } else { 30 }"))
         program = parser.parse_program()

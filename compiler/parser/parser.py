@@ -237,6 +237,7 @@ class Parser:
                 TokenType.KEYWORD_LET,
                 TokenType.KEYWORD_CONST,
                 TokenType.KEYWORD_WHILE,
+                TokenType.KEYWORD_FOR,
                 TokenType.KEYWORD_FN,
             ):
                 statements.append(self.parse_statement())

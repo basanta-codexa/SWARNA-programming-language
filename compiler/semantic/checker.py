@@ -12,6 +12,7 @@ from compiler.ast.nodes import (
     CallExpression,
     Expression,
     FloatLiteral,
+    ForStatement,
     FunctionDeclaration,
     Identifier,
     IfExpression,
@@ -341,6 +342,39 @@ class TypeChecker:
         if isinstance(stmt, WhileStatement):
             self._check_condition(stmt.condition, "`while` condition")
             self.check_block(stmt.body)
+            return
+
+        if isinstance(stmt, ForStatement):
+            iterable_type = self.check_expression(stmt.iterable)
+            if iterable_type is not Type.UNKNOWN and not iterable_type.is_list:
+                self._error(
+                    f"`for` expects a List, got {iterable_type.label}",
+                    stmt.iterable.span,
+                    "Use a list after `in`.",
+                )
+            name = stmt.name.name
+            if name in self.functions:
+                self._error(
+                    f"Loop variable '{name}' conflicts with a function name",
+                    stmt.name.span,
+                    "Use a different name for the loop variable.",
+                )
+            if name in BUILTIN_NAMES:
+                self._error(
+                    f"Loop variable '{name}' conflicts with a built-in name",
+                    stmt.name.span,
+                    "Use a different name for the loop variable.",
+                )
+            element_type = iterable_type.element_type if iterable_type.is_list else Type.UNKNOWN
+            previous = self.env.get(name)
+            self.env[name] = Binding(element_type, constant=False, span=stmt.name.span)
+            try:
+                self.check_block(stmt.body)
+            finally:
+                if previous is None:
+                    self.env.pop(name, None)
+                else:
+                    self.env[name] = previous
             return
 
         if isinstance(stmt, BlockStatement):

@@ -133,6 +133,34 @@ class TestTypeInference(unittest.TestCase):
         checker = check("let xs = if true { [] } else { [1, 2] }")
         self.assertEqual(checker.env["xs"].type, Type.list_of(Type.INT))
 
+    def test_for_loop_infers_loop_variable_type(self):
+        checker = check("let xs = [1, 2] for x in xs { let y = x + 1 }")
+        self.assertIs(checker.env["y"].type, Type.INT)
+        self.assertNotIn("x", checker.env)
+
+    def test_for_loop_variable_does_not_leak(self):
+        checker = check("for x in [1, 2] { print(x) }")
+        self.assertNotIn("x", checker.env)
+
+    def test_for_loop_restores_outer_binding(self):
+        checker = check(
+            'let x = "outer" '
+            "for x in [1, 2] { let y = x + 1 } "
+            'let z = x + "!"'
+        )
+        self.assertIs(checker.env["x"].type, Type.STRING)
+        self.assertIs(checker.env["y"].type, Type.INT)
+        self.assertIs(checker.env["z"].type, Type.STRING)
+
+    def test_for_loop_variable_is_mutable(self):
+        check("for x in [1, 2] { x = x + 1 }")
+
+    def test_for_loop_over_unknown_iterable(self):
+        check("fn f(xs) { for x in xs { print(x) } 0 }")
+
+    def test_for_loop_over_empty_list(self):
+        check("for x in [] { let y = x }")
+
     def test_function_returning_list_infers_signature(self):
         checker = check("fn pair() { [1, 2] }")
         self.assertEqual(
@@ -241,6 +269,34 @@ class TestSemanticErrors(unittest.TestCase):
     def test_int_and_float_branches_are_not_unified(self):
         with self.assertRaises(SwarnaSemanticError):
             check("let x = if true { 1 } else { 2.0 }")
+
+    def test_for_loop_requires_a_list(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "`for` expects a List, got Int"):
+            check("for x in 1 { print(x) }")
+
+    def test_for_loop_rejects_string_iteration(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "`for` expects a List, got String"):
+            check('for x in "abc" { print(x) }')
+
+    def test_for_loop_variable_conflicts_with_function(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Loop variable 'f' conflicts with a function name"):
+            check("fn f() -> Int { 1 } for f in [1] { print(f) }")
+
+    def test_for_loop_variable_conflicts_with_builtin(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Loop variable 'len' conflicts with a built-in name"):
+            check("for len in [1] { print(len) }")
+
+    def test_for_loop_body_is_type_checked(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "cannot combine Int and String"):
+            check('for x in [1] { let y = x + "a" }')
+
+    def test_for_loop_variable_is_undefined_after_loop(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Undefined name 'x'"):
+            check("for x in [1] { print(x) } print(x)")
+
+    def test_for_loop_restores_const_outer_binding(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Cannot assign to const binding 'x'"):
+            check("const x = 1 for x in [2] { x = 3 } x = 4")
 
 
 class TestBlockExpressions(unittest.TestCase):
