@@ -193,6 +193,19 @@ class TestLexer(unittest.TestCase):
         self.assertEqual(tokens[0].type, TokenType.KEYWORD_WHILE)
         self.assertEqual(tokens[0].value, "while")
 
+    def test_for_and_in_keywords(self):
+        tokens = Lexer("for x in xs").tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens],
+            [
+                (TokenType.KEYWORD_FOR, "for"),
+                (TokenType.IDENTIFIER, "x"),
+                (TokenType.KEYWORD_IN, "in"),
+                (TokenType.IDENTIFIER, "xs"),
+                (TokenType.EOF, ""),
+            ],
+        )
+
     def test_semicolon(self):
         lexer = Lexer("let x = 1; let y = 2;")
         tokens = lexer.tokenize()

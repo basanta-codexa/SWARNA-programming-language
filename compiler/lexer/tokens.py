@@ -12,6 +12,8 @@ class TokenType(Enum):
     KEYWORD_IF = auto()
     KEYWORD_ELSE = auto()
     KEYWORD_WHILE = auto()
+    KEYWORD_FOR = auto()
+    KEYWORD_IN = auto()
     KEYWORD_FN = auto()
     KEYWORD_AND = auto()
     KEYWORD_OR = auto()

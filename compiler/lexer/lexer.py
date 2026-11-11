@@ -104,6 +104,10 @@ class Lexer:
                 return Token(TokenType.KEYWORD_ELSE, value, line, column)
             if value == "while":
                 return Token(TokenType.KEYWORD_WHILE, value, line, column)
+            if value == "for":
+                return Token(TokenType.KEYWORD_FOR, value, line, column)
+            if value == "in":
+                return Token(TokenType.KEYWORD_IN, value, line, column)
             if value == "fn":
                 return Token(TokenType.KEYWORD_FN, value, line, column)
             if value == "and":

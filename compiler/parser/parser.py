@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, Parameter, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, Parameter, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
@@ -37,6 +37,8 @@ class Parser:
             return self.parse_if_statement()
         if self.current.type == TokenType.KEYWORD_WHILE:
             return self.parse_while_statement()
+        if self.current.type == TokenType.KEYWORD_FOR:
+            return self.parse_for_statement()
         if self.current.type == TokenType.KEYWORD_FN:
             return self.parse_function_declaration()
         if self.current.type == TokenType.IDENTIFIER and self.current.value == "print":
@@ -46,7 +48,7 @@ class Parser:
         raise SwarnaSyntaxError(
             "Expected statement",
             self.current.span,
-            hint="Expected `let`, `const`, `fn`, `if`, `while`, `print`, or an assignment.",
+            hint="Expected `let`, `const`, `fn`, `if`, `while`, `for`, `print`, or an assignment.",
         )
 
     def parse_assignment_statement(self) -> AssignmentStatement:
@@ -175,6 +177,29 @@ class Parser:
         condition = self.parse_expression()
         body = self.parse_block()
         return WhileStatement(condition=condition, body=body, span=while_token.span)
+
+    def parse_for_statement(self) -> ForStatement:
+        for_token = self.current
+        self._expect(
+            TokenType.KEYWORD_FOR,
+            "Expected 'for'",
+            hint="Write `for item in values { ... }`.",
+        )
+        name_token = self.current
+        name_value = self._expect(
+            TokenType.IDENTIFIER,
+            "Expected a loop variable after 'for'",
+            hint="Write `for item in values { ... }`.",
+        )
+        name = Identifier(name_value, span=name_token.span)
+        self._expect(
+            TokenType.KEYWORD_IN,
+            "Expected 'in' after the loop variable",
+            hint="Write `for item in values { ... }`.",
+        )
+        iterable = self.parse_expression()
+        body = self.parse_block()
+        return ForStatement(name=name, iterable=iterable, body=body, span=for_token.span)
 
     def parse_if_expression(self) -> IfExpression:
         if_token = self.current

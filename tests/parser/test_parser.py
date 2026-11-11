@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, FloatLiteral, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, Parameter, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, Parameter, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SourceSpan
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
@@ -306,6 +306,35 @@ class TestParser(unittest.TestCase):
         assert isinstance(stmt.condition, BinaryExpression)
         self.assertEqual(stmt.condition.operator, "<")
         self.assertEqual(len(stmt.body.statements), 1)
+
+    def test_parse_for(self):
+        program = Parser(Lexer("for x in [1, 2] { print(x) }")).parse_program()
+        self.assertEqual(
+            program.statements,
+            [
+                ForStatement(
+                    name=Identifier("x"),
+                    iterable=ListLiteral(elements=[IntegerLiteral(1), IntegerLiteral(2)]),
+                    body=BlockStatement(statements=[PrintStatement(value=Identifier("x"))]),
+                )
+            ],
+        )
+
+    def test_parse_for_requires_in(self):
+        parser = Parser(Lexer("for x [1] { print(x) }"))
+        with self.assertRaisesRegex(SyntaxError, "Expected 'in' after the loop variable"):
+            parser.parse_program()
+
+    def test_parse_for_requires_loop_variable(self):
+        parser = Parser(Lexer("for in [1] { print(1) }"))
+        with self.assertRaisesRegex(SyntaxError, "Expected a loop variable after 'for'"):
+            parser.parse_program()
+
+    def test_parse_for_allows_empty_body(self):
+        program = Parser(Lexer("for x in [] { }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, ForStatement)
+        self.assertEqual(stmt.body.statements, [])
 
     def test_parse_float_literal(self):
         parser = Parser(Lexer("let x = 3.5"))

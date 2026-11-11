@@ -131,6 +131,14 @@ class WhileStatement:
 
 
 @dataclass(frozen=True)
+class ForStatement:
+    name: Identifier
+    iterable: Expression
+    body: BlockStatement
+    span: SourceSpan | None = field(default=None, compare=False, repr=False)
+
+
+@dataclass(frozen=True)
 class Parameter:
     name: Identifier
     type_name: Identifier | None = None
@@ -145,7 +153,7 @@ class FunctionDeclaration:
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
 
 
-Statement = LetStatement | AssignmentStatement | PrintStatement | IfStatement | WhileStatement | BlockStatement | FunctionDeclaration
+Statement = LetStatement | AssignmentStatement | PrintStatement | IfStatement | WhileStatement | ForStatement | BlockStatement | FunctionDeclaration
 
 
 @dataclass(frozen=True)
