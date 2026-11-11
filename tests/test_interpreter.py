@@ -194,6 +194,96 @@ class TestInterpreter(unittest.TestCase):
         self.assertEqual(raised.exception.span, SourceSpan(1, 11, 1))
 
 
+class TestInterpreterForLoops(unittest.TestCase):
+    def test_for_loop_accumulates(self):
+        env = run("let total = 0 for x in [1, 2, 3] { total = total + x }")
+        self.assertEqual(env["total"], 6)
+
+    def test_for_loop_prints_each_item(self):
+        program = Parser(Lexer("for x in [1, 2, 3] { print(x) }")).parse_program()
+        interpreter = Interpreter()
+        interpreter.eval(program)
+        self.assertEqual(interpreter.output, [1, 2, 3])
+
+    def test_for_loop_variable_does_not_leak(self):
+        env = run("for x in [1, 2] { }")
+        self.assertNotIn("x", env)
+
+    def test_for_loop_restores_outer_binding(self):
+        env = run("let x = 10 for x in [1, 2] { }")
+        self.assertEqual(env["x"], 10)
+
+    def test_for_loop_restores_const_outer_binding(self):
+        env = run("const x = 10 for x in [1, 2] { x = 5 }")
+        self.assertEqual(env["x"], 10)
+
+    def test_for_loop_variable_is_mutable(self):
+        env = run("for x in [1] { x = x + 10 let y = x }")
+        self.assertEqual(env["y"], 11)
+        self.assertNotIn("x", env)
+
+    def test_for_loop_body_declarations_leak(self):
+        env = run("for x in [1, 2] { let y = x + 1 }")
+        self.assertEqual(env, {"y": 3})
+
+    def test_for_loop_over_empty_list(self):
+        env = run("let total = 0 for x in [] { total = total + 1 }")
+        self.assertEqual(env, {"total": 0})
+
+    def test_nested_for_loops(self):
+        env = run(
+            "let total = 0 "
+            "for x in [1, 2] { for y in [10, 20] { total = total + x + y } }"
+        )
+        self.assertEqual(env["total"], 66)
+
+    def test_nested_for_loops_restore_same_name(self):
+        env = run(
+            "let total = 0 "
+            "for x in [1, 2] { for x in [10, 20] { total = total + x } total = total + x }"
+        )
+        self.assertEqual(env["total"], 63)
+
+    def test_for_loop_evaluates_iterable_once(self):
+        program = Parser(
+            Lexer("fn values() { print(1) [1, 2] } for x in values() { print(x) }")
+        ).parse_program()
+        interpreter = Interpreter()
+        interpreter.eval(program)
+        self.assertEqual(interpreter.output, [1, 1, 2])
+
+    def test_for_loop_over_function_parameter(self):
+        program = Parser(
+            Lexer("fn show(xs) { for x in xs { print(x) } 0 } let y = show([1, 2])")
+        ).parse_program()
+        interpreter = Interpreter()
+        env = interpreter.eval(program)
+        self.assertEqual(env["y"], 0)
+        self.assertEqual(interpreter.output, [1, 2])
+
+    def test_for_loop_requires_list(self):
+        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List, got Int"):
+            run("for x in 1 { print(x) }")
+
+    def test_for_loop_rejects_string_iteration(self):
+        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List, got String"):
+            run('for x in "abc" { print(x) }')
+
+    def test_for_loop_restores_outer_binding_on_error(self):
+        interpreter = Interpreter()
+        program = Parser(Lexer("let x = 10 for x in [1] { let y = missing }")).parse_program()
+        with self.assertRaises(SwarnaNameError):
+            interpreter.eval(program)
+        self.assertEqual(interpreter.env["x"], 10)
+
+    def test_for_loop_removes_loop_variable_on_error(self):
+        interpreter = Interpreter()
+        program = Parser(Lexer("for x in [1] { let y = missing }")).parse_program()
+        with self.assertRaises(SwarnaNameError):
+            interpreter.eval(program)
+        self.assertNotIn("x", interpreter.env)
+
+
 class TestInterpreterFunctions(unittest.TestCase):
     def test_function_declaration_and_call(self):
         env = run("fn add(a: Int, b: Int) -> Int { a + b } let x = add(2, 3)")

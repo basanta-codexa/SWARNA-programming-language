@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.values import Value, value_type_name
 
@@ -121,6 +121,31 @@ class Interpreter:
         if isinstance(stmt, WhileStatement):
             while bool(self.eval_expression(stmt.condition)):
                 self.eval_block(stmt.body)
+            return
+        if isinstance(stmt, ForStatement):
+            iterable = self.eval_expression(stmt.iterable)
+            if not isinstance(iterable, list):
+                raise SwarnaTypeError(
+                    f"`for` expects a List, got {value_type_name(iterable)}",
+                    stmt.iterable.span,
+                    hint="Use a list after `in`.",
+                )
+            name = stmt.name.name
+            had_previous = name in self.env
+            previous_value = self.env.get(name)
+            previous_constant = self.constant.get(name, False)
+            try:
+                for item in iterable:
+                    self.env[name] = item
+                    self.constant[name] = False
+                    self.eval_block(stmt.body)
+            finally:
+                if had_previous:
+                    self.env[name] = previous_value
+                    self.constant[name] = previous_constant
+                else:
+                    self.env.pop(name, None)
+                    self.constant.pop(name, None)
             return
         if isinstance(stmt, BlockStatement):
             self.eval_block(stmt)
