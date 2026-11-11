@@ -32,6 +32,14 @@ python -m swarna --run "let total = if true { let base = 100 base + 20 } else { 
 
 Prints `120`.
 
+A function:
+
+```
+python -m swarna --run "fn add(a: Int, b: Int) -> Int { a + b } print(add(2, 3))"
+```
+
+Prints `5`.
+
 For multi-line programs, pipe the source through stdin. On PowerShell:
 
 ```
@@ -46,11 +54,13 @@ Prints `fail`.
 
 PowerShell strips embedded double quotes when passing a source string to a native command. The here-string above avoids that.
 
-`--run` uses the tree-walking interpreter. The REPL also executes lines by default when started with `--run`, and bindings persist between lines:
+`--run` uses the tree-walking interpreter. The REPL also executes lines by default when started with `--run`, and bindings and function declarations persist between lines:
 
 ```
 python -m swarna --run
 ```
+
+`--emit-bytecode` prints the main instructions followed by each compiled function.
 
 ## What works
 
@@ -59,15 +69,20 @@ python -m swarna --run
 - arithmetic, comparisons, `and`/`or`/`not`, `&&`/`||`/`!`
 - `if`/`else` statements and `if` expressions with single-expression or block branches
 - `while` loops
+- named `fn` declarations with optional parameter and return annotations
+- recursion, mutual recursion, hoisted calls, and function-local scopes
+- functions in the interpreter, the VM, and the REPL
 - `print`
 - inferred static types for the current expressions and bindings
-- a REPL that keeps bindings between lines
+- a REPL that keeps bindings and functions between lines
 - caret diagnostics with hints for lexer, parser, semantic, and runtime errors
-- a stack VM checked against the interpreter by differential tests
+- a stack VM checked against the interpreter by differential tests, including function calls
 
 ## What does not work yet
 
-Functions, collections, and a complete type system are the big missing pieces. Type annotations, generics, and type checking across functions are not implemented. Modules, a standard library, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
+Collections, a standard library, and the rest of the type system are the big missing pieces. There are no lists, maps, records, modules, or file I/O yet. Function limitations: no first-class functions, no `return` keyword, no nested declarations, no expression statements, and no global mutation. A function body must end with a value, so procedures are not supported. Generics, type aliases, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
+
+Unannotated parameter types are `Unknown`. An unannotated return type is inferred from the body after top-level statements are checked, so a top-level call to that function is checked as `Unknown`; annotate the return type when the call site needs precision. The REPL reuses the inferred signature on later lines.
 
 ## Inspect the pipeline
 

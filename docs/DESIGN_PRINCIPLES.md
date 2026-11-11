@@ -73,7 +73,7 @@ Unhandled failures raise an exception with a source location and a readable mess
 
 Reason: exceptions keep the common path linear. Forcing `Result` everywhere makes short scripts noisy. Explicit `Result` stays for code that must not unwind: library boundaries, batch jobs, anything that needs to continue after a failure.
 
-Status: accepted, not yet implemented as a language feature. The runtime raises SWARNA diagnostic exceptions with source spans. A defined unwinding model and `Result` will arrive with functions and call frames.
+Status: accepted, not yet implemented as a language feature. The runtime raises SWARNA diagnostic exceptions with source spans. The interpreter and VM now have call frames; a defined unwinding model and `Result` still need a dedicated error-handling design.
 
 ### 5. Word operators are accepted
 
@@ -109,11 +109,11 @@ print(add(2, 3))
 
 A function body is a block value: its statements run, and its final expression is the return value. There is no `return` keyword yet. Functions are declared at the top level and called by name. They are hoisted, so a call can appear before the declaration.
 
-Parameter and return type annotations are optional. An unannotated parameter is `Unknown`; annotating parameters gives precise checking. An unannotated return type is inferred from the body. Function-local bindings do not leak, and a function reads top-level bindings but does not mutate them yet. Recursion works.
+Parameter and return type annotations are optional. An unannotated parameter is `Unknown`; annotating parameters gives precise checking. An unannotated return type is inferred from the body after top-level statements are checked, so a top-level call to that function is checked as `Unknown`; annotate the return type when the call site needs precision. The REPL reuses the inferred signature on later lines. Function-local bindings do not leak. A function reads top-level bindings, and assignment inside a function changes a local copy rather than the global. Recursion and mutual recursion work.
 
 Reason: functions are the next foundational feature. Named declarations are the smallest useful form; expression bodies reuse the block-value rule and avoid a separate `return` statement. Optional annotations keep scripts short while letting interfaces be checked.
 
-Status: accepted, implementation in progress. No first-class functions, `return`, nested declarations, expression statements, or global mutation yet.
+Status: implemented in the interpreter, VM, and REPL. No first-class functions, `return`, nested declarations, expression statements, or global mutation yet. A function body must end with a value, so procedures are not supported.
 
 ## Rules for changes
 
@@ -179,13 +179,19 @@ The rules for the current subset:
 - A binding keeps the type of its first value. Reassigning it to a different type is an error.
 - Reassigning a `const` is a semantic error.
 - Undefined names are semantic errors.
+- `fn` declarations are hoisted, so a call can appear before the declaration. Duplicate function names and duplicate parameter names are errors.
+- Parameter annotations are optional; an unannotated parameter is `Unknown`. Annotated parameter types must be one of `Int`, `Float`, `String`, or `Bool`.
+- An annotated return type is checked against the body. An unannotated return type is inferred from the body after top-level statements are checked; a top-level call to that function is `Unknown`.
+- Calls check the argument count and each annotated parameter type. A type error points at the argument that does not match.
+- A function body runs in a local scope copied from the top-level bindings. Local bindings do not leak, and assignment to a top-level name changes the local copy, not the global.
+- Function names and variable names must not conflict, and `print` is reserved as a function name. A parameter cannot shadow a function name.
 - `print` accepts any type.
 
-The checker runs before execution in `--run` and before code generation in `--emit-bytecode`. `--parse` and `--lex` do not run it. In the executing REPL, the checker is seeded from the interpreter's current bindings, so types persist between lines without a second symbol table.
+The checker runs before execution in `--run` and before code generation in `--emit-bytecode`. `--parse` and `--lex` do not run it. In the executing REPL, the checker is seeded from the interpreter's current bindings and function signatures, so types and inferred function returns persist between lines without a second symbol table.
 
 Division by zero remains a runtime error; the checker does not evaluate expressions.
 
-Known gaps: no type annotations, no generics, no functions, no block scoping or definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. The interpreter and VM keep their runtime checks so they can still be tested independently.
+Known gaps: no generics, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. Function bodies must end with a value; procedures are unsupported. The interpreter and VM keep their runtime checks so they can still be tested independently.
 
 Status: implemented as a separate pass for the current subset.
 
@@ -223,4 +229,4 @@ Status: implemented as a separate pass for the current subset.
 | 5 | `and` / `or` / `not` aliases | Implemented |
 | 6 | Braces, optional semicolons, automatic formatting | Partly implemented |
 | 7 | Inferred static types, no annotations required | Implemented (minimal) |
-| 8 | Functions are named declarations with expression bodies | Accepted, in progress |
+| 8 | Functions are named declarations with expression bodies | Implemented (minimal) |
