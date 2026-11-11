@@ -115,6 +115,24 @@ Reason: functions are the next foundational feature. Named declarations are the 
 
 Status: implemented in the interpreter, VM, and REPL. No first-class functions, `return`, nested declarations, expression statements, or global mutation yet. A function body must end with a value, so procedures are not supported.
 
+### 9. Lists are built in and statically typed
+
+```
+let scores = [72, 85, 90]
+print(scores[1])
+print(len(scores))
+```
+
+A list is written `[value, value, ...]`. `values[index]` reads an element, and negative indices count from the end. `len(values)` returns the number of elements. `+` concatenates two lists, `==` and `!=` compare lists, and `print` shows a readable list.
+
+Element types are inferred. `[1, 2, 3]` is `List[Int]`, and `[]` is `List[Unknown]` until it meets a known element type. Lists are homogeneous: `[1, 2.5]` is rejected; write `[1.0, 2.5]` for a list of floats. This matches the rest of the type system, which does not silently widen `Int` to `Float`.
+
+Lists are immutable for now. Index assignment, append, and `for` loops are not implemented. List type annotations such as `List[Int]` are also not supported yet; leave a list parameter unannotated and the checker infers what it can from the body and call sites.
+
+Reason: lists are the first collection and the base for `for` loops, maps, and CSV rows. Homogeneous elements make inference and diagnostics useful without generics. Deferring mutation and annotations keeps the first collection increment small and honest.
+
+Status: implemented in the interpreter, VM, REPL, and type checker. No list mutation, `for` loops, maps, list annotations, or list methods yet.
+
 ## Rules for changes
 
 1. An error must name the problem and the fix. A diagnostic without a suggested action is incomplete.
@@ -163,15 +181,20 @@ Status: implemented for lexer, parser, semantic, and the current runtime errors 
 
 ## Type checking
 
-The current language is statically checked but does not require annotations. A separate semantic pass infers `Int`, `Float`, `String`, or `Bool`; an internal `Unknown` type suppresses cascading errors.
+The current language is statically checked but does not require annotations. A separate semantic pass infers `Int`, `Float`, `String`, `Bool`, and `List[T]`; an internal `Unknown` type suppresses cascading errors.
 
 The rules for the current subset:
 
 - Literals infer their obvious type.
-- `+` accepts two numbers or two strings. Mixed `Int`/`Float` arithmetic produces `Float`.
+- A list literal infers a `List[T]` element type. All elements must have the same type, or be `Unknown`. An empty list is `List[Unknown]`. Nested lists infer nested element types.
+- Indexing requires a list and an `Int` index, and produces the element type. Negative indices are accepted at runtime and count from the end.
+- `len` accepts a list or a string and produces `Int`.
+- `+` accepts two numbers, two strings, or two lists with the same element type. Mixed `Int`/`Float` arithmetic produces `Float`, but list element types must match exactly.
+- `print` accepts any type, including lists.
+- List type annotations such as `List[Int]` are not supported yet.
 - `-`, `*`, and `/` accept numbers. `/` always produces `Float`.
 - `//` requires two `Int` operands and produces `Int`.
-- Equality accepts values of the same type, or two numbers. Ordered comparisons accept two numbers or two strings.
+- Equality accepts values of the same type, two numbers, or two lists with compatible element types. Ordered comparisons accept two numbers or two strings.
 - `&&`, `||`, and `!` require `Bool`.
 - `if` and `while` conditions require `Bool`.
 - Both branches of an `if` expression must produce the same type. `Int` and `Float` branches are not unified yet.
@@ -184,14 +207,14 @@ The rules for the current subset:
 - An annotated return type is checked against the body. An unannotated return type is inferred from the body after top-level statements are checked; a top-level call to that function is `Unknown`.
 - Calls check the argument count and each annotated parameter type. A type error points at the argument that does not match.
 - A function body runs in a local scope copied from the top-level bindings. Local bindings do not leak, and assignment to a top-level name changes the local copy, not the global.
-- Function names and variable names must not conflict, and `print` is reserved as a function name. A parameter cannot shadow a function name.
-- `print` accepts any type.
+- Function names and variable names must not conflict. `print` and `len` are reserved names: they cannot be used for functions, variables, or parameters.
+- `print` accepts any type, including lists.
 
 The checker runs before execution in `--run` and before code generation in `--emit-bytecode`. `--parse` and `--lex` do not run it. In the executing REPL, the checker is seeded from the interpreter's current bindings and function signatures, so types and inferred function returns persist between lines without a second symbol table.
 
 Division by zero remains a runtime error; the checker does not evaluate expressions.
 
-Known gaps: no generics, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. Function bodies must end with a value; procedures are unsupported. The interpreter and VM keep their runtime checks so they can still be tested independently.
+Known gaps: no generics, no list type annotations, no list mutation or `for` loops, no maps, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. Function bodies must end with a value; procedures are unsupported. The interpreter and VM keep their runtime checks so they can still be tested independently.
 
 Status: implemented as a separate pass for the current subset.
 
@@ -230,3 +253,4 @@ Status: implemented as a separate pass for the current subset.
 | 6 | Braces, optional semicolons, automatic formatting | Partly implemented |
 | 7 | Inferred static types, no annotations required | Implemented (minimal) |
 | 8 | Functions are named declarations with expression bodies | Implemented (minimal) |
+| 9 | Lists are built in, homogeneous, and statically inferred | Implemented (minimal) |

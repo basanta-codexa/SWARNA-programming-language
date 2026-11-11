@@ -110,7 +110,7 @@ error: expected a number in column 'score'
     = hint: Replace 'n/a' with a number, or mark the row as missing.
 ```
 
-This test is not runnable yet. Lists, maps, file I/O, and the CSV library are the next milestones; functions now exist. The test is the bar for those features, not evidence that they exist. The target syntax is illustrative; names and shapes will be settled when the features are designed.
+This test is not runnable yet. Lists now exist, but `for` loops, maps, file I/O, and the CSV library are still milestones. The test is the bar for those features, not evidence that they exist. The target syntax is illustrative; names and shapes will be settled when the features are designed.
 
 What the test is checking:
 
@@ -133,16 +133,16 @@ The comparison is not "SWARNA vs. Python with a carefully written validation lay
 
 | Pillar | Today |
 |---|---|
-| Errors that explain | Implemented for lexer, parser, semantic, and current runtime errors, including function calls. No `--explain` mode yet. |
-| Types without ceremony | Inferred `Int`, `Float`, `String`, `Bool` for the current subset. Named functions with optional parameter and return annotations; unannotated returns are inferred. No collections or generics yet. |
-| Task-first standard library | Not started. No standard library yet; only `print` and built-in operators exist. |
-| One workflow | REPL and `--run` exist; bindings and functions persist in the REPL. No formatter or file runner beyond `--run` yet. |
+| Errors that explain | Implemented for lexer, parser, semantic, and current runtime errors, including function calls and lists. No `--explain` mode yet. |
+| Types without ceremony | Inferred `Int`, `Float`, `String`, `Bool`, and `List[T]` for the current subset. Named functions with optional parameter and return annotations; unannotated returns are inferred. No maps, list annotations, or generics yet. |
+| Task-first standard library | Not started. No standard library yet; only `print`, `len`, and built-in operators exist. |
+| One workflow | REPL and `--run` exist; bindings, functions, and list types persist in the REPL. No formatter or file runner beyond `--run` yet. |
 
 The switch test is the next concrete milestone. Until it runs and produces the diagnostic above, SWARNA is not ready for its target user.
 
 ## How this changes the roadmap
 
-- Lists and maps come before broad syntax work; the switch test needs them. Functions are in place.
+- Lists and maps come before broad syntax work; the switch test needs them. Lists and functions are in place; `for` loops and maps are next.
 - CSV and file I/O are not "later"; they are part of the first usable release.
 - A feature that does not improve the switch test or the four pillars waits.
 - The `--explain`/`why` diagnostic mode is a natural extension of pillar 1, not a separate product.

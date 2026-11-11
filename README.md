@@ -40,6 +40,14 @@ python -m swarna --run "fn add(a: Int, b: Int) -> Int { a + b } print(add(2, 3))
 
 Prints `5`.
 
+A list:
+
+```
+python -m swarna --run "let scores = [72, 85, 90] print(scores[1]) print(len(scores))"
+```
+
+Prints `85`, then `3`.
+
 For multi-line programs, pipe the source through stdin. On PowerShell:
 
 ```
@@ -72,15 +80,17 @@ python -m swarna --run
 - named `fn` declarations with optional parameter and return annotations
 - recursion, mutual recursion, hoisted calls, and function-local scopes
 - functions in the interpreter, the VM, and the REPL
-- `print`
+- list literals such as `[1, 2, 3]`, indexing with `values[i]`, negative indexing, `len(...)`, list equality, and `+` concatenation
+- inferred element types for lists, including nested lists
+- `print`, with readable list output such as `["Ada", "Grace"]`
 - inferred static types for the current expressions and bindings
 - a REPL that keeps bindings and functions between lines
 - caret diagnostics with hints for lexer, parser, semantic, and runtime errors
-- a stack VM checked against the interpreter by differential tests, including function calls
+- a stack VM checked against the interpreter by differential tests, including function calls and lists
 
 ## What does not work yet
 
-Collections, a standard library, and the rest of the type system are the big missing pieces. There are no lists, maps, records, modules, or file I/O yet. Function limitations: no first-class functions, no `return` keyword, no nested declarations, no expression statements, and no global mutation. A function body must end with a value, so procedures are not supported. Generics, type aliases, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
+Maps, records, modules, file I/O, and the standard library are still missing. There is no `for` loop yet, and lists cannot be mutated or appended to; build a new list with `+`. Lists are homogeneous: `[1, 2.5]` is rejected, so write `[1.0, 2.5]` when you want a list of floats. List type annotations such as `List[Int]` are not supported yet, so an unannotated list parameter is `Unknown`. Function limitations: no first-class functions, no `return` keyword, no nested declarations, no expression statements, and no global mutation. A function body must end with a value, so procedures are not supported. Generics, type aliases, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
 
 Unannotated parameter types are `Unknown`. An unannotated return type is inferred from the body after top-level statements are checked, so a top-level call to that function is checked as `Unknown`; annotate the return type when the call site needs precision. The REPL reuses the inferred signature on later lines.
 
