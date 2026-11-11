@@ -202,6 +202,93 @@ class TestCodegen(unittest.TestCase):
         words = compile_source("let x = true and false or not true")
         self.assertEqual([repr(i) for i in words], [repr(i) for i in symbolic])
 
+    def test_compile_function_declaration_and_call(self):
+        compiled = compile_source("fn add(a: Int, b: Int) -> Int { a + b } let x = add(2, 3)")
+        self.assertEqual([repr(i) for i in compiled.instructions], [
+            "CONST 2",
+            "CONST 3",
+            "CALL ('add', 2)",
+            "DECLARE_NAME 'x'",
+            "HALT",
+        ])
+        function = compiled.functions["add"]
+        self.assertEqual(function.name, "add")
+        self.assertEqual(function.parameters, ("a", "b"))
+        self.assertEqual([repr(i) for i in function.instructions], [
+            "LOAD_NAME 'a'",
+            "LOAD_NAME 'b'",
+            "ADD",
+            "RETURN",
+        ])
+
+    def test_compile_function_with_block_body(self):
+        compiled = compile_source("fn total(a: Int) -> Int { let b = a + 1 b } let x = total(1)")
+        self.assertEqual([repr(i) for i in compiled.instructions], [
+            "CONST 1",
+            "CALL ('total', 1)",
+            "DECLARE_NAME 'x'",
+            "HALT",
+        ])
+        self.assertEqual([repr(i) for i in compiled.functions["total"].instructions], [
+            "LOAD_NAME 'a'",
+            "CONST 1",
+            "ADD",
+            "DECLARE_NAME 'b'",
+            "LOAD_NAME 'b'",
+            "RETURN",
+        ])
+
+    def test_compile_function_call_arguments_in_order(self):
+        compiled = compile_source(
+            "fn one() -> Int { 1 } "
+            "fn add(a: Int, b: Int) -> Int { a + b } "
+            "let x = add(one(), 2)"
+        )
+        self.assertEqual([repr(i) for i in compiled.instructions], [
+            "CALL ('one', 0)",
+            "CONST 2",
+            "CALL ('add', 2)",
+            "DECLARE_NAME 'x'",
+            "HALT",
+        ])
+        self.assertEqual([repr(i) for i in compiled.functions["one"].instructions], [
+            "CONST 1",
+            "RETURN",
+        ])
+
+    def test_compile_function_call_before_declaration(self):
+        compiled = compile_source("let x = add(2, 3) fn add(a: Int, b: Int) -> Int { a + b }")
+        self.assertEqual([repr(i) for i in compiled.instructions], [
+            "CONST 2",
+            "CONST 3",
+            "CALL ('add', 2)",
+            "DECLARE_NAME 'x'",
+            "HALT",
+        ])
+        self.assertIn("add", compiled.functions)
+
+    def test_compile_recursive_function_call(self):
+        compiled = compile_source(
+            "fn factorial(n: Int) -> Int { if n <= 1 { 1 } else { n * factorial(n - 1) } }"
+        )
+        instructions = [repr(i) for i in compiled.functions["factorial"].instructions]
+        self.assertIn("CALL ('factorial', 1)", instructions)
+        self.assertEqual(instructions[-1], "RETURN")
+
+    def test_compiled_program_is_iterable_and_indexable(self):
+        compiled = compile_source("let x = 1")
+        self.assertEqual(len(compiled), 3)
+        self.assertEqual(repr(compiled[0]), "CONST 1")
+        self.assertEqual([repr(i) for i in compiled], ["CONST 1", "DECLARE_NAME 'x'", "HALT"])
+
+    def test_compile_nested_function_declaration_is_rejected(self):
+        with self.assertRaisesRegex(NotImplementedError, "only allowed at the top level"):
+            compile_source("if true { fn f() -> Int { 1 } }")
+
+    def test_compile_duplicate_function_declaration_is_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "Duplicate function 'f'"):
+            compile_source("fn f() -> Int { 1 } fn f() -> Int { 2 }")
+
 
 if __name__ == "__main__":
     unittest.main()

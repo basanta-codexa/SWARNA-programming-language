@@ -32,6 +32,8 @@ class Op(Enum):
     JUMP = auto()
     JUMP_IF_FALSE = auto()
     POP = auto()
+    CALL = auto()
+    RETURN = auto()
     HALT = auto()
 
 

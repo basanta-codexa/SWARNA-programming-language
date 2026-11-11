@@ -6,8 +6,10 @@ from compiler.ast.nodes import (
     BlockExpression,
     BlockStatement,
     BoolLiteral,
+    CallExpression,
     Expression,
     FloatLiteral,
+    FunctionDeclaration,
     Identifier,
     IfExpression,
     IfStatement,
@@ -21,19 +23,46 @@ from compiler.ast.nodes import (
     WhileStatement,
 )
 from compiler.bytecode.instructions import Instruction, Op
+from compiler.bytecode.program import CompiledProgram, FunctionInfo
 from compiler.diagnostics import SourceSpan
 
 
 class Compiler:
     def __init__(self) -> None:
         self.instructions: list[Instruction] = []
+        self.functions: dict[str, FunctionInfo] = {}
 
-    def compile(self, program: Program) -> list[Instruction]:
+    def compile(self, program: Program) -> CompiledProgram:
         self.instructions = []
+        self.functions = {}
         for stmt in program.statements:
+            if isinstance(stmt, FunctionDeclaration):
+                self.compile_function(stmt)
+        for stmt in program.statements:
+            if isinstance(stmt, FunctionDeclaration):
+                continue
             self.compile_statement(stmt)
         self.emit(Op.HALT, span=program.span)
-        return list(self.instructions)
+        return CompiledProgram(tuple(self.instructions), dict(self.functions))
+
+    def compile_function(self, stmt: FunctionDeclaration) -> None:
+        name = stmt.name.name
+        if name in self.functions:
+            raise RuntimeError(f"Duplicate function '{name}'")
+        saved_instructions = self.instructions
+        self.instructions = []
+        try:
+            self.compile_expression(stmt.body)
+            self.emit(Op.RETURN, span=stmt.body.span if stmt.body.span is not None else stmt.span)
+            instructions = tuple(self.instructions)
+        finally:
+            self.instructions = saved_instructions
+        self.functions[name] = FunctionInfo(
+            name=name,
+            parameters=tuple(parameter.name.name for parameter in stmt.parameters),
+            instructions=instructions,
+            span=stmt.name.span,
+        )
 
     def emit(self, op: Op, arg=None, span: SourceSpan | None = None) -> int:
         self.instructions.append(Instruction(op, arg, span=span))
@@ -85,6 +114,8 @@ class Compiler:
         if isinstance(stmt, BlockStatement):
             self.compile_block(stmt)
             return
+        if isinstance(stmt, FunctionDeclaration):
+            raise NotImplementedError("Function declarations are only allowed at the top level")
         raise NotImplementedError(f"Codegen not implemented for: {type(stmt).__name__}")
 
     def compile_block(self, block: BlockStatement) -> None:
@@ -120,6 +151,11 @@ class Compiler:
             return
         if isinstance(expr, Identifier):
             self.emit(Op.LOAD_NAME, expr.name, expr.span)
+            return
+        if isinstance(expr, CallExpression):
+            for argument in expr.arguments:
+                self.compile_expression(argument)
+            self.emit(Op.CALL, (expr.callee.name, len(expr.arguments)), expr.span)
             return
         if isinstance(expr, UnaryExpression):
             self.compile_expression(expr.operand)

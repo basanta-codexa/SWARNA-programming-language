@@ -41,6 +41,13 @@ class TestCLIHelpers(unittest.TestCase):
         out = emit_bytecode_source("const x = 1")
         self.assertIn("STORE_CONST 'x'", out)
 
+    def test_emit_bytecode_includes_function_table(self):
+        out = emit_bytecode_source("fn add(a: Int, b: Int) -> Int { a + b } print(add(2, 3))")
+        self.assertIn("FUNCTION add/2", out)
+        self.assertIn("CALL ('add', 2)", out)
+        self.assertIn("LOAD_NAME 'a'", out)
+        self.assertIn("RETURN", out)
+
     def test_parse_error_renders_span_and_hint(self):
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
@@ -83,6 +90,21 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertEqual(
             run_source("let i = 0 while i < 3 { print(i) i = i + 1 }"),
             "0\n1\n2",
+        )
+
+    def test_run_source_executes_function(self):
+        self.assertEqual(
+            run_source("fn add(a: Int, b: Int) -> Int { a + b } print(add(2, 3))"),
+            "5",
+        )
+
+    def test_run_source_executes_recursive_function(self):
+        self.assertEqual(
+            run_source(
+                "fn factorial(n: Int) -> Int { if n <= 1 { 1 } else { n * factorial(n - 1) } } "
+                "print(factorial(5))"
+            ),
+            "120",
         )
 
     def test_run_source_reports_undefined_name(self):
@@ -284,6 +306,75 @@ class TestCLIHelpers(unittest.TestCase):
     def test_repl_preserves_state_between_lines(self):
         stdout = io.StringIO()
         inputs = iter(["let x = 1", "print(x + 1)", ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("2", stdout.getvalue())
+
+    def test_repl_preserves_function_between_lines(self):
+        stdout = io.StringIO()
+        inputs = iter([
+            "fn add(a: Int, b: Int) -> Int { a + b }",
+            "print(add(2, 3))",
+            ":q",
+        ])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("5", stdout.getvalue())
+
+    def test_repl_uses_inferred_function_return_type(self):
+        stderr = io.StringIO()
+        inputs = iter([
+            "fn f() { 1 }",
+            "if f() { print(1) }",
+            ":q",
+        ])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("`if` condition must be Bool, got Int", stderr.getvalue())
+
+    def test_repl_preserves_function_after_runtime_error(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        inputs = iter([
+            "fn f() -> Int { 1 } print(1 / 0)",
+            "print(f())",
+            ":q",
+        ])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("division by zero", stderr.getvalue())
+        self.assertIn("1", stdout.getvalue())
+
+    def test_repl_redefines_function(self):
+        stdout = io.StringIO()
+        inputs = iter([
+            "fn f() -> Int { 1 }",
+            "fn f() -> Int { 2 }",
+            "print(f())",
+            ":q",
+        ])
         with (
             patch("sys.stdin", FakeStdin()),
             patch("builtins.input", side_effect=lambda _: next(inputs)),

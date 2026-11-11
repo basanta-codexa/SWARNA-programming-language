@@ -356,5 +356,121 @@ class TestVM(unittest.TestCase):
                 self.assertEqual(vm.output, interpreter.output)
 
 
+class TestVMFunctions(unittest.TestCase):
+    def test_vm_uses_seeded_bindings(self):
+        vm = VM()
+        vm.env["x"] = 5
+        program = Parser(Lexer("print(x + 1)")).parse_program()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, [6])
+
+    def test_vm_function_call(self):
+        env = run_vm("fn add(a: Int, b: Int) -> Int { a + b } let x = add(2, 3)")
+        self.assertEqual(env["x"], 5)
+
+    def test_vm_function_call_before_declaration(self):
+        env = run_vm("let x = add(2, 3) fn add(a: Int, b: Int) -> Int { a + b }")
+        self.assertEqual(env["x"], 5)
+
+    def test_vm_function_call_with_zero_arguments(self):
+        env = run_vm("fn answer() -> Int { 42 } let x = answer()")
+        self.assertEqual(env["x"], 42)
+
+    def test_vm_function_call_as_argument(self):
+        env = run_vm("fn add(a: Int, b: Int) -> Int { a + b } fn one() -> Int { 1 } let x = add(one(), 2)")
+        self.assertEqual(env["x"], 3)
+
+    def test_vm_recursive_function(self):
+        env = run_vm(
+            "fn factorial(n: Int) -> Int { if n <= 1 { 1 } else { n * factorial(n - 1) } } "
+            "let x = factorial(5)"
+        )
+        self.assertEqual(env["x"], 120)
+
+    def test_vm_mutually_recursive_functions(self):
+        env = run_vm(
+            "fn is_even(n: Int) -> Bool { if n == 0 { true } else { is_odd(n - 1) } } "
+            "fn is_odd(n: Int) -> Bool { if n == 0 { false } else { is_even(n - 1) } } "
+            "let x = is_even(4)"
+        )
+        self.assertIs(env["x"], True)
+
+    def test_vm_function_with_while_loop(self):
+        env = run_vm(
+            "fn sum_to(n: Int) -> Int { let total = 0 let i = 1 "
+            "while i <= n { total = total + i i = i + 1 } total } "
+            "let x = sum_to(5)"
+        )
+        self.assertEqual(env["x"], 15)
+
+    def test_vm_function_local_binding_does_not_leak(self):
+        env = run_vm("fn f() -> Int { let local = 1 local } let x = f()")
+        self.assertEqual(env, {"x": 1})
+
+    def test_vm_function_reads_global_binding(self):
+        env = run_vm("let base = 10 fn add_base(x: Int) -> Int { x + base } let y = add_base(5)")
+        self.assertEqual(env["y"], 15)
+
+    def test_vm_function_assignment_does_not_mutate_global(self):
+        env = run_vm("let x = 1 fn bump() -> Int { x = x + 1 x } let y = bump()")
+        self.assertEqual(env, {"x": 1, "y": 2})
+
+    def test_vm_function_print_output(self):
+        program = Parser(Lexer("fn show(x: Int) -> Int { print(x) x + 1 } let y = show(4)")).parse_program()
+        vm = VM()
+        env = vm.run(Compiler().compile(program))
+        self.assertEqual(env["y"], 5)
+        self.assertEqual(vm.output, [4])
+
+    def test_vm_function_calls_match_interpreter(self):
+        sources = [
+            "fn add(a: Int, b: Int) -> Int { a + b } let x = add(2, 3) print(x)",
+            "fn one() -> Int { 1 } fn add(a: Int, b: Int) -> Int { a + b } print(add(one(), 2))",
+            "fn factorial(n: Int) -> Int { if n <= 1 { 1 } else { n * factorial(n - 1) } } print(factorial(5))",
+            "let base = 10 fn add_base(x: Int) -> Int { x + base } print(add_base(5))",
+            "let x = 1 fn bump() -> Int { x = x + 1 x } print(bump()) print(x)",
+            "fn sum_to(n: Int) -> Int { let total = 0 let i = 1 while i <= n { total = total + i i = i + 1 } total } print(sum_to(5))",
+            "fn is_even(n: Int) -> Bool { if n == 0 { true } else { is_odd(n - 1) } } "
+            "fn is_odd(n: Int) -> Bool { if n == 0 { false } else { is_even(n - 1) } } print(is_even(4))",
+            "fn f() -> Int { const x = 1 x } let y = f() print(y)",
+            "fn f() -> Int { let local = 1 local } let x = f() print(x)",
+        ]
+        for source in sources:
+            with self.subTest(source=source):
+                program = Parser(Lexer(source)).parse_program()
+                interpreter = Interpreter()
+                expected_env = interpreter.eval(program)
+
+                vm = VM()
+                actual_env = vm.run(Compiler().compile(program))
+
+                self.assertEqual(actual_env, expected_env)
+                self.assertEqual(vm.output, interpreter.output)
+
+    def test_vm_wrong_argument_count(self):
+        with self.assertRaisesRegex(RuntimeError, "expects 2 arguments, got 1"):
+            run_vm("fn add(a: Int, b: Int) -> Int { a + b } let x = add(1)")
+
+    def test_vm_undefined_function(self):
+        with self.assertRaisesRegex(NameError, "Undefined function 'missing'"):
+            run_vm("let x = missing(1)")
+
+    def test_vm_bare_function_name_must_be_called(self):
+        with self.assertRaisesRegex(NameError, "must be called"):
+            run_vm("fn f() -> Int { 1 } let x = f")
+
+    def test_vm_assignment_to_function_is_rejected(self):
+        with self.assertRaisesRegex(NameError, "Cannot assign to function 'f'"):
+            run_vm("fn f() -> Int { 1 } f = 2")
+
+    def test_vm_function_local_const_assignment_is_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "Cannot assign to const binding 'x'"):
+            run_vm("fn f() -> Int { const x = 1 x = 2 x } let y = f()")
+
+    def test_vm_recursion_depth_limit(self):
+        with self.assertRaisesRegex(RuntimeError, "Maximum call depth"):
+            run_vm("fn loop(n: Int) -> Int { loop(n + 1) } let x = loop(0)")
+
+
 if __name__ == "__main__":
     unittest.main()

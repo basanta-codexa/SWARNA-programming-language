@@ -15,6 +15,8 @@ class Function:
     parameters: tuple[str, ...]
     body: Expression
     span: SourceSpan | None = None
+    parameter_annotations: tuple[str | None, ...] = ()
+    return_annotation: str | None = None
 
 
 class Interpreter:
@@ -62,6 +64,11 @@ class Interpreter:
                 parameters=parameter_names,
                 body=stmt.body,
                 span=stmt.span,
+                parameter_annotations=tuple(
+                    parameter.type_name.name if parameter.type_name is not None else None
+                    for parameter in stmt.parameters
+                ),
+                return_annotation=stmt.return_type.name if stmt.return_type is not None else None,
             )
         for stmt in program.statements:
             if isinstance(stmt, FunctionDeclaration):

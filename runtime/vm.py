@@ -4,17 +4,26 @@ import operator
 from typing import Any, Callable
 
 from compiler.bytecode.instructions import Instruction, Op
+from compiler.bytecode.program import CompiledProgram, FunctionInfo
 from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
+
+
+Value = int | float | bool | str
 
 
 class VM:
     def __init__(self) -> None:
-        self.stack: list[int | float | bool | str] = []
-        self.env: dict[str, int | float | bool | str] = {}
+        self.stack: list[Value] = []
+        self.env: dict[str, Value] = {}
         self.constant: set[str] = set()
-        self.output: list[int | float | bool | str] = []
+        self.output: list[Value] = []
+        self.global_env: dict[str, Value] = self.env
+        self.global_constant: set[str] = self.constant
+        self.functions: dict[str, FunctionInfo] = {}
+        self.call_depth = 0
+        self.max_call_depth = 200
 
-    def _pop(self, ins: Instruction) -> int | float | bool | str:
+    def _pop(self, ins: Instruction) -> Value:
         if not self.stack:
             raise SwarnaRuntimeError(
                 f"Stack underflow on {ins.op.name}",
@@ -37,8 +46,18 @@ class VM:
                 hint="The operands have incompatible types.",
             ) from e
 
-    def run(self, instructions: list[Instruction]) -> dict[str, int | float | bool | str]:
+    def run(self, program: CompiledProgram | list[Instruction]) -> dict[str, Value]:
+        if isinstance(program, list):
+            program = CompiledProgram(tuple(program))
+        self.global_env = self.env
+        self.global_constant = self.constant
         self.stack = []
+        self.functions = program.functions
+        self.call_depth = 0
+        self._execute(program.instructions, allow_return=False)
+        return dict(self.env)
+
+    def _execute(self, instructions: tuple[Instruction, ...], *, allow_return: bool) -> Value | None:
         ip = 0
         while ip < len(instructions):
             ins = instructions[ip]
@@ -48,6 +67,12 @@ class VM:
             elif ins.op == Op.LOAD_NAME:
                 name = ins.arg
                 if name not in self.env:
+                    if name in self.functions:
+                        raise SwarnaNameError(
+                            f"Function '{name}' must be called",
+                            ins.span,
+                            hint="Add parentheses and arguments, or bind the result to a name.",
+                        )
                     raise SwarnaNameError(
                         f"Undefined name '{name}'",
                         ins.span,
@@ -58,6 +83,12 @@ class VM:
                 value = self._pop(ins)
                 name = ins.arg
                 if name not in self.env:
+                    if name in self.functions:
+                        raise SwarnaNameError(
+                            f"Cannot assign to function '{name}'",
+                            ins.span,
+                            hint="Call the function and assign its result to a variable.",
+                        )
                     raise SwarnaNameError(
                         f"Undefined name '{name}'",
                         ins.span,
@@ -165,15 +196,114 @@ class VM:
                     ip = self._jump_target(ins, len(instructions))
             elif ins.op == Op.POP:
                 self._pop(ins)
+            elif ins.op == Op.CALL:
+                self._call(ins)
+            elif ins.op == Op.RETURN:
+                if not allow_return:
+                    raise SwarnaRuntimeError(
+                        "RETURN outside a function",
+                        ins.span,
+                        hint="The bytecode compiler produced an invalid return.",
+                    )
+                return self._pop(ins)
             elif ins.op == Op.HALT:
-                break
+                if allow_return:
+                    raise SwarnaRuntimeError(
+                        "Function ended without returning a value",
+                        ins.span,
+                        hint="The bytecode compiler produced an invalid function.",
+                    )
+                return None
             else:
                 raise SwarnaRuntimeError(
                     f"Unsupported opcode: {ins.op}",
                     ins.span,
                     hint="The bytecode compiler produced an unsupported instruction.",
                 )
-        return dict(self.env)
+        if allow_return:
+            raise SwarnaRuntimeError(
+                "Function ended without returning a value",
+                instructions[-1].span if instructions else None,
+                hint="The bytecode compiler produced an invalid function.",
+            )
+        return None
+
+    def _call(self, ins: Instruction) -> None:
+        target = ins.arg
+        if not isinstance(target, tuple) or len(target) != 2:
+            raise SwarnaRuntimeError(
+                "Invalid CALL target",
+                ins.span,
+                hint="The bytecode compiler produced an invalid call.",
+            )
+        name, argument_count = target
+        if not isinstance(name, str) or not isinstance(argument_count, int) or argument_count < 0:
+            raise SwarnaRuntimeError(
+                "Invalid CALL target",
+                ins.span,
+                hint="The bytecode compiler produced an invalid call.",
+            )
+        function = self.functions.get(name)
+        if function is None:
+            raise SwarnaNameError(
+                f"Undefined function '{name}'",
+                ins.span,
+                hint="Declare it first with `fn name(...) { ... }`.",
+            )
+        if argument_count != len(function.parameters):
+            raise SwarnaRuntimeError(
+                f"Function '{name}' expects {len(function.parameters)} arguments, got {argument_count}",
+                ins.span,
+                hint="Pass the number of arguments in the function declaration.",
+            )
+        if len(self.stack) < argument_count:
+            raise SwarnaRuntimeError(
+                "Stack underflow on CALL",
+                ins.span,
+                hint="The bytecode compiler produced an invalid stack operation.",
+            )
+        arguments = [self._pop(ins) for _ in range(argument_count)]
+        arguments.reverse()
+        self.stack.append(self._call_function(function, arguments, ins))
+
+    def _call_function(
+        self,
+        function: FunctionInfo,
+        arguments: list[Value],
+        call_ins: Instruction,
+    ) -> Value:
+        if self.call_depth >= self.max_call_depth:
+            raise SwarnaRuntimeError(
+                f"Maximum call depth of {self.max_call_depth} exceeded",
+                call_ins.span,
+                hint="Check for infinite recursion.",
+            )
+        saved_stack = self.stack
+        saved_env = self.env
+        saved_constant = self.constant
+        local_env = dict(self.global_env)
+        local_constant = set(self.global_constant)
+        for parameter, value in zip(function.parameters, arguments):
+            local_env[parameter] = value
+            local_constant.discard(parameter)
+        self.stack = []
+        self.env = local_env
+        self.constant = local_constant
+        self.call_depth += 1
+        try:
+            result = self._execute(function.instructions, allow_return=True)
+            if result is None:
+                raise SwarnaRuntimeError(
+                    f"Function '{function.name}' did not return a value",
+                    function.span,
+                    hint="The bytecode compiler produced an invalid function.",
+                )
+            return result
+        finally:
+            self.call_depth -= 1
+            self.stack = saved_stack
+            self.env = saved_env
+            self.constant = saved_constant
 
     @staticmethod
     def _jump_target(ins: Instruction, code_size: int) -> int:

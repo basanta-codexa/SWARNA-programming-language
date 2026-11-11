@@ -5,7 +5,7 @@ from compiler.codegen.compiler import Compiler
 from compiler.diagnostics import DiagnosticError, render_diagnostic
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
-from compiler.semantic.checker import Binding, TypeChecker, type_of_value
+from compiler.semantic.checker import Binding, FunctionSignature, Type, TypeChecker, type_of_value
 from runtime.interpreter import Interpreter
 
 
@@ -30,8 +30,12 @@ def parse_source(source: str) -> str:
 def emit_bytecode_source(source: str) -> str:
     program = Parser(Lexer(source)).parse_program()
     TypeChecker().check(program)
-    code = Compiler().compile(program)
-    return "\n".join(repr(i) for i in code)
+    compiled = Compiler().compile(program)
+    lines = [repr(i) for i in compiled.instructions]
+    for function in compiled.functions.values():
+        lines.append(f"FUNCTION {function.name}/{len(function.parameters)}")
+        lines.extend(f"  {repr(i)}" for i in function.instructions)
+    return "\n".join(lines)
 
 
 def _bindings_from_interpreter(interpreter: Interpreter) -> dict[str, Binding]:
@@ -44,11 +48,52 @@ def _bindings_from_interpreter(interpreter: Interpreter) -> dict[str, Binding]:
     }
 
 
-def run_source(source: str, interpreter: Interpreter | None = None) -> str:
+def _functions_from_interpreter(interpreter: Interpreter) -> dict[str, FunctionSignature]:
+    known_types = {
+        "Int": Type.INT,
+        "Float": Type.FLOAT,
+        "String": Type.STRING,
+        "Bool": Type.BOOL,
+    }
+    signatures: dict[str, FunctionSignature] = {}
+    for name, function in interpreter.functions.items():
+        annotations = function.parameter_annotations
+        if len(annotations) != len(function.parameters):
+            annotations = tuple(None for _ in function.parameters)
+        parameters = tuple(
+            known_types.get(annotation, Type.UNKNOWN) if annotation is not None else Type.UNKNOWN
+            for annotation in annotations
+        )
+        return_type = (
+            known_types.get(function.return_annotation)
+            if function.return_annotation is not None
+            else None
+        )
+        signatures[name] = FunctionSignature(
+            name=name,
+            parameters=parameters,
+            return_type=return_type,
+            span=function.span,
+        )
+    return signatures
+
+
+def run_source(
+    source: str,
+    interpreter: Interpreter | None = None,
+    function_signatures: dict[str, FunctionSignature] | None = None,
+) -> str:
     program = Parser(Lexer(source)).parse_program()
     if interpreter is None:
         interpreter = Interpreter()
-    TypeChecker(_bindings_from_interpreter(interpreter)).check(program)
+    functions = _functions_from_interpreter(interpreter)
+    if function_signatures is not None:
+        functions.update(function_signatures)
+    checker = TypeChecker(_bindings_from_interpreter(interpreter), functions)
+    checker.check(program)
+    if function_signatures is not None:
+        function_signatures.clear()
+        function_signatures.update(checker.functions)
     output_start = len(interpreter.output)
     interpreter.eval(program)
     return "\n".join(format_value(value) for value in interpreter.output[output_start:])
@@ -113,6 +158,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     interpreter = Interpreter()
+    function_signatures: dict[str, FunctionSignature] = {}
     print("SWARNA (minimal) — enter a line, :lex/:parse/:bytecode/:run prefixes optional, :q to quit")
     while True:
         try:
@@ -140,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
             elif action == "bytecode":
                 print(emit_bytecode_source(source))
             elif action == "run":
-                output = run_source(source, interpreter)
+                output = run_source(source, interpreter, function_signatures)
                 if output:
                     print(output)
             else:
