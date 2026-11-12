@@ -81,7 +81,7 @@ Type.BOOL = Type("Bool")
 Type.UNKNOWN = Type("Unknown")
 
 
-BUILTIN_NAMES = frozenset({"print", "len"})
+BUILTIN_NAMES = frozenset({"print", "len", "read_file"})
 
 
 @dataclass(frozen=True)
@@ -560,6 +560,22 @@ class TypeChecker:
                         "Pass a list, map, or string to `len`.",
                     )
                 return Type.INT
+            if expr.callee.name == "read_file":
+                if len(expr.arguments) != 1:
+                    self._error(
+                        f"Function 'read_file' expects 1 argument, got {len(expr.arguments)}",
+                        expr.span,
+                        "Pass one string file path to `read_file`.",
+                    )
+                argument_type = self.check_expression(expr.arguments[0])
+                if argument_type is not Type.UNKNOWN and argument_type is not Type.STRING:
+                    self._error(
+                        f"`read_file` expects a String path, got {argument_type.label}",
+                        expr.arguments[0].span,
+                        "Pass a file path as a string.",
+                        category="type-mismatch",
+                    )
+                return Type.STRING
             signature = self.functions.get(expr.callee.name)
             if signature is None:
                 self._error(

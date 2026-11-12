@@ -486,10 +486,28 @@ class TestFunctions(unittest.TestCase):
             check("fn len(x: Int) -> Int { x }")
 
     def test_builtin_binding_names_are_reserved(self):
-        for name in ("print", "len"):
+        for name in ("print", "len", "read_file"):
             with self.subTest(name=name):
                 with self.assertRaisesRegex(SwarnaSemanticError, f"Cannot bind a variable named '{name}'"):
                     check(f"let {name} = 1")
+
+    def test_read_file_returns_string(self):
+        checker = check('let text = read_file("notes.txt")')
+        self.assertIs(checker.env["text"].type, Type.STRING)
+
+    def test_read_file_requires_string_path(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "`read_file` expects a String path, got Int",
+        ):
+            check("let text = read_file(1)")
+
+    def test_read_file_requires_one_argument(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Function 'read_file' expects 1 argument, got 0",
+        ):
+            check("let text = read_file()")
 
     def test_builtin_parameter_names_are_reserved(self):
         with self.assertRaisesRegex(SwarnaSemanticError, "Parameter 'len' conflicts with a built-in name"):

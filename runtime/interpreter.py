@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
+from runtime.files import read_text_file
 from runtime.values import Value, format_literal, value_type_name
 
 
@@ -172,7 +173,7 @@ class Interpreter:
                 raise SwarnaRuntimeError(
                     f"Function 'len' expects 1 argument, got {len(expr.arguments)}",
                     expr.span,
-                    hint="Pass one list or string to `len`.",
+                    hint="Pass one list, map, or string to `len`.",
                 )
             value = self.eval_expression(expr.arguments[0])
             if isinstance(value, (list, dict, str)):
@@ -182,6 +183,21 @@ class Interpreter:
                 expr.arguments[0].span,
                 hint="Pass a list, map, or string to `len`.",
             )
+        if expr.callee.name == "read_file":
+            if len(expr.arguments) != 1:
+                raise SwarnaRuntimeError(
+                    f"Function 'read_file' expects 1 argument, got {len(expr.arguments)}",
+                    expr.span,
+                    hint="Pass one string file path to `read_file`.",
+                )
+            path = self.eval_expression(expr.arguments[0])
+            if type(path) is not str:
+                raise SwarnaTypeError(
+                    f"`read_file` expects a String path, got {value_type_name(path)}",
+                    expr.arguments[0].span,
+                    hint='Pass a file path as a string, such as `read_file("notes.txt")`.',
+                )
+            return read_text_file(path, expr.arguments[0].span)
         function = self.functions.get(expr.callee.name)
         if function is None:
             raise SwarnaNameError(

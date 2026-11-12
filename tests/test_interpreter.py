@@ -1,4 +1,7 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from compiler.lexer.lexer import Lexer
@@ -512,6 +515,52 @@ class TestInterpreterMaps(unittest.TestCase):
             "Map keys must be Int, Float, String, or Bool, got List",
         ):
             run("let m = { [1]: 2 }")
+
+
+class TestInterpreterFiles(unittest.TestCase):
+    def test_read_file_returns_text(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "notes.txt"
+            path.write_text("hello\nworld", encoding="utf-8")
+            env = run(f"let text = read_file({json.dumps(path.as_posix())})")
+            self.assertEqual(env["text"], "hello\nworld")
+
+    def test_read_empty_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "empty.txt"
+            path.write_text("", encoding="utf-8")
+            env = run(f"let text = read_file({json.dumps(path.as_posix())})")
+            self.assertEqual(env["text"], "")
+
+    def test_read_file_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "missing.txt"
+            with self.assertRaisesRegex(RuntimeError, "file not found"):
+                run(f"let text = read_file({json.dumps(path.as_posix())})")
+
+    def test_read_file_missing_has_span_and_hint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "missing.txt"
+            with self.assertRaises(SwarnaRuntimeError) as raised:
+                run(f"let text = read_file({json.dumps(path.as_posix())})")
+        self.assertIsNotNone(raised.exception.span)
+        self.assertIsNotNone(raised.exception.hint)
+
+    def test_read_file_rejects_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(RuntimeError, "it is a directory"):
+                run(f"let text = read_file({json.dumps(Path(directory).as_posix())})")
+
+    def test_read_file_rejects_invalid_utf8(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "binary.dat"
+            path.write_bytes(b"\xff\xfe")
+            with self.assertRaisesRegex(RuntimeError, "not valid UTF-8 text"):
+                run(f"let text = read_file({json.dumps(path.as_posix())})")
+
+    def test_read_file_requires_string_path(self):
+        with self.assertRaisesRegex(TypeError, "`read_file` expects a String path, got Int"):
+            run("let text = read_file(1)")
 
 
 if __name__ == "__main__":

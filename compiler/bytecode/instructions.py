@@ -36,6 +36,7 @@ class Op(Enum):
     BUILD_MAP = auto()
     INDEX = auto()
     LEN = auto()
+    READ_FILE = auto()
     ITER_START = auto()
     ITER_NEXT = auto()
     CALL = auto()

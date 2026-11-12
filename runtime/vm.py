@@ -8,6 +8,7 @@ from typing import Any, Callable
 from compiler.bytecode.instructions import Instruction, Op
 from compiler.bytecode.program import CompiledProgram, FunctionInfo
 from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
+from runtime.files import read_text_file
 from runtime.values import Value, format_literal, value_type_name
 
 
@@ -327,6 +328,15 @@ class VM:
                         ins.span,
                         hint="Pass a list, map, or string to `len`.",
                     )
+            elif ins.op == Op.READ_FILE:
+                path = self._pop(ins)
+                if type(path) is not str:
+                    raise SwarnaTypeError(
+                        f"`read_file` expects a String path, got {value_type_name(path)}",
+                        ins.span,
+                        hint='Pass a file path as a string, such as `read_file("notes.txt")`.',
+                    )
+                self.stack.append(read_text_file(path, ins.span))
             elif ins.op == Op.ITER_START:
                 iterable = self._pop(ins)
                 if not isinstance(iterable, list):

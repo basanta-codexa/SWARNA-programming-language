@@ -1,4 +1,7 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from compiler.bytecode.instructions import Instruction, Op
 from compiler.codegen.compiler import Compiler
@@ -736,6 +739,41 @@ class TestVMCollections(unittest.TestCase):
 
                 self.assertEqual(actual_env, expected_env)
                 self.assertEqual(vm.output, interpreter.output)
+
+
+class TestVMFiles(unittest.TestCase):
+    def test_vm_read_file_returns_text(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "notes.txt"
+            path.write_text("hello\nworld", encoding="utf-8")
+            env = run_vm(f"let text = read_file({json.dumps(path.as_posix())})")
+            self.assertEqual(env["text"], "hello\nworld")
+
+    def test_vm_read_file_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "missing.txt"
+            with self.assertRaisesRegex(RuntimeError, "file not found"):
+                run_vm(f"let text = read_file({json.dumps(path.as_posix())})")
+
+    def test_vm_read_file_requires_string_path(self):
+        with self.assertRaisesRegex(TypeError, "`read_file` expects a String path, got Int"):
+            run_vm("let text = read_file(1)")
+
+    def test_vm_read_file_matches_interpreter(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "notes.txt"
+            path.write_text("one\ntwo\n", encoding="utf-8")
+            source = f'let text = read_file({json.dumps(path.as_posix())}) print(text)'
+            program = Parser(Lexer(source)).parse_program()
+
+            interpreter = Interpreter()
+            expected_env = interpreter.eval(program)
+
+            vm = VM()
+            actual_env = vm.run(Compiler().compile(program))
+
+            self.assertEqual(actual_env, expected_env)
+            self.assertEqual(vm.output, interpreter.output)
 
 
 if __name__ == "__main__":

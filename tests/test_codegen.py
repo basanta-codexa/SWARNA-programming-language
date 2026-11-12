@@ -393,6 +393,15 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_read_file_builtin(self):
+        compiled = compile_source('let text = read_file("notes.txt")')
+        self.assertEqual([repr(i) for i in compiled], [
+            "CONST 'notes.txt'",
+            "READ_FILE",
+            "DECLARE_NAME 'text'",
+            "HALT",
+        ])
+
     def test_compile_len_builtin(self):
         compiled = compile_source("let xs = [1, 2] let n = len(xs)")
         self.assertEqual([repr(i) for i in compiled], [
