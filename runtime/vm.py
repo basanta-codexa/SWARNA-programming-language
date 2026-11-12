@@ -7,7 +7,7 @@ from typing import Any, Callable
 
 from compiler.bytecode.instructions import Instruction, Op
 from compiler.bytecode.program import CompiledProgram, FunctionInfo
-from compiler.diagnostics import UNDEFINED_NAME_EXPLANATION, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
+from compiler.diagnostics import TYPE_MISMATCH_EXPLANATION, UNDEFINED_NAME_EXPLANATION, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.values import Value, value_type_name
 
 
@@ -69,6 +69,7 @@ class VM:
                 str(e),
                 ins.span,
                 hint="The operands have incompatible types.",
+                explanation=TYPE_MISMATCH_EXPLANATION,
             ) from e
 
     def run(self, program: CompiledProgram | list[Instruction]) -> dict[str, Value]:
@@ -168,6 +169,7 @@ class VM:
                         str(e),
                         ins.span,
                         hint="The operands have incompatible types.",
+                        explanation=TYPE_MISMATCH_EXPLANATION,
                     ) from e
             elif ins.op == Op.IDIV:
                 b = self._pop(ins)
@@ -177,6 +179,7 @@ class VM:
                         "'//' requires Int operands",
                         ins.span,
                         hint="Use `/` for true division or convert the operands to Int.",
+                        explanation=TYPE_MISMATCH_EXPLANATION,
                     )
                 if b == 0:
                     raise SwarnaZeroDivisionError(

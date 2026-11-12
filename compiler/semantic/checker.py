@@ -28,7 +28,7 @@ from compiler.ast.nodes import (
     UnaryExpression,
     WhileStatement,
 )
-from compiler.diagnostics import UNDEFINED_NAME_EXPLANATION, SourceSpan, SwarnaSemanticError
+from compiler.diagnostics import TYPE_MISMATCH_EXPLANATION, UNDEFINED_NAME_EXPLANATION, SourceSpan, SwarnaSemanticError
 
 
 @dataclass(frozen=True)
@@ -569,12 +569,14 @@ class TypeChecker:
                     f"`{expr.operator}` requires Bool operands, got {left_type.label}",
                     expr.left.span,
                     "Use comparisons or `true`/`false`.",
+                    explanation=TYPE_MISMATCH_EXPLANATION,
                 )
             if not self._is_bool(right_type):
                 self._error(
                     f"`{expr.operator}` requires Bool operands, got {right_type.label}",
                     expr.right.span,
                     "Use comparisons or `true`/`false`.",
+                    explanation=TYPE_MISMATCH_EXPLANATION,
                 )
             return Type.BOOL
 
@@ -600,6 +602,7 @@ class TypeChecker:
                 f"`+` cannot combine {left_type.label} and {right_type.label}",
                 expr.span,
                 "Use two numbers, two strings, or two lists.",
+                explanation=TYPE_MISMATCH_EXPLANATION,
             )
 
         if expr.operator in ("-", "*"):
@@ -609,6 +612,7 @@ class TypeChecker:
                 f"`{expr.operator}` requires numeric operands, got {left_type.label} and {right_type.label}",
                 expr.span,
                 "Use Int or Float operands.",
+                explanation=TYPE_MISMATCH_EXPLANATION,
             )
 
         if expr.operator == "/":
@@ -618,6 +622,7 @@ class TypeChecker:
                 f"`/` requires numeric operands, got {left_type.label} and {right_type.label}",
                 expr.span,
                 "Use Int or Float operands.",
+                explanation=TYPE_MISMATCH_EXPLANATION,
             )
 
         if expr.operator == "//":
@@ -626,6 +631,7 @@ class TypeChecker:
                     f"`//` requires Int operands, got {left_type.label} and {right_type.label}",
                     expr.span,
                     "Use `/` for true division or convert the operands to Int.",
+                    explanation=TYPE_MISMATCH_EXPLANATION,
                 )
             return Type.INT
 
@@ -635,6 +641,7 @@ class TypeChecker:
                     f"`{expr.operator}` cannot compare {left_type.label} and {right_type.label}",
                     expr.span,
                     "Compare values of compatible types.",
+                    explanation=TYPE_MISMATCH_EXPLANATION,
                 )
             return Type.BOOL
 
@@ -644,6 +651,7 @@ class TypeChecker:
                     f"`{expr.operator}` cannot compare {left_type.label} and {right_type.label}",
                     expr.span,
                     "Compare two numbers or two strings.",
+                    explanation=TYPE_MISMATCH_EXPLANATION,
                 )
             return Type.BOOL
 

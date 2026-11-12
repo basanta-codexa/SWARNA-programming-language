@@ -193,6 +193,11 @@ class TestInterpreter(unittest.TestCase):
             run('let x = 1 + "a"')
         self.assertEqual(raised.exception.span, SourceSpan(1, 11, 1))
 
+    def test_type_mismatch_diagnostic_has_explanation(self):
+        with self.assertRaises(SwarnaTypeError) as raised:
+            run('let x = 1 + "a"')
+        self.assertIsNotNone(raised.exception.explanation)
+
 
 class TestInterpreterForLoops(unittest.TestCase):
     def test_for_loop_accumulates(self):

@@ -302,6 +302,15 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertIn("= why:", output)
         self.assertIn("let name = value", output)
 
+    def test_run_cli_explain_shows_why_for_type_mismatch(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "--explain", 'print(1 + "a")'])
+        self.assertEqual(code, 1)
+        output = stderr.getvalue()
+        self.assertIn("cannot combine Int and String", output)
+        self.assertIn("= why:", output)
+
     def test_run_cli_without_explain_hides_why(self):
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):

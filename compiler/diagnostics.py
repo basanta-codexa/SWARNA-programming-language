@@ -11,6 +11,14 @@ UNDEFINED_NAME_EXPLANATION = (
     "declaration; variables cannot."
 )
 
+TYPE_MISMATCH_EXPLANATION = (
+    "SWARNA checks types before the program runs. A value's type is fixed by "
+    "the values it is built from: Int and Float are distinct, `+` works on two "
+    "numbers, two strings, or two lists of the same element type, and a list "
+    "holds one element type. Make both sides the same type; for example, write "
+    "`1.0` instead of `1` when you need a Float."
+)
+
 
 @dataclass(frozen=True)
 class SourceSpan:

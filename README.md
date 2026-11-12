@@ -95,7 +95,7 @@ python -m swarna --run
 - inferred static types for the current expressions and bindings
 - a REPL that keeps bindings and functions between lines
 - caret diagnostics with hints for lexer, parser, semantic, and runtime errors
-- `--explain` (or the REPL `:explain` toggle) adds a plain-language explanation to errors; undefined-name errors are covered first
+- `--explain` (or the REPL `:explain` toggle) adds a plain-language explanation to errors; undefined-name and binary-operator type-mismatch errors are covered first
 - a stack VM checked against the interpreter by differential tests, including function calls, lists, and `for` loops
 
 ## What does not work yet

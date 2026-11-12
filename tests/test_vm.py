@@ -56,6 +56,11 @@ class TestVM(unittest.TestCase):
         with self.assertRaises(NameError):
             run_vm("let y = x + 1")
 
+    def test_vm_type_mismatch_has_explanation(self):
+        with self.assertRaises(SwarnaTypeError) as raised:
+            run_vm('let x = 1 + "a"')
+        self.assertIsNotNone(raised.exception.explanation)
+
     def test_vm_comparisons_bools_and_print(self):
         program = Parser(Lexer("let a = 1 == 2 let b = !false print(b) print(1 < 2)")).parse_program()
         code = Compiler().compile(program)

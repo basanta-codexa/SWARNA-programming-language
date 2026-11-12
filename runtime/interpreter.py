@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
-from compiler.diagnostics import UNDEFINED_NAME_EXPLANATION, SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
+from compiler.diagnostics import TYPE_MISMATCH_EXPLANATION, UNDEFINED_NAME_EXPLANATION, SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.values import Value, value_type_name
 
 
@@ -315,6 +315,7 @@ class Interpreter:
                         "'//' requires Int operands",
                         expr.span,
                         hint="Use `/` for true division or convert the operands to Int.",
+                        explanation=TYPE_MISMATCH_EXPLANATION,
                     )
                 if right == 0:
                     raise SwarnaZeroDivisionError(
@@ -352,6 +353,7 @@ class Interpreter:
                     str(e),
                     expr.span,
                     hint="The operands have incompatible types.",
+                    explanation=TYPE_MISMATCH_EXPLANATION,
                 ) from e
             raise SwarnaRuntimeError(
                 f"Unsupported binary operator {expr.operator!r}",
