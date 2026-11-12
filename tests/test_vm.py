@@ -664,13 +664,55 @@ class TestVMCollections(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "List index must be Int"):
             run_vm('let xs = [1, 2] let x = xs["a"]')
 
-    def test_vm_only_lists_can_be_indexed(self):
+    def test_vm_only_lists_and_maps_can_be_indexed(self):
         with self.assertRaisesRegex(TypeError, "Cannot index Int"):
             run_vm("let x = 1[0]")
 
-    def test_vm_len_requires_list_or_string(self):
-        with self.assertRaisesRegex(TypeError, "`len` expects a List or String, got Int"):
+    def test_vm_len_requires_collection_or_string(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            "`len` expects a List, Map, or String, got Int",
+        ):
             run_vm("let n = len(1)")
+
+    def test_vm_map_literal_and_index(self):
+        env = run_vm('let m = { "a": 1, "b": 2 } let x = m["a"]')
+        self.assertEqual(env["m"], {"a": 1, "b": 2})
+        self.assertEqual(env["x"], 1)
+
+    def test_vm_empty_map(self):
+        env = run_vm("let m = {} let n = len(m)")
+        self.assertEqual(env["m"], {})
+        self.assertEqual(env["n"], 0)
+
+    def test_vm_nested_map_index(self):
+        env = run_vm('let m = { "a": { "b": 2 } } let x = m["a"]["b"]')
+        self.assertEqual(env["x"], 2)
+
+    def test_vm_map_equality(self):
+        env = run_vm('let x = { "a": 1 } == { "a": 1 }')
+        self.assertIs(env["x"], True)
+
+    def test_vm_len_of_map(self):
+        env = run_vm('let n = len({ "a": 1, "b": 2 })')
+        self.assertEqual(env["n"], 2)
+
+    def test_vm_missing_key(self):
+        with self.assertRaisesRegex(RuntimeError, 'Key "missing" is not in the map'):
+            run_vm('let m = { "a": 1 } let x = m["missing"]')
+
+    def test_vm_map_print_output(self):
+        program = Parser(Lexer('print({ "a": 1, "b": 2 })')).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, [{"a": 1, "b": 2}])
+
+    def test_vm_map_literal_rejects_list_key(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            "Map keys must be Int, Float, String, or Bool, got List",
+        ):
+            run_vm("let m = { [1]: 2 }")
 
     def test_vm_collections_match_interpreter(self):
         sources = [
@@ -679,6 +721,9 @@ class TestVMCollections(unittest.TestCase):
             "let xs = [[1], [2, 3]] print(xs[1][0])",
             "let x = [1, 2] == [1, 2] print(x)",
             "fn first(xs) { xs[0] } print(first([9, 8]))",
+            'let m = { "a": 1 } print(m["a"] + len(m))',
+            'print({ "a": 1, "b": 2 })',
+            'let m = { "a": { "b": 2 } } print(m["a"]["b"])',
         ]
         for source in sources:
             with self.subTest(source=source):

@@ -33,6 +33,7 @@ class Op(Enum):
     JUMP_IF_FALSE = auto()
     POP = auto()
     BUILD_LIST = auto()
+    BUILD_MAP = auto()
     INDEX = auto()
     LEN = auto()
     ITER_START = auto()

@@ -8,7 +8,7 @@ from typing import Any, Callable
 from compiler.bytecode.instructions import Instruction, Op
 from compiler.bytecode.program import CompiledProgram, FunctionInfo
 from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
-from runtime.values import Value, value_type_name
+from runtime.values import Value, format_literal, value_type_name
 
 
 @dataclass
@@ -247,38 +247,85 @@ class VM:
                 elements = [self._pop(ins) for _ in range(count)]
                 elements.reverse()
                 self.stack.append(elements)
+            elif ins.op == Op.BUILD_MAP:
+                count = ins.arg
+                if not isinstance(count, int) or count < 0:
+                    raise SwarnaRuntimeError(
+                        "Invalid BUILD_MAP count",
+                        ins.span,
+                        hint="The bytecode compiler produced an invalid map instruction.",
+                    )
+                if len(self.stack) < count * 2:
+                    raise SwarnaRuntimeError(
+                        "Stack underflow on BUILD_MAP",
+                        ins.span,
+                        hint="The bytecode compiler produced an invalid stack operation.",
+                    )
+                items = [self._pop(ins) for _ in range(count * 2)]
+                items.reverse()
+                result: dict[Value, Value] = {}
+                for offset in range(0, count * 2, 2):
+                    key, value = items[offset], items[offset + 1]
+                    try:
+                        hash(key)
+                    except TypeError:
+                        raise SwarnaTypeError(
+                            f"Map keys must be Int, Float, String, or Bool, "
+                            f"got {value_type_name(key)}",
+                            ins.span,
+                            hint="Use a scalar key.",
+                        ) from None
+                    result[key] = value
+                self.stack.append(result)
             elif ins.op == Op.INDEX:
                 index = self._pop(ins)
                 collection = self._pop(ins)
-                if not isinstance(collection, list):
+                if isinstance(collection, dict):
+                    try:
+                        self.stack.append(collection[index])
+                    except KeyError:
+                        raise SwarnaRuntimeError(
+                            f"Key {format_literal(index)} is not in the map",
+                            ins.span,
+                            hint="Check the key, or use a key that exists.",
+                        ) from None
+                    except TypeError:
+                        raise SwarnaTypeError(
+                            f"Map keys must be Int, Float, String, or Bool, "
+                            f"got {value_type_name(index)}",
+                            ins.span,
+                            hint="Use a scalar key.",
+                        ) from None
+                elif isinstance(collection, list):
+                    if type(index) is not int:
+                        raise SwarnaTypeError(
+                            "List index must be Int",
+                            ins.span,
+                            hint="Use an integer index, such as `values[0]`.",
+                        )
+                    try:
+                        self.stack.append(collection[index])
+                    except IndexError:
+                        raise SwarnaRuntimeError(
+                            f"Index {index} is out of range for a list of length {len(collection)}",
+                            ins.span,
+                            hint="Use an index from 0 to len(list) - 1, or a negative index from -len(list) to -1.",
+                        ) from None
+                else:
                     raise SwarnaTypeError(
                         f"Cannot index {value_type_name(collection)}",
                         ins.span,
-                        hint="Only lists can be indexed right now.",
+                        hint="Only lists and maps can be indexed.",
                     )
-                if type(index) is not int:
-                    raise SwarnaTypeError(
-                        "List index must be Int",
-                        ins.span,
-                        hint="Use an integer index, such as `values[0]`.",
-                    )
-                try:
-                    self.stack.append(collection[index])
-                except IndexError:
-                    raise SwarnaRuntimeError(
-                        f"Index {index} is out of range for a list of length {len(collection)}",
-                        ins.span,
-                        hint="Use an index from 0 to len(list) - 1, or a negative index from -len(list) to -1.",
-                    ) from None
             elif ins.op == Op.LEN:
                 value = self._pop(ins)
-                if isinstance(value, (list, str)):
+                if isinstance(value, (list, dict, str)):
                     self.stack.append(len(value))
                 else:
                     raise SwarnaTypeError(
-                        f"`len` expects a List or String, got {value_type_name(value)}",
+                        f"`len` expects a List, Map, or String, got {value_type_name(value)}",
                         ins.span,
-                        hint="Pass a list or string to `len`.",
+                        hint="Pass a list, map, or string to `len`.",
                     )
             elif ins.op == Op.ITER_START:
                 iterable = self._pop(ins)

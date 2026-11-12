@@ -345,6 +345,40 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_map_literal(self):
+        compiled = compile_source('let m = { "a": 1, "b": 2 }')
+        self.assertEqual([repr(i) for i in compiled], [
+            "CONST 'a'",
+            "CONST 1",
+            "CONST 'b'",
+            "CONST 2",
+            "BUILD_MAP 2",
+            "DECLARE_NAME 'm'",
+            "HALT",
+        ])
+
+    def test_compile_empty_map_literal(self):
+        compiled = compile_source("let m = {}")
+        self.assertEqual([repr(i) for i in compiled], [
+            "BUILD_MAP 0",
+            "DECLARE_NAME 'm'",
+            "HALT",
+        ])
+
+    def test_compile_map_index_expression(self):
+        compiled = compile_source('let m = { "a": 1 } let x = m["a"]')
+        self.assertEqual([repr(i) for i in compiled], [
+            "CONST 'a'",
+            "CONST 1",
+            "BUILD_MAP 1",
+            "DECLARE_NAME 'm'",
+            "LOAD_NAME 'm'",
+            "CONST 'a'",
+            "INDEX",
+            "DECLARE_NAME 'x'",
+            "HALT",
+        ])
+
     def test_compile_index_expression(self):
         compiled = compile_source("let xs = [1, 2] let x = xs[0]")
         self.assertEqual([repr(i) for i in compiled], [

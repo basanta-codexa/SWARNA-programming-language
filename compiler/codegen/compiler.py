@@ -18,6 +18,7 @@ from compiler.ast.nodes import (
     IntegerLiteral,
     LetStatement,
     ListLiteral,
+    MapLiteral,
     PrintStatement,
     Program,
     Statement,
@@ -168,6 +169,12 @@ class Compiler:
             for element in expr.elements:
                 self.compile_expression(element)
             self.emit(Op.BUILD_LIST, len(expr.elements), expr.span)
+            return
+        if isinstance(expr, MapLiteral):
+            for key, value in expr.entries:
+                self.compile_expression(key)
+                self.compile_expression(value)
+            self.emit(Op.BUILD_MAP, len(expr.entries), expr.span)
             return
         if isinstance(expr, IndexExpression):
             self.compile_expression(expr.collection)
