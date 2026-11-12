@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
-from runtime.values import Value, value_type_name
+from runtime.values import Value, format_literal, value_type_name
 
 
 @dataclass(frozen=True)
@@ -175,12 +175,12 @@ class Interpreter:
                     hint="Pass one list or string to `len`.",
                 )
             value = self.eval_expression(expr.arguments[0])
-            if isinstance(value, (list, str)):
+            if isinstance(value, (list, dict, str)):
                 return len(value)
             raise SwarnaTypeError(
-                f"`len` expects a List or String, got {value_type_name(value)}",
+                f"`len` expects a List, Map, or String, got {value_type_name(value)}",
                 expr.arguments[0].span,
-                hint="Pass a list or string to `len`.",
+                hint="Pass a list, map, or string to `len`.",
             )
         function = self.functions.get(expr.callee.name)
         if function is None:
@@ -236,14 +236,34 @@ class Interpreter:
             return self.eval_expression(expr.else_value)
         if isinstance(expr, ListLiteral):
             return [self.eval_expression(element) for element in expr.elements]
+        if isinstance(expr, MapLiteral):
+            return {
+                self.eval_expression(key): self.eval_expression(value)
+                for key, value in expr.entries
+            }
         if isinstance(expr, IndexExpression):
             collection = self.eval_expression(expr.collection)
             index = self.eval_expression(expr.index)
+            if isinstance(collection, dict):
+                try:
+                    return collection[index]
+                except KeyError:
+                    raise SwarnaRuntimeError(
+                        f"Key {format_literal(index)} is not in the map",
+                        expr.index.span,
+                        hint="Check the key, or use a key that exists.",
+                    ) from None
+                except TypeError:
+                    raise SwarnaTypeError(
+                        "Map keys must be scalar values",
+                        expr.index.span,
+                        hint="Use an Int, Float, String, or Bool key.",
+                    ) from None
             if not isinstance(collection, list):
                 raise SwarnaTypeError(
                     f"Cannot index {value_type_name(collection)}",
                     expr.span,
-                    hint="Only lists can be indexed right now.",
+                    hint="Only lists and maps can be indexed.",
                 )
             if type(index) is not int:
                 raise SwarnaTypeError(

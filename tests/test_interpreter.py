@@ -447,13 +447,64 @@ class TestInterpreterFunctions(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "Cannot index Int"):
             run("let x = 1[0]")
 
-    def test_len_requires_list_or_string(self):
-        with self.assertRaisesRegex(TypeError, "`len` expects a List or String, got Int"):
+    def test_len_requires_collection_or_string(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            "`len` expects a List, Map, or String, got Int",
+        ):
             run("let n = len(1)")
 
     def test_len_requires_one_argument(self):
         with self.assertRaisesRegex(RuntimeError, "Function 'len' expects 1 argument, got 2"):
             run("let n = len([1], [2])")
+
+
+class TestInterpreterMaps(unittest.TestCase):
+    def test_map_literal_and_index(self):
+        env = run('let m = { "a": 1, "b": 2 } let x = m["a"]')
+        self.assertEqual(env["m"], {"a": 1, "b": 2})
+        self.assertEqual(env["x"], 1)
+
+    def test_empty_map(self):
+        env = run("let m = {} let n = len(m)")
+        self.assertEqual(env["m"], {})
+        self.assertEqual(env["n"], 0)
+
+    def test_nested_map(self):
+        env = run('let m = { "a": { "b": 2 } } let x = m["a"]["b"]')
+        self.assertEqual(env["x"], 2)
+
+    def test_map_equality(self):
+        env = run('let x = { "a": 1 } == { "a": 1 }')
+        self.assertIs(env["x"], True)
+
+    def test_len_of_map(self):
+        env = run('let n = len({ "a": 1, "b": 2 })')
+        self.assertEqual(env["n"], 2)
+
+    def test_missing_key(self):
+        with self.assertRaisesRegex(RuntimeError, 'Key "missing" is not in the map'):
+            run('let m = { "a": 1 } let x = m["missing"]')
+
+    def test_missing_key_has_span_and_hint(self):
+        with self.assertRaises(SwarnaRuntimeError) as raised:
+            run('let m = { "a": 1 } let x = m["missing"]')
+        self.assertIsNotNone(raised.exception.span)
+        self.assertIsNotNone(raised.exception.hint)
+
+    def test_map_print_output(self):
+        program = Parser(Lexer('print({ "a": 1, "b": 2 })')).parse_program()
+        interpreter = Interpreter()
+        interpreter.eval(program)
+        self.assertEqual(interpreter.output, [{"a": 1, "b": 2}])
+
+    def test_for_loop_rejects_map(self):
+        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List, got Map"):
+            run('for x in { "a": 1 } { print(x) }')
+
+    def test_map_key_must_be_hashable(self):
+        with self.assertRaisesRegex(SwarnaTypeError, "Map keys must be scalar values"):
+            run('let m = { "a": 1 } let x = m[[1]]')
 
 
 if __name__ == "__main__":
