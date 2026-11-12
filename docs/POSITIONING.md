@@ -133,7 +133,7 @@ The comparison is not "SWARNA vs. Python with a carefully written validation lay
 
 | Pillar | Today |
 |---|---|
-| Errors that explain | Implemented for lexer, parser, semantic, and current runtime errors, including function calls and lists. A minimal `--explain` mode adds a plain-language explanation for undefined-name and binary-operator type-mismatch errors; coverage will grow. |
+| Errors that explain | Implemented for lexer, parser, semantic, and current runtime errors, including function calls and lists. A minimal `--explain` mode adds a plain-language explanation for undefined-name and type-mismatch errors; coverage will grow. |
 | Types without ceremony | Inferred `Int`, `Float`, `String`, `Bool`, and `List[T]` for the current subset. Named functions with optional parameter and return annotations; unannotated returns are inferred. `for` loops over lists are checked and scoped. No maps, list annotations, or generics yet. |
 | Task-first standard library | Not started. No standard library yet; only `print`, `len`, and built-in operators exist. |
 | One workflow | REPL and `--run` exist; bindings, functions, and list types persist in the REPL. No formatter or file runner beyond `--run` yet. |

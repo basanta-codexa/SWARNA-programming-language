@@ -311,6 +311,21 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertIn("cannot combine Int and String", output)
         self.assertIn("= why:", output)
 
+    def test_run_cli_explain_covers_type_mismatch_kinds(self):
+        cases = {
+            "assignment": 'let x = 1 x = "a"',
+            "argument": 'fn f(x: Int) -> Int { x } let y = f("a")',
+            "return": 'fn f() -> Int { "a" }',
+            "if branches": 'let x = if true { 1 } else { "a" }',
+        }
+        for label, source in cases.items():
+            with self.subTest(label=label):
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    code = main(["--run", "--explain", source])
+                self.assertEqual(code, 1)
+                self.assertIn("= why:", stderr.getvalue())
+
     def test_run_cli_without_explain_hides_why(self):
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):

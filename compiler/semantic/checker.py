@@ -236,6 +236,7 @@ class TypeChecker:
                     f"but its body produces {body_type.label}",
                     stmt.body.span if stmt.body.span is not None else stmt.span,
                     "Make the final expression match the declared return type.",
+                    explanation=TYPE_MISMATCH_EXPLANATION,
                 )
         finally:
             self.env = saved_env
@@ -326,6 +327,7 @@ class TypeChecker:
                     f"Cannot assign {value_type.label} to {binding.type.label} binding '{name}'",
                     stmt.value.span,
                     "A binding keeps the type of its first value.",
+                    explanation=TYPE_MISMATCH_EXPLANATION,
                 )
             return
 
@@ -488,6 +490,7 @@ class TypeChecker:
                         f"got {argument_type.label}",
                         argument.span,
                         "Pass a value of the declared parameter type.",
+                        explanation=TYPE_MISMATCH_EXPLANATION,
                     )
             return signature.return_type if signature.return_type is not None else Type.UNKNOWN
 
@@ -689,6 +692,7 @@ class TypeChecker:
             f"`if` branches have incompatible types: {then_type.label} and {else_type.label}",
             expr.else_value.span if expr.else_value.span is not None else expr.span,
             "Both branches must produce the same type.",
+            explanation=TYPE_MISMATCH_EXPLANATION,
         )
 
     def _require_common_element_type(
@@ -704,6 +708,7 @@ class TypeChecker:
                 f"{context} cannot combine element types {left.label} and {right.label}",
                 span,
                 "Use list elements of the same type.",
+                explanation=TYPE_MISMATCH_EXPLANATION,
             )
         return unified
 
