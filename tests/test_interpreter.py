@@ -506,6 +506,13 @@ class TestInterpreterMaps(unittest.TestCase):
         with self.assertRaisesRegex(SwarnaTypeError, "Map keys must be scalar values"):
             run('let m = { "a": 1 } let x = m[[1]]')
 
+    def test_map_literal_rejects_list_key(self):
+        with self.assertRaisesRegex(
+            SwarnaTypeError,
+            "Map keys must be Int, Float, String, or Bool, got List",
+        ):
+            run("let m = { [1]: 2 }")
+
 
 if __name__ == "__main__":
     unittest.main()

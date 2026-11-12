@@ -237,10 +237,20 @@ class Interpreter:
         if isinstance(expr, ListLiteral):
             return [self.eval_expression(element) for element in expr.elements]
         if isinstance(expr, MapLiteral):
-            return {
-                self.eval_expression(key): self.eval_expression(value)
-                for key, value in expr.entries
-            }
+            result: dict[Value, Value] = {}
+            for key_expr, value_expr in expr.entries:
+                key = self.eval_expression(key_expr)
+                try:
+                    hash(key)
+                except TypeError:
+                    raise SwarnaTypeError(
+                        f"Map keys must be Int, Float, String, or Bool, "
+                        f"got {value_type_name(key)}",
+                        key_expr.span,
+                        hint="Use a scalar key.",
+                    ) from None
+                result[key] = self.eval_expression(value_expr)
+            return result
         if isinstance(expr, IndexExpression):
             collection = self.eval_expression(expr.collection)
             index = self.eval_expression(expr.index)

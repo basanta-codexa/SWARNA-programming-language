@@ -122,6 +122,15 @@ def common_element_type(left: Type, right: Type) -> Type | None:
     return None
 
 
+def is_scalar_type(type: Type) -> bool:
+    """Return whether a type can be used as a map key.
+
+    Keys must be hashable at runtime, so lists and maps are excluded.
+    """
+
+    return type is Type.INT or type is Type.FLOAT or type is Type.STRING or type is Type.BOOL
+
+
 def type_of_value(value: object) -> Type:
     """Infer the static type of a value already held by the interpreter."""
 
@@ -461,6 +470,14 @@ class TypeChecker:
             for key, value in expr.entries:
                 current_key = self.check_expression(key)
                 current_value = self.check_expression(value)
+                if current_key is not Type.UNKNOWN and not is_scalar_type(current_key):
+                    self._error(
+                        f"Map keys must be Int, Float, String, or Bool, "
+                        f"got {current_key.label}",
+                        key.span,
+                        "Use a scalar key.",
+                        category="type-mismatch",
+                    )
                 unified_key = common_element_type(key_type, current_key)
                 if unified_key is None:
                     self._error(

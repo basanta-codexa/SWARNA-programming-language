@@ -631,6 +631,13 @@ class TestMaps(unittest.TestCase):
         ):
             check('let m = { "a": 1, 2: 3 }')
 
+    def test_map_keys_must_be_scalar(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Map keys must be Int, Float, String, or Bool, got List",
+        ):
+            check("let m = { [1]: 2 }")
+
     def test_map_values_must_have_one_type(self):
         with self.assertRaisesRegex(
             SwarnaSemanticError,
