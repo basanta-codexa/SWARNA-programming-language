@@ -187,6 +187,37 @@ class TestRenderDiagnostic(unittest.TestCase):
         self.assertIn("= why:", rendered)
         self.assertIn("Int and Float are distinct", rendered)
 
+    def test_renders_own_source_and_file_name(self):
+        error = DiagnosticError(
+            'expected a Float in column \'score\', got "n/a"',
+            SourceSpan(5, 14, 3),
+            'Replace "n/a" with a number.',
+            source=(
+                "name,team,score\n"
+                "Ada,Blue,88\n"
+                "Grace,Blue,92\n"
+                "Linus,Red,79\n"
+                "Margaret,Red,n/a\n"
+            ),
+            source_name="scores.csv",
+        )
+        rendered = render_diagnostic("let rows = read_csv(...)", error)
+        self.assertIn("--> scores.csv:5:14", rendered)
+        self.assertIn("Margaret,Red,n/a", rendered)
+        self.assertIn("^^^", rendered)
+        self.assertNotIn("read_csv", rendered)
+
+    def test_own_source_without_name_keeps_line_location(self):
+        error = DiagnosticError("boom", SourceSpan(2, 1), source="first\nsecond")
+        rendered = render_diagnostic("program", error)
+        self.assertIn("--> 2:1", rendered)
+        self.assertIn("second", rendered)
+        self.assertNotIn("program", rendered)
+
+    def test_error_string_includes_source_name(self):
+        error = DiagnosticError("boom", SourceSpan(3, 2), source_name="scores.csv")
+        self.assertEqual(str(error), "boom at scores.csv:3:2")
+
 
 if __name__ == "__main__":
     unittest.main()

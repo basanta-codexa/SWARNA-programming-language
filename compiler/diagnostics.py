@@ -43,12 +43,19 @@ class DiagnosticError(Exception):
         hint: str | None = None,
         explanation: str | None = None,
         category: str | None = None,
+        source: str | None = None,
+        source_name: str | None = None,
     ):
         self.message = message
         self.span = span
         self.hint = hint
         self.explanation = explanation
         self.category = category
+        # Some diagnostics point into a file other than the program, such as a
+        # malformed CSV cell. Carry that file's text and name so the renderer
+        # can show the right snippet and location.
+        self.source = source
+        self.source_name = source_name
         super().__init__(self._format())
 
     @property
@@ -64,6 +71,8 @@ class DiagnosticError(Exception):
     def _format(self) -> str:
         if self.span is None:
             return self.message
+        if self.source_name is not None:
+            return f"{self.message} at {self.source_name}:{self.span.line}:{self.span.column}"
         return f"{self.message} at line {self.span.line}, column {self.span.column}"
 
 
@@ -110,6 +119,9 @@ def render_diagnostic(source: str, error: DiagnosticError, explain: bool = False
             lines.append(f"  hint: {error.hint}")
         return with_explanation(lines)
 
+    if error.source is not None:
+        source = error.source
+
     source_lines = source.splitlines() or [""]
     line_no = max(1, error.span.line)
     if line_no > len(source_lines):
@@ -129,7 +141,7 @@ def render_diagnostic(source: str, error: DiagnosticError, explain: bool = False
 
     lines = [
         f"error: {error.message}",
-        f"  --> {line_no}:{column}",
+        f"  --> {error.source_name + ':' if error.source_name else ''}{line_no}:{column}",
         f"  {' ' * gutter} |",
         f"  {line_no:>{gutter}} | {source_line}",
         f"  {' ' * gutter} | {caret}",
