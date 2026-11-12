@@ -536,12 +536,18 @@ class TestFunctions(unittest.TestCase):
         with self.assertRaisesRegex(SwarnaSemanticError, "List index must be Int, got String"):
             check('fn f(xs) { xs["a"] }')
 
-    def test_only_lists_can_be_indexed(self):
-        with self.assertRaisesRegex(SwarnaSemanticError, "Cannot index Int; only lists can be indexed"):
+    def test_only_lists_and_maps_can_be_indexed(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Cannot index Int; only lists and maps can be indexed",
+        ):
             check("let x = 1[0]")
 
-    def test_len_requires_list_or_string(self):
-        with self.assertRaisesRegex(SwarnaSemanticError, "`len` expects a List or String, got Int"):
+    def test_len_requires_collection_or_string(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "`len` expects a List, Map, or String, got Int",
+        ):
             check("let n = len(1)")
 
     def test_len_requires_one_argument(self):
@@ -586,6 +592,90 @@ class TestFunctions(unittest.TestCase):
         checker.check(Parser(Lexer("fn f() -> Int { 1 }")).parse_program())
         checker.check(Parser(Lexer("fn f() -> Int { 2 } let x = f()")).parse_program())
         self.assertIs(checker.env["x"].type, Type.INT)
+
+
+class TestMaps(unittest.TestCase):
+    def test_map_literal_infers_types(self):
+        checker = check('let m = { "a": 1, "b": 2 }')
+        self.assertEqual(checker.env["m"].type, Type.map_of(Type.STRING, Type.INT))
+
+    def test_empty_map_literal(self):
+        checker = check("let m = {}")
+        self.assertEqual(
+            checker.env["m"].type,
+            Type.map_of(Type.UNKNOWN, Type.UNKNOWN),
+        )
+
+    def test_nested_map_literal(self):
+        checker = check('let m = { "a": { "b": 2 } }')
+        self.assertEqual(
+            checker.env["m"].type,
+            Type.map_of(Type.STRING, Type.map_of(Type.STRING, Type.INT)),
+        )
+
+    def test_map_index_returns_value_type(self):
+        checker = check('let m = { "a": 1 } let x = m["a"]')
+        self.assertIs(checker.env["x"].type, Type.INT)
+
+    def test_map_index_requires_key_type(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Map index must be String, got Int",
+        ):
+            check('let m = { "a": 1 } let x = m[0]')
+
+    def test_map_keys_must_have_one_type(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Map keys must have the same type, got String and Int",
+        ):
+            check('let m = { "a": 1, 2: 3 }')
+
+    def test_map_values_must_have_one_type(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Map values must have the same type, got Int and String",
+        ):
+            check('let m = { "a": 1, "b": "x" }')
+
+    def test_len_accepts_map(self):
+        checker = check('let n = len({ "a": 1 })')
+        self.assertIs(checker.env["n"].type, Type.INT)
+
+    def test_map_equality(self):
+        checker = check('let x = { "a": 1 } == { "a": 1 }')
+        self.assertIs(checker.env["x"].type, Type.BOOL)
+
+    def test_map_assignment_keeps_type(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Cannot assign Map\\[String, Float\\] to Map\\[String, Int\\]",
+        ):
+            check('let m = { "a": 1 } m = { "a": 1.0 }')
+
+    def test_map_if_branches_unify(self):
+        checker = check('let m = if true { { "a": 1 } } else { {} }')
+        self.assertEqual(
+            checker.env["m"].type,
+            Type.map_of(Type.STRING, Type.INT),
+        )
+
+    def test_for_loop_rejects_map(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "`for` expects a List, got Map",
+        ):
+            check('for x in { "a": 1 } { print(x) }')
+
+    def test_type_of_value_infers_map(self):
+        self.assertEqual(
+            type_of_value({"a": 1}),
+            Type.map_of(Type.STRING, Type.INT),
+        )
+        self.assertEqual(
+            type_of_value({}),
+            Type.map_of(Type.UNKNOWN, Type.UNKNOWN),
+        )
 
 
 class TestInitialBindings(unittest.TestCase):

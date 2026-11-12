@@ -21,6 +21,7 @@ from compiler.ast.nodes import (
     IntegerLiteral,
     LetStatement,
     ListLiteral,
+    MapLiteral,
     PrintStatement,
     Program,
     Statement,
@@ -50,9 +51,25 @@ class Type:
     def element_type(self) -> "Type":
         return self.arguments[0] if self.is_list else Type.UNKNOWN
 
+    @property
+    def is_map(self) -> bool:
+        return self.name == "Map" and len(self.arguments) == 2
+
+    @property
+    def key_type(self) -> "Type":
+        return self.arguments[0] if self.is_map else Type.UNKNOWN
+
+    @property
+    def value_type(self) -> "Type":
+        return self.arguments[1] if self.is_map else Type.UNKNOWN
+
     @classmethod
     def list_of(cls, element: Type) -> "Type":
         return cls("List", (element,))
+
+    @classmethod
+    def map_of(cls, key: Type, value: Type) -> "Type":
+        return cls("Map", (key, value))
 
 
 # Scalar types stay as singleton class attributes so identity checks and the
@@ -96,6 +113,12 @@ def common_element_type(left: Type, right: Type) -> Type | None:
         if element_type is None:
             return None
         return Type.list_of(element_type)
+    if left.is_map and right.is_map:
+        key_type = common_element_type(left.key_type, right.key_type)
+        value_type = common_element_type(left.value_type, right.value_type)
+        if key_type is None or value_type is None:
+            return None
+        return Type.map_of(key_type, value_type)
     return None
 
 
@@ -119,6 +142,16 @@ def type_of_value(value: object) -> Type:
                 return Type.list_of(Type.UNKNOWN)
             element_type = unified
         return Type.list_of(element_type)
+    if isinstance(value, dict):
+        key_type = Type.UNKNOWN
+        value_type = Type.UNKNOWN
+        for key, item in value.items():
+            unified_key = common_element_type(key_type, type_of_value(key))
+            unified_value = common_element_type(value_type, type_of_value(item))
+            if unified_key is None or unified_value is None:
+                return Type.map_of(Type.UNKNOWN, Type.UNKNOWN)
+            key_type, value_type = unified_key, unified_value
+        return Type.map_of(key_type, value_type)
     return Type.UNKNOWN
 
 
@@ -422,15 +455,56 @@ class TypeChecker:
                 element_type = unified
             return Type.list_of(element_type)
 
+        if isinstance(expr, MapLiteral):
+            key_type = Type.UNKNOWN
+            value_type = Type.UNKNOWN
+            for key, value in expr.entries:
+                current_key = self.check_expression(key)
+                current_value = self.check_expression(value)
+                unified_key = common_element_type(key_type, current_key)
+                if unified_key is None:
+                    self._error(
+                        f"Map keys must have the same type, got "
+                        f"{key_type.label} and {current_key.label}",
+                        key.span,
+                        "Use keys of one type.",
+                        category="type-mismatch",
+                    )
+                unified_value = common_element_type(value_type, current_value)
+                if unified_value is None:
+                    self._error(
+                        f"Map values must have the same type, got "
+                        f"{value_type.label} and {current_value.label}",
+                        value.span,
+                        "Use values of one type.",
+                        category="type-mismatch",
+                    )
+                key_type, value_type = unified_key, unified_value
+            return Type.map_of(key_type, value_type)
+
         if isinstance(expr, IndexExpression):
             collection_type = self.check_expression(expr.collection)
             index_type = self.check_expression(expr.index)
-            if collection_type is not Type.UNKNOWN and not collection_type.is_list:
+            if collection_type is not Type.UNKNOWN and not (
+                collection_type.is_list or collection_type.is_map
+            ):
                 self._error(
-                    f"Cannot index {collection_type.label}; only lists can be indexed",
+                    f"Cannot index {collection_type.label}; only lists and maps can be indexed",
                     expr.collection.span if expr.collection.span is not None else expr.span,
-                    "Use a list value before the brackets.",
+                    "Use a list or map value before the brackets.",
                 )
+            if collection_type.is_map:
+                if index_type is not Type.UNKNOWN and not self._is_assignable(
+                    collection_type.key_type, index_type
+                ):
+                    self._error(
+                        f"Map index must be {collection_type.key_type.label}, "
+                        f"got {index_type.label}",
+                        expr.index.span,
+                        "Use a key of the map's key type.",
+                        category="type-mismatch",
+                    )
+                return collection_type.value_type
             if index_type is not Type.UNKNOWN and index_type is not Type.INT:
                 self._error(
                     f"List index must be Int, got {index_type.label}",
@@ -453,16 +527,20 @@ class TypeChecker:
                     self._error(
                         f"Function 'len' expects 1 argument, got {len(expr.arguments)}",
                         expr.span,
-                        "Pass one list or string to `len`.",
+                        "Pass one list, map, or string to `len`.",
                     )
                 argument_type = self.check_expression(expr.arguments[0])
                 if argument_type is Type.UNKNOWN:
                     return Type.INT
-                if not (argument_type.is_list or argument_type is Type.STRING):
+                if not (
+                    argument_type.is_list
+                    or argument_type.is_map
+                    or argument_type is Type.STRING
+                ):
                     self._error(
-                        f"`len` expects a List or String, got {argument_type.label}",
+                        f"`len` expects a List, Map, or String, got {argument_type.label}",
                         expr.arguments[0].span,
-                        "Pass a list or string to `len`.",
+                        "Pass a list, map, or string to `len`.",
                     )
                 return Type.INT
             signature = self.functions.get(expr.callee.name)
@@ -688,6 +766,20 @@ class TypeChecker:
                 "`if` branches",
             )
             return Type.list_of(element_type)
+        if then_type.is_map and else_type.is_map:
+            key_type = self._require_common_element_type(
+                then_type.key_type,
+                else_type.key_type,
+                expr.else_value.span,
+                "`if` branches",
+            )
+            value_type = self._require_common_element_type(
+                then_type.value_type,
+                else_type.value_type,
+                expr.else_value.span,
+                "`if` branches",
+            )
+            return Type.map_of(key_type, value_type)
         self._error(
             f"`if` branches have incompatible types: {then_type.label} and {else_type.label}",
             expr.else_value.span if expr.else_value.span is not None else expr.span,
@@ -734,6 +826,10 @@ class TypeChecker:
             return True
         if target.is_list and value.is_list:
             return TypeChecker._is_assignable(target.element_type, value.element_type)
+        if target.is_map and value.is_map:
+            return TypeChecker._is_assignable(
+                target.key_type, value.key_type
+            ) and TypeChecker._is_assignable(target.value_type, value.value_type)
         return False
 
     @staticmethod
@@ -746,6 +842,11 @@ class TypeChecker:
             return True
         if left.is_list and right.is_list:
             return common_element_type(left.element_type, right.element_type) is not None
+        if left.is_map and right.is_map:
+            return (
+                common_element_type(left.key_type, right.key_type) is not None
+                and common_element_type(left.value_type, right.value_type) is not None
+            )
         return False
 
     @staticmethod
