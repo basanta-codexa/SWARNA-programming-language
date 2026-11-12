@@ -3,21 +3,25 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-UNDEFINED_NAME_EXPLANATION = (
-    "The program used a name that has not been declared yet. Create the name "
-    "with `let name = value` (mutable) or `const name = value` (immutable) "
-    "before the line that uses it. Function parameters and `for` loop variables "
-    "are also names. Functions are hoisted, so they can be called before their "
-    "declaration; variables cannot."
-)
-
-TYPE_MISMATCH_EXPLANATION = (
-    "SWARNA checks types before the program runs. A value's type is fixed by "
-    "the values it is built from: Int and Float are distinct, `+` works on two "
-    "numbers, two strings, or two lists of the same element type, and a list "
-    "holds one element type. Make both sides the same type; for example, write "
-    "`1.0` instead of `1` when you need a Float."
-)
+# Expanded, plain-language explanations keyed by error category. Raise sites
+# attach a category; `render_diagnostic(..., explain=True)` looks the text up
+# here, so adding coverage does not require repeating prose at every raise site.
+EXPLANATIONS: dict[str, str] = {
+    "undefined-name": (
+        "The program used a name that has not been declared yet. Create the name "
+        "with `let name = value` (mutable) or `const name = value` (immutable) "
+        "before the line that uses it. Function parameters and `for` loop variables "
+        "are also names. Functions are hoisted, so they can be called before their "
+        "declaration; variables cannot."
+    ),
+    "type-mismatch": (
+        "SWARNA checks types before the program runs. A value's type is fixed by "
+        "the values it is built from: Int and Float are distinct, `+` works on two "
+        "numbers, two strings, or two lists of the same element type, and a list "
+        "holds one element type. Make both sides the same type; for example, write "
+        "`1.0` instead of `1` when you need a Float."
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -38,12 +42,24 @@ class DiagnosticError(Exception):
         span: SourceSpan | None = None,
         hint: str | None = None,
         explanation: str | None = None,
+        category: str | None = None,
     ):
         self.message = message
         self.span = span
         self.hint = hint
         self.explanation = explanation
+        self.category = category
         super().__init__(self._format())
+
+    @property
+    def resolved_explanation(self) -> str | None:
+        """Return the explicit explanation, or the one registered for the category."""
+
+        if self.explanation is not None:
+            return self.explanation
+        if self.category is not None:
+            return EXPLANATIONS.get(self.category)
+        return None
 
     def _format(self) -> str:
         if self.span is None:
@@ -83,8 +99,9 @@ def render_diagnostic(source: str, error: DiagnosticError, explain: bool = False
     """
 
     def with_explanation(lines: list[str]) -> str:
-        if explain and error.explanation:
-            lines.append(f"  = why: {error.explanation}")
+        explanation = error.resolved_explanation
+        if explain and explanation:
+            lines.append(f"  = why: {explanation}")
         return "\n".join(lines)
 
     if error.span is None:

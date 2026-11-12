@@ -196,7 +196,7 @@ class TestInterpreter(unittest.TestCase):
     def test_type_mismatch_diagnostic_has_explanation(self):
         with self.assertRaises(SwarnaTypeError) as raised:
             run('let x = 1 + "a"')
-        self.assertIsNotNone(raised.exception.explanation)
+        self.assertIsNotNone(raised.exception.resolved_explanation)
 
 
 class TestInterpreterForLoops(unittest.TestCase):

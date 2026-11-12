@@ -7,7 +7,7 @@ from typing import Any, Callable
 
 from compiler.bytecode.instructions import Instruction, Op
 from compiler.bytecode.program import CompiledProgram, FunctionInfo
-from compiler.diagnostics import TYPE_MISMATCH_EXPLANATION, UNDEFINED_NAME_EXPLANATION, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
+from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.values import Value, value_type_name
 
 
@@ -69,7 +69,7 @@ class VM:
                 str(e),
                 ins.span,
                 hint="The operands have incompatible types.",
-                explanation=TYPE_MISMATCH_EXPLANATION,
+                category="type-mismatch",
             ) from e
 
     def run(self, program: CompiledProgram | list[Instruction]) -> dict[str, Value]:
@@ -107,7 +107,7 @@ class VM:
                         f"Undefined name '{name}'",
                         ins.span,
                         hint="Declare it first with `let name = value` or `const name = value`.",
-                        explanation=UNDEFINED_NAME_EXPLANATION,
+                        category="undefined-name",
                     )
                 self.stack.append(self.env[name])
             elif ins.op == Op.STORE_NAME:
@@ -124,7 +124,7 @@ class VM:
                         f"Undefined name '{name}'",
                         ins.span,
                         hint="Declare it first with `let name = value` or `const name = value`.",
-                        explanation=UNDEFINED_NAME_EXPLANATION,
+                        category="undefined-name",
                     )
                 if name in self.constant:
                     raise SwarnaRuntimeError(
@@ -169,7 +169,7 @@ class VM:
                         str(e),
                         ins.span,
                         hint="The operands have incompatible types.",
-                        explanation=TYPE_MISMATCH_EXPLANATION,
+                        category="type-mismatch",
                     ) from e
             elif ins.op == Op.IDIV:
                 b = self._pop(ins)
@@ -179,7 +179,7 @@ class VM:
                         "'//' requires Int operands",
                         ins.span,
                         hint="Use `/` for true division or convert the operands to Int.",
-                        explanation=TYPE_MISMATCH_EXPLANATION,
+                        category="type-mismatch",
                     )
                 if b == 0:
                     raise SwarnaZeroDivisionError(

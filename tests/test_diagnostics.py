@@ -42,6 +42,22 @@ class TestDiagnosticError(unittest.TestCase):
         error = DiagnosticError("boom", explanation="because")
         self.assertEqual(error.explanation, "because")
 
+    def test_category_resolves_registered_explanation(self):
+        error = DiagnosticError("boom", category="undefined-name")
+        self.assertIsNotNone(error.resolved_explanation)
+        self.assertIn("declared", error.resolved_explanation)
+
+    def test_unknown_category_has_no_explanation(self):
+        self.assertIsNone(DiagnosticError("boom", category="not-a-category").resolved_explanation)
+
+    def test_explicit_explanation_overrides_category(self):
+        error = DiagnosticError(
+            "boom",
+            category="undefined-name",
+            explanation="custom",
+        )
+        self.assertEqual(error.resolved_explanation, "custom")
+
 
 class TestRuntimeDiagnosticTypes(unittest.TestCase):
     def test_runtime_error_remains_catchable_as_runtime_error(self):
@@ -164,6 +180,12 @@ class TestRenderDiagnostic(unittest.TestCase):
         error = DiagnosticError("boom", hint="fix it")
         rendered = render_diagnostic("", error, explain=True)
         self.assertNotIn("= why:", rendered)
+
+    def test_explain_renders_category_explanation(self):
+        error = DiagnosticError("boom", hint="fix it", category="type-mismatch")
+        rendered = render_diagnostic("", error, explain=True)
+        self.assertIn("= why:", rendered)
+        self.assertIn("Int and Float are distinct", rendered)
 
 
 if __name__ == "__main__":

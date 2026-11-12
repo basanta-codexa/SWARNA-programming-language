@@ -28,7 +28,7 @@ from compiler.ast.nodes import (
     UnaryExpression,
     WhileStatement,
 )
-from compiler.diagnostics import TYPE_MISMATCH_EXPLANATION, UNDEFINED_NAME_EXPLANATION, SourceSpan, SwarnaSemanticError
+from compiler.diagnostics import SourceSpan, SwarnaSemanticError
 
 
 @dataclass(frozen=True)
@@ -236,7 +236,7 @@ class TypeChecker:
                     f"but its body produces {body_type.label}",
                     stmt.body.span if stmt.body.span is not None else stmt.span,
                     "Make the final expression match the declared return type.",
-                    explanation=TYPE_MISMATCH_EXPLANATION,
+                    category="type-mismatch",
                 )
         finally:
             self.env = saved_env
@@ -314,7 +314,7 @@ class TypeChecker:
                     f"Undefined name '{name}'",
                     stmt.name.span,
                     "Declare it first with `let name = value` or `const name = value`.",
-                    explanation=UNDEFINED_NAME_EXPLANATION,
+                    category="undefined-name",
                 )
             if binding.constant:
                 self._error(
@@ -327,7 +327,7 @@ class TypeChecker:
                     f"Cannot assign {value_type.label} to {binding.type.label} binding '{name}'",
                     stmt.value.span,
                     "A binding keeps the type of its first value.",
-                    explanation=TYPE_MISMATCH_EXPLANATION,
+                    category="type-mismatch",
                 )
             return
 
@@ -490,7 +490,7 @@ class TypeChecker:
                         f"got {argument_type.label}",
                         argument.span,
                         "Pass a value of the declared parameter type.",
-                        explanation=TYPE_MISMATCH_EXPLANATION,
+                        category="type-mismatch",
                     )
             return signature.return_type if signature.return_type is not None else Type.UNKNOWN
 
@@ -513,7 +513,7 @@ class TypeChecker:
                     f"Undefined name '{expr.name}'",
                     expr.span,
                     "Declare it first with `let name = value` or `const name = value`.",
-                    explanation=UNDEFINED_NAME_EXPLANATION,
+                    category="undefined-name",
                 )
             return binding.type
 
@@ -572,14 +572,14 @@ class TypeChecker:
                     f"`{expr.operator}` requires Bool operands, got {left_type.label}",
                     expr.left.span,
                     "Use comparisons or `true`/`false`.",
-                    explanation=TYPE_MISMATCH_EXPLANATION,
+                    category="type-mismatch",
                 )
             if not self._is_bool(right_type):
                 self._error(
                     f"`{expr.operator}` requires Bool operands, got {right_type.label}",
                     expr.right.span,
                     "Use comparisons or `true`/`false`.",
-                    explanation=TYPE_MISMATCH_EXPLANATION,
+                    category="type-mismatch",
                 )
             return Type.BOOL
 
@@ -605,7 +605,7 @@ class TypeChecker:
                 f"`+` cannot combine {left_type.label} and {right_type.label}",
                 expr.span,
                 "Use two numbers, two strings, or two lists.",
-                explanation=TYPE_MISMATCH_EXPLANATION,
+                category="type-mismatch",
             )
 
         if expr.operator in ("-", "*"):
@@ -615,7 +615,7 @@ class TypeChecker:
                 f"`{expr.operator}` requires numeric operands, got {left_type.label} and {right_type.label}",
                 expr.span,
                 "Use Int or Float operands.",
-                explanation=TYPE_MISMATCH_EXPLANATION,
+                category="type-mismatch",
             )
 
         if expr.operator == "/":
@@ -625,7 +625,7 @@ class TypeChecker:
                 f"`/` requires numeric operands, got {left_type.label} and {right_type.label}",
                 expr.span,
                 "Use Int or Float operands.",
-                explanation=TYPE_MISMATCH_EXPLANATION,
+                category="type-mismatch",
             )
 
         if expr.operator == "//":
@@ -634,7 +634,7 @@ class TypeChecker:
                     f"`//` requires Int operands, got {left_type.label} and {right_type.label}",
                     expr.span,
                     "Use `/` for true division or convert the operands to Int.",
-                    explanation=TYPE_MISMATCH_EXPLANATION,
+                    category="type-mismatch",
                 )
             return Type.INT
 
@@ -644,7 +644,7 @@ class TypeChecker:
                     f"`{expr.operator}` cannot compare {left_type.label} and {right_type.label}",
                     expr.span,
                     "Compare values of compatible types.",
-                    explanation=TYPE_MISMATCH_EXPLANATION,
+                    category="type-mismatch",
                 )
             return Type.BOOL
 
@@ -654,7 +654,7 @@ class TypeChecker:
                     f"`{expr.operator}` cannot compare {left_type.label} and {right_type.label}",
                     expr.span,
                     "Compare two numbers or two strings.",
-                    explanation=TYPE_MISMATCH_EXPLANATION,
+                    category="type-mismatch",
                 )
             return Type.BOOL
 
@@ -692,7 +692,7 @@ class TypeChecker:
             f"`if` branches have incompatible types: {then_type.label} and {else_type.label}",
             expr.else_value.span if expr.else_value.span is not None else expr.span,
             "Both branches must produce the same type.",
-            explanation=TYPE_MISMATCH_EXPLANATION,
+            category="type-mismatch",
         )
 
     def _require_common_element_type(
@@ -708,7 +708,7 @@ class TypeChecker:
                 f"{context} cannot combine element types {left.label} and {right.label}",
                 span,
                 "Use list elements of the same type.",
-                explanation=TYPE_MISMATCH_EXPLANATION,
+                category="type-mismatch",
             )
         return unified
 
@@ -762,5 +762,12 @@ class TypeChecker:
         span: SourceSpan | None,
         hint: str | None = None,
         explanation: str | None = None,
+        category: str | None = None,
     ) -> NoReturn:
-        raise SwarnaSemanticError(message, span, hint, explanation=explanation)
+        raise SwarnaSemanticError(
+            message,
+            span,
+            hint,
+            explanation=explanation,
+            category=category,
+        )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
-from compiler.diagnostics import TYPE_MISMATCH_EXPLANATION, UNDEFINED_NAME_EXPLANATION, SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
+from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.values import Value, value_type_name
 
 
@@ -100,7 +100,7 @@ class Interpreter:
                     f"Undefined name '{name}'",
                     stmt.name.span,
                     hint="Declare it first with `let name = value` or `const name = value`.",
-                    explanation=UNDEFINED_NAME_EXPLANATION,
+                    category="undefined-name",
                 )
             if self.constant.get(name, False):
                 raise SwarnaRuntimeError(
@@ -273,7 +273,7 @@ class Interpreter:
                     f"Undefined name '{expr.name}'",
                     expr.span,
                     hint="Declare it first with `let name = value` or `const name = value`.",
-                    explanation=UNDEFINED_NAME_EXPLANATION,
+                    category="undefined-name",
                 )
             return self.env[expr.name]
         if isinstance(expr, UnaryExpression):
@@ -315,7 +315,7 @@ class Interpreter:
                         "'//' requires Int operands",
                         expr.span,
                         hint="Use `/` for true division or convert the operands to Int.",
-                        explanation=TYPE_MISMATCH_EXPLANATION,
+                        category="type-mismatch",
                     )
                 if right == 0:
                     raise SwarnaZeroDivisionError(
@@ -353,7 +353,7 @@ class Interpreter:
                     str(e),
                     expr.span,
                     hint="The operands have incompatible types.",
-                    explanation=TYPE_MISMATCH_EXPLANATION,
+                    category="type-mismatch",
                 ) from e
             raise SwarnaRuntimeError(
                 f"Unsupported binary operator {expr.operator!r}",
