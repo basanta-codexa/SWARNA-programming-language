@@ -56,6 +56,18 @@ python -m swarna --run "let scores = [72, 85, 90] print(scores[1]) print(len(sco
 
 Prints `85`, then `3`.
 
+A map:
+
+```
+@'
+let ages = { "Ada": 36, "Grace": 45 }
+print(ages["Ada"])
+print(len(ages))
+'@ | python -m swarna --run
+```
+
+Prints `36`, then `2`.
+
 For multi-line programs, pipe the source through stdin. On PowerShell:
 
 ```
@@ -91,16 +103,17 @@ python -m swarna --run
 - functions in the interpreter, the VM, and the REPL
 - list literals such as `[1, 2, 3]`, indexing with `values[i]`, negative indexing, `len(...)`, list equality, and `+` concatenation
 - inferred element types for lists, including nested lists
-- `print`, with readable list output such as `["Ada", "Grace"]`
+- map literals such as `{ "Ada": 36 }`, indexing with `map[key]`, `len(...)`, map equality, and inferred key and value types
+- `print`, with readable list and map output such as `["Ada", "Grace"]` and `{"Ada": 36}`
 - inferred static types for the current expressions and bindings
 - a REPL that keeps bindings and functions between lines
 - caret diagnostics with hints for lexer, parser, semantic, and runtime errors
 - `--explain` (or the REPL `:explain` toggle) adds a plain-language explanation to errors; undefined-name and type-mismatch categories are covered first, with explanations stored in a central registry
-- a stack VM checked against the interpreter by differential tests, including function calls, lists, and `for` loops
+- a stack VM checked against the interpreter by differential tests, including function calls, lists, maps, and `for` loops
 
 ## What does not work yet
 
-Maps, records, modules, file I/O, and the standard library are still missing. `for` loops iterate over lists only; there are no ranges, maps, or string iteration yet, and there is no `break` or `continue`. Lists cannot be mutated or appended to; build a new list with `+`. Lists are homogeneous: `[1, 2.5]` is rejected, so write `[1.0, 2.5]` when you want a list of floats. List type annotations such as `List[Int]` are not supported yet, so an unannotated list parameter is `Unknown`. Function limitations: no first-class functions, no `return` keyword, no nested declarations, no expression statements, and no global mutation. A function body must end with a value, so procedures are not supported. Generics, type aliases, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
+Records, modules, file I/O, and the standard library are still missing. `for` loops iterate over lists only; there are no ranges or string iteration yet, and there is no `break` or `continue`. Lists and maps cannot be mutated; build a new list with `+`, and there is no map index assignment, insert, or delete. Lists are homogeneous: `[1, 2.5]` is rejected, so write `[1.0, 2.5]` when you want a list of floats. Maps are homogeneous in both positions, and keys must be `Int`, `Float`, `String`, or `Bool`; a list key is rejected. List and map type annotations such as `List[Int]` and `Map[String, Int]` are not supported yet, so an unannotated collection parameter is `Unknown`. Function limitations: no first-class functions, no `return` keyword, no nested declarations, no expression statements, and no global mutation. A function body must end with a value, so procedures are not supported. Generics, type aliases, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
 
 Unannotated parameter types are `Unknown`. An unannotated return type is inferred from the body after top-level statements are checked, so a top-level call to that function is checked as `Unknown`; annotate the return type when the call site needs precision. The REPL reuses the inferred signature on later lines.
 

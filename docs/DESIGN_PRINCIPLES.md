@@ -131,7 +131,7 @@ Lists are immutable for now. Index assignment and append are not implemented. `f
 
 Reason: lists are the first collection and the base for `for` loops, maps, and CSV rows. Homogeneous elements make inference and diagnostics useful without generics. Deferring mutation and annotations keeps the first collection increment small and honest.
 
-Status: implemented in the interpreter, VM, REPL, and type checker. `for` loops over lists work. No list mutation, maps, list annotations, or list methods yet.
+Status: implemented in the interpreter, VM, REPL, and type checker. `for` loops over lists work. No list mutation, list annotations, or list methods yet. Maps have their own decision below.
 
 ### 10. `for` loops iterate over lists
 
@@ -151,6 +151,24 @@ The iterable must be a `List[T]`; an `Unknown` iterable is accepted and makes th
 Reason: list iteration is the smallest useful loop over a collection and the base for maps, ranges, and CSV rows. Reusing the existing block and binding rules keeps the feature small.
 
 Status: implemented in the type checker, interpreter, VM, REPL, and CLI. `for` loops iterate over lists only.
+
+### 11. Maps are built in and statically typed
+
+```
+let ages = { "Ada": 36, "Grace": 45 }
+print(ages["Ada"])
+print(len(ages))
+```
+
+A map is written `{ key: value, ... }`; `{}` is the empty map. `map[key]` reads a value and `len(map)` returns the number of entries. `==` and `!=` compare maps, and `print` shows a readable map such as `{"Ada": 36}`.
+
+Key and value types are inferred. `{ "Ada": 36 }` is `Map[String, Int]`, and `{}` is `Map[Unknown, Unknown]` until it meets a known type. Maps are homogeneous in both positions: all keys share one type and all values share one type. Keys must be `Int`, `Float`, `String`, or `Bool` so they stay hashable at runtime; a list key is rejected before the program runs. Values may be any supported type, including nested maps.
+
+Maps are immutable for now: there is no index assignment, insert, or delete. `for` loops iterate over lists, not maps. Map type annotations such as `Map[String, Int]` are not supported yet; leave a map parameter unannotated and the checker infers what it can.
+
+Reason: maps are the shape of a CSV row and the base for the switch test. Restricting keys to scalars keeps hashing and equality predictable without a custom protocol, and deferring mutation and annotations keeps the increment small and honest.
+
+Status: implemented in the interpreter, VM, REPL, and type checker. No map mutation, map annotations, or map iteration yet.
 
 ## Rules for changes
 
@@ -200,23 +218,24 @@ Status: implemented for lexer, parser, semantic, and the current runtime errors 
 
 ## Type checking
 
-The current language is statically checked but does not require annotations. A separate semantic pass infers `Int`, `Float`, `String`, `Bool`, and `List[T]`; an internal `Unknown` type suppresses cascading errors.
+The current language is statically checked but does not require annotations. A separate semantic pass infers `Int`, `Float`, `String`, `Bool`, `List[T]`, and `Map[K, V]`; an internal `Unknown` type suppresses cascading errors.
 
 The rules for the current subset:
 
 - Literals infer their obvious type.
 - A list literal infers a `List[T]` element type. All elements must have the same type, or be `Unknown`. An empty list is `List[Unknown]`. Nested lists infer nested element types.
-- Indexing requires a list and an `Int` index, and produces the element type. Negative indices are accepted at runtime and count from the end.
-- `len` accepts a list or a string and produces `Int`.
+- A map literal infers a `Map[K, V]` type. All keys must have one scalar type and all values one type, or be `Unknown`. An empty map is `Map[Unknown, Unknown]`. Nested maps infer nested value types. Keys must be `Int`, `Float`, `String`, or `Bool`.
+- Indexing requires a list or a map. A list needs an `Int` index and produces the element type; a map needs a key assignable to `K` and produces `V`. Negative list indices are accepted at runtime and count from the end.
+- `len` accepts a list, a map, or a string and produces `Int`.
 - `+` accepts two numbers, two strings, or two lists with the same element type. Mixed `Int`/`Float` arithmetic produces `Float`, but list element types must match exactly.
-- `print` accepts any type, including lists.
-- List type annotations such as `List[Int]` are not supported yet.
+- `print` accepts any type, including lists and maps.
+- List and map type annotations such as `List[Int]` and `Map[String, Int]` are not supported yet.
 - `-`, `*`, and `/` accept numbers. `/` always produces `Float`.
 - `//` requires two `Int` operands and produces `Int`.
-- Equality accepts values of the same type, two numbers, or two lists with compatible element types. Ordered comparisons accept two numbers or two strings.
+- Equality accepts values of the same type, two numbers, or two lists or maps with compatible types. Ordered comparisons accept two numbers or two strings.
 - `&&`, `||`, and `!` require `Bool`.
 - `if` and `while` conditions require `Bool`.
-- A `for` loop requires a `List[T]` or `Unknown`. The loop variable has type `T` (or `Unknown`), is mutable, and is scoped to the loop. An outer binding with the same name is restored afterward. Body declarations leak, matching `while` and `if`.
+- A `for` loop requires a `List[T]` or `Unknown`; a map is rejected. The loop variable has type `T` (or `Unknown`), is mutable, and is scoped to the loop. An outer binding with the same name is restored afterward. Body declarations leak, matching `while` and `if`.
 - Loop variables cannot conflict with functions or built-in names.
 - Both branches of an `if` expression must produce the same type. `Int` and `Float` branches are not unified yet.
 - An `if` expression branch may be a block value. Its statements run in the current scope, and its final expression determines the branch type.
@@ -229,13 +248,13 @@ The rules for the current subset:
 - Calls check the argument count and each annotated parameter type. A type error points at the argument that does not match.
 - A function body runs in a local scope copied from the top-level bindings. Local bindings do not leak, and assignment to a top-level name changes the local copy, not the global.
 - Function names and variable names must not conflict. `print` and `len` are reserved names: they cannot be used for functions, variables, or parameters.
-- `print` accepts any type, including lists.
+- `print` accepts any type, including lists and maps.
 
 The checker runs before execution in `--run` and before code generation in `--emit-bytecode`. `--parse` and `--lex` do not run it. In the executing REPL, the checker is seeded from the interpreter's current bindings and function signatures, so types and inferred function returns persist between lines without a second symbol table.
 
 Division by zero remains a runtime error; the checker does not evaluate expressions.
 
-Known gaps: no generics, no list type annotations, no list mutation, no maps, no iteration over ranges, strings, or maps, no `break` or `continue`, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. Function bodies must end with a value; procedures are unsupported. The interpreter and VM keep their runtime checks so they can still be tested independently.
+Known gaps: no generics, no list or map type annotations, no list or map mutation, no iteration over ranges, strings, or maps, no `break` or `continue`, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. Function bodies must end with a value; procedures are unsupported. The interpreter and VM keep their runtime checks so they can still be tested independently.
 
 Status: implemented as a separate pass for the current subset.
 
@@ -276,3 +295,4 @@ Status: implemented as a separate pass for the current subset.
 | 8 | Functions are named declarations with expression bodies | Implemented (minimal) |
 | 9 | Lists are built in, homogeneous, and statically inferred | Implemented (minimal) |
 | 10 | `for` loops iterate over lists | Implemented (minimal) |
+| 11 | Maps are built in, homogeneous, and statically inferred | Implemented (minimal) |
