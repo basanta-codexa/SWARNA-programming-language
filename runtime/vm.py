@@ -8,6 +8,7 @@ from typing import Any, Callable
 from compiler.bytecode.instructions import Instruction, Op
 from compiler.bytecode.program import CompiledProgram, FunctionInfo
 from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
+from runtime.csv import read_csv_data
 from runtime.files import read_text_file
 from runtime.values import Value, format_literal, value_type_name
 
@@ -337,6 +338,23 @@ class VM:
                         hint='Pass a file path as a string, such as `read_file("notes.txt")`.',
                     )
                 self.stack.append(read_text_file(path, ins.span))
+            elif ins.op == Op.READ_CSV:
+                path = self._pop(ins)
+                if type(path) is not str:
+                    raise SwarnaTypeError(
+                        f"`read_csv` expects a String path, got {value_type_name(path)}",
+                        ins.span,
+                        hint='Pass a file path as a string, such as `read_csv("scores.csv", ...)`.',
+                    )
+                schema = ins.arg
+                if not isinstance(schema, tuple):
+                    raise SwarnaRuntimeError(
+                        "Invalid READ_CSV schema",
+                        ins.span,
+                        hint="The bytecode compiler produced an invalid CSV instruction.",
+                    )
+                text = read_text_file(path, ins.span)
+                self.stack.append(read_csv_data(text, path, schema))
             elif ins.op == Op.ITER_START:
                 iterable = self._pop(ins)
                 if not isinstance(iterable, list):

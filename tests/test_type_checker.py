@@ -486,7 +486,7 @@ class TestFunctions(unittest.TestCase):
             check("fn len(x: Int) -> Int { x }")
 
     def test_builtin_binding_names_are_reserved(self):
-        for name in ("print", "len", "read_file"):
+        for name in ("print", "len", "read_file", "read_csv"):
             with self.subTest(name=name):
                 with self.assertRaisesRegex(SwarnaSemanticError, f"Cannot bind a variable named '{name}'"):
                     check(f"let {name} = 1")
@@ -508,6 +508,78 @@ class TestFunctions(unittest.TestCase):
             "Function 'read_file' expects 1 argument, got 0",
         ):
             check("let text = read_file()")
+
+    def test_read_csv_returns_rows(self):
+        checker = check(
+            'let rows = read_csv("scores.csv", { name: String, score: Float })'
+        )
+        self.assertEqual(
+            checker.env["rows"].type,
+            Type.list_of(Type.map_of(Type.STRING, Type.UNKNOWN)),
+        )
+
+    def test_read_csv_row_column_is_unknown(self):
+        checker = check(
+            'let rows = read_csv("scores.csv", { name: String, score: Float })'
+            ' let first = rows[0] let score = first["score"]'
+        )
+        self.assertIs(checker.env["score"].type, Type.UNKNOWN)
+
+    def test_read_csv_requires_schema_literal(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "`read_csv` expects a schema literal",
+        ):
+            check('let rows = read_csv("scores.csv", 1)')
+
+    def test_read_csv_schema_requires_a_column(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "schema must declare at least one column",
+        ):
+            check('let rows = read_csv("scores.csv", {})')
+
+    def test_read_csv_rejects_unknown_column_type(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Unknown column type 'Str' for column 'name'",
+        ):
+            check('let rows = read_csv("scores.csv", { name: Str })')
+
+    def test_read_csv_rejects_duplicate_column(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Schema repeats column 'name'",
+        ):
+            check('let rows = read_csv("scores.csv", { name: String, name: Int })')
+
+    def test_read_csv_rejects_non_identifier_column(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Schema column names must be identifiers or strings",
+        ):
+            check('let rows = read_csv("scores.csv", { 1: String })')
+
+    def test_read_csv_rejects_non_identifier_type(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Column 'name' needs a type",
+        ):
+            check('let rows = read_csv("scores.csv", { name: "String" })')
+
+    def test_read_csv_requires_string_path(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "`read_csv` expects a String path, got Int",
+        ):
+            check("let rows = read_csv(1, { name: String })")
+
+    def test_read_csv_requires_two_arguments(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Function 'read_csv' expects 2 arguments, got 1",
+        ):
+            check('let rows = read_csv("scores.csv")')
 
     def test_builtin_parameter_names_are_reserved(self):
         with self.assertRaisesRegex(SwarnaSemanticError, "Parameter 'len' conflicts with a built-in name"):

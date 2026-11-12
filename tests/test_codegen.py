@@ -402,6 +402,17 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_read_csv_builtin(self):
+        compiled = compile_source(
+            'let rows = read_csv("scores.csv", { name: String, score: Float })'
+        )
+        self.assertEqual([repr(i) for i in compiled], [
+            "CONST 'scores.csv'",
+            "READ_CSV (('name', 'String'), ('score', 'Float'))",
+            "DECLARE_NAME 'rows'",
+            "HALT",
+        ])
+
     def test_compile_len_builtin(self):
         compiled = compile_source("let xs = [1, 2] let n = len(xs)")
         self.assertEqual([repr(i) for i in compiled], [

@@ -228,6 +228,7 @@ The rules for the current subset:
 - Indexing requires a list or a map. A list needs an `Int` index and produces the element type; a map needs a key assignable to `K` and produces `V`. Negative list indices are accepted at runtime and count from the end.
 - `len` accepts a list, a map, or a string and produces `Int`.
 - `read_file` requires a `String` path and produces the file's text as `String`.
+- `read_csv` requires a `String` path and a schema literal such as `{ name: String, score: Float }`. It returns `List[Map[String, Unknown]]`. The schema is checked against the file header and every cell at runtime; a bad cell points at its file, row, column, and value.
 - `+` accepts two numbers, two strings, or two lists with the same element type. Mixed `Int`/`Float` arithmetic produces `Float`, but list element types must match exactly.
 - `print` accepts any type, including lists and maps.
 - List and map type annotations such as `List[Int]` and `Map[String, Int]` are not supported yet.
@@ -298,3 +299,4 @@ Status: implemented as a separate pass for the current subset.
 | 10 | `for` loops iterate over lists | Implemented (minimal) |
 | 11 | Maps are built in, homogeneous, and statically inferred | Implemented (minimal) |
 | 12 | `read_file` returns UTF-8 text with file-level diagnostics | Implemented (minimal) |
+| 13 | `read_csv` validates a schema at the boundary | Implemented (minimal) |

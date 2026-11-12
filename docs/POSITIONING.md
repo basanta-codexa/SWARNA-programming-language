@@ -110,7 +110,7 @@ error: expected a number in column 'score'
     = hint: Replace 'n/a' with a number, or mark the row as missing.
 ```
 
-This test is not runnable yet. Lists, `for` loops, and maps now exist, but file I/O and the CSV library are still milestones. The test is the bar for those features, not evidence that they exist. The target syntax is illustrative; names and shapes will be settled when the features are designed.
+This test is not runnable yet. The read-and-validate half now works: `read_csv` checks the schema and reports the exact file, row, column, and value. The grouping half (`.group_by(...).mean(...)`) is still a milestone, and row fields are read with `row["score"]` rather than `row.score`. The target syntax is illustrative; names and shapes will be settled when the remaining features are designed.
 
 What the test is checking:
 
@@ -135,7 +135,7 @@ The comparison is not "SWARNA vs. Python with a carefully written validation lay
 |---|---|
 | Errors that explain | Implemented for lexer, parser, semantic, and current runtime errors, including function calls, lists, and maps. A minimal `--explain` mode adds a plain-language explanation for undefined-name and type-mismatch errors; coverage will grow. |
 | Types without ceremony | Inferred `Int`, `Float`, `String`, `Bool`, `List[T]`, and `Map[K, V]` for the current subset. Named functions with optional parameter and return annotations; unannotated returns are inferred. `for` loops over lists are checked and scoped. No list or map annotations, or generics yet. |
-| Task-first standard library | Started. `read_file` reads UTF-8 text with file-level diagnostics; `print`, `len`, and built-in operators exist. CSV and the rest of the standard library are next. |
+| Task-first standard library | Started. `read_file` reads UTF-8 text and `read_csv` validates a schema with file/row/column diagnostics; `print`, `len`, and built-in operators exist. Grouping, aggregation, and the rest of the standard library are next. |
 | One workflow | REPL and `--run` exist; bindings, functions, and collection types persist in the REPL. No formatter or file runner beyond `--run` yet. |
 
 The switch test is the next concrete milestone. Until it runs and produces the diagnostic above, SWARNA is not ready for its target user.
@@ -143,6 +143,6 @@ The switch test is the next concrete milestone. Until it runs and produces the d
 ## How this changes the roadmap
 
 - Lists and maps come before broad syntax work; the switch test needs them. Lists, maps, functions, and `for` loops are in place; file I/O and CSV are next.
-- CSV and the remaining file I/O are not "later"; they are part of the first usable release. `read_file` is in place; CSV reading is next.
+- CSV and the remaining file I/O are not "later"; they are part of the first usable release. `read_file` and `read_csv` are in place; grouping and the runnable end-to-end example are next.
 - A feature that does not improve the switch test or the four pillars waits.
 - The `--explain`/`why` diagnostic mode is a natural extension of pillar 1, not a separate product.

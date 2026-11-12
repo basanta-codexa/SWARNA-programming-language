@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
+from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError, render_diagnostic
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 from runtime.interpreter import Interpreter
@@ -561,6 +561,73 @@ class TestInterpreterFiles(unittest.TestCase):
     def test_read_file_requires_string_path(self):
         with self.assertRaisesRegex(TypeError, "`read_file` expects a String path, got Int"):
             run("let text = read_file(1)")
+
+
+class TestInterpreterCsv(unittest.TestCase):
+    @staticmethod
+    def _write(directory: str, text: str) -> Path:
+        path = Path(directory) / "scores.csv"
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def test_read_csv_returns_typed_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write(
+                directory,
+                "name,team,score\nAda,Blue,88\nGrace,Blue,92.5\n",
+            )
+            source = (
+                f"let rows = read_csv({json.dumps(path.as_posix())}, "
+                "{ name: String, team: String, score: Float })"
+            )
+            env = run(source)
+        self.assertEqual(
+            env["rows"],
+            [
+                {"name": "Ada", "team": "Blue", "score": 88.0},
+                {"name": "Grace", "team": "Blue", "score": 92.5},
+            ],
+        )
+
+    def test_read_csv_bad_cell_names_file_row_column_and_value(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write(
+                directory,
+                "name,team,score\n"
+                "Ada,Blue,88\n"
+                "Margaret,Red,n/a\n",
+            )
+            source = (
+                f"let rows = read_csv({json.dumps(path.as_posix())}, "
+                "{ name: String, team: String, score: Float })"
+            )
+            with self.assertRaises(SwarnaRuntimeError) as raised:
+                run(source)
+        error = raised.exception
+        self.assertEqual(error.span, SourceSpan(3, 14, 3))
+        self.assertEqual(error.source_name, path.as_posix())
+        self.assertIn("expected a Float in column 'score'", error.message)
+        self.assertIn("got 'n/a'", error.message)
+        rendered = render_diagnostic("program", error)
+        self.assertIn(f"--> {path.as_posix()}:3:14", rendered)
+        self.assertIn("Margaret,Red,n/a", rendered)
+
+    def test_read_csv_missing_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "missing.csv"
+            with self.assertRaisesRegex(RuntimeError, "file not found"):
+                run(
+                    f'let rows = read_csv({json.dumps(path.as_posix())}, '
+                    "{ name: String })"
+                )
+
+    def test_read_csv_rejects_non_schema(self):
+        with self.assertRaisesRegex(RuntimeError, "expects a schema literal"):
+            run('let rows = read_csv("scores.csv", 1)')
+
+    def test_read_csv_requires_string_path(self):
+        with self.assertRaisesRegex(TypeError, "`read_csv` expects a String path, got Int"):
+            run("let rows = read_csv(1, { name: String })")
 
 
 if __name__ == "__main__":

@@ -776,5 +776,74 @@ class TestVMFiles(unittest.TestCase):
             self.assertEqual(vm.output, interpreter.output)
 
 
+class TestVMCsv(unittest.TestCase):
+    @staticmethod
+    def _write(directory: str, text: str) -> Path:
+        path = Path(directory) / "scores.csv"
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def test_vm_read_csv_returns_typed_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write(
+                directory,
+                "name,team,score\nAda,Blue,88\nGrace,Blue,92.5\n",
+            )
+            env = run_vm(
+                f"let rows = read_csv({json.dumps(path.as_posix())}, "
+                "{ name: String, team: String, score: Float })"
+            )
+        self.assertEqual(
+            env["rows"],
+            [
+                {"name": "Ada", "team": "Blue", "score": 88.0},
+                {"name": "Grace", "team": "Blue", "score": 92.5},
+            ],
+        )
+
+    def test_vm_read_csv_bad_cell_has_file_location(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write(
+                directory,
+                "name,team,score\nAda,Blue,88\nMargaret,Red,n/a\n",
+            )
+            with self.assertRaises(SwarnaRuntimeError) as raised:
+                run_vm(
+                    f"let rows = read_csv({json.dumps(path.as_posix())}, "
+                    "{ name: String, team: String, score: Float })"
+                )
+        error = raised.exception
+        self.assertEqual(error.span, SourceSpan(3, 14, 3))
+        self.assertEqual(error.source_name, path.as_posix())
+        self.assertIn("expected a Float in column 'score'", error.message)
+
+    def test_vm_read_csv_requires_string_path(self):
+        with self.assertRaisesRegex(TypeError, "`read_csv` expects a String path, got Int"):
+            run_vm("let rows = read_csv(1, { name: String })")
+
+    def test_vm_read_csv_matches_interpreter(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write(
+                directory,
+                "name,team,score\nAda,Blue,88\nGrace,Blue,92.5\n",
+            )
+            source = (
+                f"let rows = read_csv({json.dumps(path.as_posix())}, "
+                "{ name: String, team: String, score: Float })"
+                ' let total = 0.0 for row in rows { total = total + row["score"] }'
+                " print(total)"
+            )
+            program = Parser(Lexer(source)).parse_program()
+
+            interpreter = Interpreter()
+            expected_env = interpreter.eval(program)
+
+            vm = VM()
+            actual_env = vm.run(Compiler().compile(program))
+
+        self.assertEqual(actual_env, expected_env)
+        self.assertEqual(vm.output, interpreter.output)
+
+
 if __name__ == "__main__":
     unittest.main()

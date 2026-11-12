@@ -29,6 +29,7 @@ from compiler.ast.nodes import (
     UnaryExpression,
     WhileStatement,
 )
+from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan, SwarnaSemanticError
 
 
@@ -81,7 +82,7 @@ Type.BOOL = Type("Bool")
 Type.UNKNOWN = Type("Unknown")
 
 
-BUILTIN_NAMES = frozenset({"print", "len", "read_file"})
+BUILTIN_NAMES = frozenset({"print", "len", "read_file", "read_csv"})
 
 
 @dataclass(frozen=True)
@@ -576,6 +577,26 @@ class TypeChecker:
                         category="type-mismatch",
                     )
                 return Type.STRING
+            if expr.callee.name == "read_csv":
+                if len(expr.arguments) != 2:
+                    self._error(
+                        f"Function 'read_csv' expects 2 arguments, got {len(expr.arguments)}",
+                        expr.span,
+                        "Pass a file path and a schema literal to `read_csv`.",
+                    )
+                path_type = self.check_expression(expr.arguments[0])
+                if path_type is not Type.UNKNOWN and path_type is not Type.STRING:
+                    self._error(
+                        f"`read_csv` expects a String path, got {path_type.label}",
+                        expr.arguments[0].span,
+                        "Pass a file path as a string.",
+                        category="type-mismatch",
+                    )
+                try:
+                    parse_csv_schema(expr.arguments[1])
+                except CsvSchemaError as error:
+                    self._error(error.message, error.span, error.hint)
+                return Type.list_of(Type.map_of(Type.STRING, Type.UNKNOWN))
             signature = self.functions.get(expr.callee.name)
             if signature is None:
                 self._error(

@@ -28,6 +28,7 @@ from compiler.ast.nodes import (
 )
 from compiler.bytecode.instructions import Instruction, Op
 from compiler.bytecode.program import CompiledProgram, FunctionInfo
+from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan
 
 
@@ -193,6 +194,17 @@ class Compiler:
                     raise RuntimeError("`read_file` expects exactly one argument")
                 self.compile_expression(expr.arguments[0])
                 self.emit(Op.READ_FILE, span=expr.span)
+                return
+            if expr.callee.name == "read_csv":
+                if len(expr.arguments) != 2:
+                    raise RuntimeError("`read_csv` expects exactly two arguments")
+                self.compile_expression(expr.arguments[0])
+                try:
+                    columns = parse_csv_schema(expr.arguments[1])
+                except CsvSchemaError as error:
+                    raise RuntimeError(error.message) from None
+                schema = tuple((column.name, column.type_name) for column in columns)
+                self.emit(Op.READ_CSV, schema, expr.span)
                 return
             for argument in expr.arguments:
                 self.compile_expression(argument)

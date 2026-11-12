@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
+from runtime.csv import read_csv_data
 from runtime.files import read_text_file
 from runtime.values import Value, format_literal, value_type_name
 
@@ -198,6 +200,31 @@ class Interpreter:
                     hint='Pass a file path as a string, such as `read_file("notes.txt")`.',
                 )
             return read_text_file(path, expr.arguments[0].span)
+        if expr.callee.name == "read_csv":
+            if len(expr.arguments) != 2:
+                raise SwarnaRuntimeError(
+                    f"Function 'read_csv' expects 2 arguments, got {len(expr.arguments)}",
+                    expr.span,
+                    hint="Pass a file path and a schema literal to `read_csv`.",
+                )
+            path = self.eval_expression(expr.arguments[0])
+            if type(path) is not str:
+                raise SwarnaTypeError(
+                    f"`read_csv` expects a String path, got {value_type_name(path)}",
+                    expr.arguments[0].span,
+                    hint='Pass a file path as a string, such as `read_csv("scores.csv", ...)`.',
+                )
+            try:
+                columns = parse_csv_schema(expr.arguments[1])
+            except CsvSchemaError as error:
+                raise SwarnaRuntimeError(
+                    error.message,
+                    error.span,
+                    hint=error.hint,
+                ) from None
+            text = read_text_file(path, expr.arguments[0].span)
+            schema = tuple((column.name, column.type_name) for column in columns)
+            return read_csv_data(text, path, schema)
         function = self.functions.get(expr.callee.name)
         if function is None:
             raise SwarnaNameError(
