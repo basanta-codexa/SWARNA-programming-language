@@ -99,6 +99,11 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--parse", action="store_true", help="Print AST for the input")
     mode.add_argument("--emit-bytecode", action="store_true", help="Print compiled bytecode for the input")
     mode.add_argument("--run", action="store_true", help="Run the input and print its output")
+    parser.add_argument(
+        "--explain",
+        action="store_true",
+        help="Expand errors with a plain-language explanation",
+    )
     parser.add_argument("source", nargs="?", help="Source line; if omitted, reads stdin or starts REPL")
     args = parser.parse_args(argv)
 
@@ -115,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             output = render(args.source)
         except DiagnosticError as e:
-            print(render_diagnostic(args.source, e), file=sys.stderr)
+            print(render_diagnostic(args.source, e, explain=args.explain), file=sys.stderr)
             return 1
         except SyntaxError as e:
             print(f"error: {e}", file=sys.stderr)
@@ -135,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             output = render(source)
         except DiagnosticError as e:
-            print(render_diagnostic(source, e), file=sys.stderr)
+            print(render_diagnostic(source, e, explain=args.explain), file=sys.stderr)
             return 1
         except SyntaxError as e:
             print(f"error: {e}", file=sys.stderr)
@@ -152,7 +157,11 @@ def main(argv: list[str] | None = None) -> int:
 
     interpreter = Interpreter()
     function_signatures: dict[str, FunctionSignature] = {}
-    print("SWARNA (minimal) — enter a line, :lex/:parse/:bytecode/:run prefixes optional, :q to quit")
+    explain = args.explain
+    print(
+        "SWARNA (minimal) — enter a line, :lex/:parse/:bytecode/:run prefixes optional, "
+        ":explain toggles full explanations, :q to quit"
+    )
     while True:
         try:
             line = input("swarna> ")
@@ -162,6 +171,10 @@ def main(argv: list[str] | None = None) -> int:
         if line.strip() in {":q", ":quit", ":exit"}:
             return 0
         if not line.strip():
+            continue
+        if line.strip() == ":explain":
+            explain = not explain
+            print(f"explanations {'on' if explain else 'off'}")
             continue
         action = "run" if args.run else "parse" if args.parse else "bytecode" if args.emit_bytecode else "lex"
         source = line
@@ -185,7 +198,7 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print(lex_source(source))
         except DiagnosticError as e:
-            print(render_diagnostic(source, e), file=sys.stderr)
+            print(render_diagnostic(source, e, explain=explain), file=sys.stderr)
         except SyntaxError as e:
             print(f"error: {e}", file=sys.stderr)
         except (NameError, TypeError, ZeroDivisionError, RuntimeError) as e:

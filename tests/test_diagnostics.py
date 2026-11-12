@@ -37,6 +37,11 @@ class TestDiagnosticError(unittest.TestCase):
         self.assertIsInstance(error, SyntaxError)
         self.assertIsInstance(error, DiagnosticError)
 
+    def test_explanation_is_optional(self):
+        self.assertIsNone(DiagnosticError("boom").explanation)
+        error = DiagnosticError("boom", explanation="because")
+        self.assertEqual(error.explanation, "because")
+
 
 class TestRuntimeDiagnosticTypes(unittest.TestCase):
     def test_runtime_error_remains_catchable_as_runtime_error(self):
@@ -143,6 +148,22 @@ class TestRenderDiagnostic(unittest.TestCase):
     def test_renders_hint_without_span(self):
         error = DiagnosticError("boom", hint="fix it")
         self.assertEqual(render_diagnostic("", error), "error: boom\n  hint: fix it")
+
+    def test_explanation_is_hidden_by_default(self):
+        error = DiagnosticError("boom", hint="fix it", explanation="why it happened")
+        rendered = render_diagnostic("", error)
+        self.assertNotIn("why it happened", rendered)
+
+    def test_explanation_is_shown_when_requested(self):
+        error = DiagnosticError("boom", hint="fix it", explanation="why it happened")
+        rendered = render_diagnostic("", error, explain=True)
+        self.assertIn("why it happened", rendered)
+        self.assertIn("= why:", rendered)
+
+    def test_explain_ignores_missing_explanation(self):
+        error = DiagnosticError("boom", hint="fix it")
+        rendered = render_diagnostic("", error, explain=True)
+        self.assertNotIn("= why:", rendered)
 
 
 if __name__ == "__main__":

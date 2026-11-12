@@ -7,7 +7,7 @@ from typing import Any, Callable
 
 from compiler.bytecode.instructions import Instruction, Op
 from compiler.bytecode.program import CompiledProgram, FunctionInfo
-from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
+from compiler.diagnostics import UNDEFINED_NAME_EXPLANATION, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.values import Value, value_type_name
 
 
@@ -106,6 +106,7 @@ class VM:
                         f"Undefined name '{name}'",
                         ins.span,
                         hint="Declare it first with `let name = value` or `const name = value`.",
+                        explanation=UNDEFINED_NAME_EXPLANATION,
                     )
                 self.stack.append(self.env[name])
             elif ins.op == Op.STORE_NAME:
@@ -122,6 +123,7 @@ class VM:
                         f"Undefined name '{name}'",
                         ins.span,
                         hint="Declare it first with `let name = value` or `const name = value`.",
+                        explanation=UNDEFINED_NAME_EXPLANATION,
                     )
                 if name in self.constant:
                     raise SwarnaRuntimeError(

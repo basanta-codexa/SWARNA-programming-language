@@ -196,7 +196,7 @@ error: division by zero
     = hint: The divisor must be non-zero.
 ```
 
-Status: implemented for lexer, parser, semantic, and the current runtime errors in both the interpreter and the VM.
+Status: implemented for lexer, parser, semantic, and the current runtime errors in both the interpreter and the VM. A minimal `--explain` mode (and the REPL `:explain` toggle) appends a plain-language explanation; undefined-name errors are the first covered category.
 
 ## Type checking
 

@@ -292,6 +292,23 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertIn("^", output)
         self.assertIn("hint: Declare it first", output)
 
+    def test_run_cli_explain_shows_why(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "--explain", "let y = x + 1"])
+        self.assertEqual(code, 1)
+        output = stderr.getvalue()
+        self.assertIn("Undefined name 'x'", output)
+        self.assertIn("= why:", output)
+        self.assertIn("let name = value", output)
+
+    def test_run_cli_without_explain_hides_why(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "let y = x + 1"])
+        self.assertEqual(code, 1)
+        self.assertNotIn("= why:", stderr.getvalue())
+
     def test_run_cli_renders_const_assignment_with_caret(self):
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
@@ -509,6 +526,35 @@ class TestCLIHelpers(unittest.TestCase):
             code = main(["--run"])
         self.assertEqual(code, 0)
         self.assertIn("5", stdout.getvalue())
+
+    def test_repl_explain_toggle(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        inputs = iter([":explain", "print(missing)", ":explain", "print(missing)", ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn("explanations on", stdout.getvalue())
+        self.assertIn("explanations off", stdout.getvalue())
+        self.assertEqual(stderr.getvalue().count("= why:"), 1)
+
+    def test_repl_explain_flag_starts_enabled(self):
+        stderr = io.StringIO()
+        inputs = iter(["print(missing)", ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = main(["--run", "--explain"])
+        self.assertEqual(code, 0)
+        self.assertIn("= why:", stderr.getvalue())
 
     def test_repl_continues_after_error(self):
         stdout = io.StringIO()

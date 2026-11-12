@@ -28,7 +28,7 @@ from compiler.ast.nodes import (
     UnaryExpression,
     WhileStatement,
 )
-from compiler.diagnostics import SourceSpan, SwarnaSemanticError
+from compiler.diagnostics import UNDEFINED_NAME_EXPLANATION, SourceSpan, SwarnaSemanticError
 
 
 @dataclass(frozen=True)
@@ -313,6 +313,7 @@ class TypeChecker:
                     f"Undefined name '{name}'",
                     stmt.name.span,
                     "Declare it first with `let name = value` or `const name = value`.",
+                    explanation=UNDEFINED_NAME_EXPLANATION,
                 )
             if binding.constant:
                 self._error(
@@ -509,6 +510,7 @@ class TypeChecker:
                     f"Undefined name '{expr.name}'",
                     expr.span,
                     "Declare it first with `let name = value` or `const name = value`.",
+                    explanation=UNDEFINED_NAME_EXPLANATION,
                 )
             return binding.type
 
@@ -742,5 +744,10 @@ class TypeChecker:
         return left in (Type.INT, Type.FLOAT) and right in (Type.INT, Type.FLOAT)
 
     @staticmethod
-    def _error(message: str, span: SourceSpan | None, hint: str | None = None) -> NoReturn:
-        raise SwarnaSemanticError(message, span, hint)
+    def _error(
+        message: str,
+        span: SourceSpan | None,
+        hint: str | None = None,
+        explanation: str | None = None,
+    ) -> NoReturn:
+        raise SwarnaSemanticError(message, span, hint, explanation=explanation)
