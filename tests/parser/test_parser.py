@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, Parameter, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SourceSpan
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
@@ -561,6 +561,67 @@ class TestParser(unittest.TestCase):
                 ]
             ),
         )
+
+    def test_parse_map_literal(self):
+        program = Parser(Lexer('let m = { "a": 1, "b": 2 }')).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(
+            stmt.value,
+            MapLiteral(
+                entries=[
+                    (StringLiteral("a"), IntegerLiteral(1)),
+                    (StringLiteral("b"), IntegerLiteral(2)),
+                ]
+            ),
+        )
+
+    def test_parse_empty_map_literal(self):
+        program = Parser(Lexer("let m = {}")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(stmt.value, MapLiteral(entries=[]))
+
+    def test_parse_map_literal_allows_trailing_comma(self):
+        program = Parser(Lexer('let m = { "a": 1, }')).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(
+            stmt.value,
+            MapLiteral(entries=[(StringLiteral("a"), IntegerLiteral(1))]),
+        )
+
+    def test_parse_nested_map_literal(self):
+        program = Parser(Lexer('let m = { "a": { "b": 2 } }')).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(
+            stmt.value,
+            MapLiteral(
+                entries=[
+                    (
+                        StringLiteral("a"),
+                        MapLiteral(entries=[(StringLiteral("b"), IntegerLiteral(2))]),
+                    )
+                ]
+            ),
+        )
+
+    def test_parse_map_literal_as_if_branch(self):
+        program = Parser(Lexer('let m = if true { { "a": 1 } } else { {} }')).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertIsInstance(stmt.value, IfExpression)
+
+    def test_parse_map_missing_colon_rejected(self):
+        parser = Parser(Lexer('let m = { "a" 1 }'))
+        with self.assertRaisesRegex(SyntaxError, "Expected ':' after map key"):
+            parser.parse_program()
+
+    def test_parse_map_missing_brace_rejected(self):
+        parser = Parser(Lexer('let m = { "a": 1'))
+        with self.assertRaisesRegex(SyntaxError, "Expected '}' after map entries"):
+            parser.parse_program()
 
     def test_parse_index_expression(self):
         program = Parser(Lexer("let x = xs[0]")).parse_program()

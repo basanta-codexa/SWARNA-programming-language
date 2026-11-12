@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, Parameter, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
@@ -435,6 +435,8 @@ class Parser:
             return self.parse_if_expression()
         if self.current.type == TokenType.LBRACKET:
             return self.parse_list_literal()
+        if self.current.type == TokenType.LBRACE:
+            return self.parse_map_literal()
         if self.current.type == TokenType.IDENTIFIER:
             token = self.current
             self._advance()
@@ -476,6 +478,37 @@ class Parser:
             hint="Close the list with `]`, or separate elements with commas.",
         )
         return ListLiteral(elements=elements, span=lbracket_token.span)
+
+    def parse_map_literal(self) -> MapLiteral:
+        lbrace_token = self.current
+        self._expect(
+            TokenType.LBRACE,
+            "Expected '{'",
+            hint='A map is written as `{ "key": value }`.',
+        )
+        entries: list[tuple[Expression, Expression]] = []
+        if self.current.type != TokenType.RBRACE:
+            while True:
+                key = self.parse_expression()
+                self._expect(
+                    TokenType.COLON,
+                    "Expected ':' after map key",
+                    hint='Write a map entry as `"key": value`.',
+                )
+                value = self.parse_expression()
+                entries.append((key, value))
+                if self.current.type == TokenType.COMMA:
+                    self._advance()
+                    if self.current.type == TokenType.RBRACE:
+                        break
+                    continue
+                break
+        self._expect(
+            TokenType.RBRACE,
+            "Expected '}' after map entries",
+            hint="Close the map with `}`, or separate entries with commas.",
+        )
+        return MapLiteral(entries=entries, span=lbrace_token.span)
 
     def parse_index(self, collection: Expression) -> IndexExpression:
         lbracket_token = self.current

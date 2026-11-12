@@ -85,7 +85,13 @@ class IndexExpression:
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
 
 
-Expression = IntegerLiteral | FloatLiteral | StringLiteral | BoolLiteral | BinaryExpression | IfExpression | BlockExpression | CallExpression | ListLiteral | IndexExpression | Identifier | UnaryExpression
+@dataclass(frozen=True)
+class MapLiteral:
+    entries: list[tuple["Expression", "Expression"]]
+    span: SourceSpan | None = field(default=None, compare=False, repr=False)
+
+
+Expression = IntegerLiteral | FloatLiteral | StringLiteral | BoolLiteral | BinaryExpression | IfExpression | BlockExpression | CallExpression | ListLiteral | IndexExpression | MapLiteral | Identifier | UnaryExpression
 
 
 @dataclass(frozen=True)
