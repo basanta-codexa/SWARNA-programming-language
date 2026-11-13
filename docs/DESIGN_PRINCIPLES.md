@@ -177,7 +177,7 @@ A map binding must be declared with `let` to be assigned; a `const` map rejects 
 
 Reason: maps are the shape of a CSV row and the base for the switch test. Restricting keys to scalars keeps hashing and equality predictable without a custom protocol. Index assignment is the smallest mutation that makes grouping and aggregation possible; keeping lists immutable preserves the simpler list model until a real need appears.
 
-Status: implemented in the interpreter, VM, REPL, and type checker. No insert or delete helper, map annotations, or map iteration yet.
+Status: implemented in the interpreter, VM, REPL, and type checker. No insert or delete helper, map annotations, or map iteration yet. The runnable aggregation example is `examples/team_averages.sw`.
 
 ## Rules for changes
 

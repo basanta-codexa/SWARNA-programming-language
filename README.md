@@ -103,6 +103,35 @@ python -m swarna --run
 
 `--emit-bytecode` prints the main instructions followed by each compiled function.
 
+## Run the scores example
+
+`examples/team_averages.sw` reads `examples/scores.csv`, accumulates a total and count per team, and prints the averages:
+
+```
+let rows = read_csv("examples/scores.csv", { name: String, team: String, score: Float })
+
+let totals = {}
+let counts = {}
+let averages = {}
+
+for row in rows {
+    let team = row["team"]
+    totals[team] = get(totals, team, 0.0) + row["score"]
+    counts[team] = get(counts, team, 0) + 1
+    averages[team] = totals[team] / counts[team]
+}
+
+print(averages)
+```
+
+From the repository root:
+
+```
+Get-Content examples/team_averages.sw -Raw | python -m swarna --run
+```
+
+Prints `{"Blue": 90.0, "Red": 82.0}`. If a score cell is not a number, `read_csv` reports the file, row, column, and bad value before arithmetic runs.
+
 ## What works
 
 - integers, floats, strings, booleans
@@ -128,7 +157,7 @@ python -m swarna --run
 
 ## What does not work yet
 
-Records, modules, file writing, and the standard library are still missing. `read_file` and `read_csv` are the file operations; there is no CSV writing. CSV rows are maps, and their column values are statically `Unknown` until schema-aware row types land. There are no grouping or aggregation helpers yet; use `for` loops, map assignment, and variables. `for` loops iterate over lists only; there are no ranges or string iteration yet, and there is no `break` or `continue`. Lists cannot be mutated; build a new list with `+`. Maps support `map[key] = value` for existing and new keys, but there is no insert or delete helper. Lists are homogeneous: `[1, 2.5]` is rejected, so write `[1.0, 2.5]` when you want a list of floats. Maps are homogeneous in both positions, and keys must be `Int`, `Float`, `String`, or `Bool`; a list key is rejected. List and map type annotations such as `List[Int]` and `Map[String, Int]` are not supported yet, so an unannotated collection parameter is `Unknown`. Function limitations: no first-class functions, no `return` keyword, no nested declarations, no expression statements, and no global mutation. A function body must end with a value, so procedures are not supported. Generics, type aliases, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
+Records, modules, file writing, and the standard library are still missing. `read_file` and `read_csv` are the file operations; there is no CSV writing. CSV rows are maps, and their column values are statically `Unknown` until schema-aware row types land. There are no grouping or aggregation helpers yet; use `for` loops, map assignment, `get`, and variables. `for` loops iterate over lists only; there are no ranges or string iteration yet, and there is no `break` or `continue`. Lists cannot be mutated; build a new list with `+`. Maps support `map[key] = value` for existing and new keys, but there is no insert or delete helper. Lists are homogeneous: `[1, 2.5]` is rejected, so write `[1.0, 2.5]` when you want a list of floats. Maps are homogeneous in both positions, and keys must be `Int`, `Float`, `String`, or `Bool`; a list key is rejected. List and map type annotations such as `List[Int]` and `Map[String, Int]` are not supported yet, so an unannotated collection parameter is `Unknown`. Function limitations: no first-class functions, no `return` keyword, no nested declarations, no expression statements, and no global mutation. A function body must end with a value, so procedures are not supported. Generics, type aliases, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
 
 Unannotated parameter types are `Unknown`. An unannotated return type is inferred from the body after top-level statements are checked, so a top-level call to that function is checked as `Unknown`; annotate the return type when the call site needs precision. The REPL reuses the inferred signature on later lines.
 

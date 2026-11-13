@@ -110,7 +110,7 @@ error: expected a number in column 'score'
     = hint: Replace 'n/a' with a number, or mark the row as missing.
 ```
 
-This test is not runnable yet. The read-and-validate half now works: `read_csv` checks the schema and reports the exact file, row, column, and value. The grouping half (`.group_by(...).mean(...)`) is still a milestone, and row fields are read with `row["score"]` rather than `row.score`. The target syntax is illustrative; names and shapes will be settled when the remaining features are designed.
+This test is not fully runnable yet. The read, validate, and aggregate half works: `read_csv` checks the schema and reports the exact file, row, column, and value, and `examples/team_averages.sw` accumulates per-team totals with map assignment and `get`. The concise grouping form (`.group_by(...).mean(...)`) is still a milestone, and row fields are read with `row["score"]` rather than `row.score`. The target syntax is illustrative; names and shapes will be settled when the remaining features are designed.
 
 What the test is checking:
 
@@ -138,11 +138,11 @@ The comparison is not "SWARNA vs. Python with a carefully written validation lay
 | Task-first standard library | Started. `read_file` reads UTF-8 text and `read_csv` validates a schema with file/row/column diagnostics; `print`, `len`, `get`, map index assignment, and built-in operators exist. Grouping, aggregation, and the rest of the standard library are next. |
 | One workflow | REPL and `--run` exist; bindings, functions, and collection types persist in the REPL. No formatter or file runner beyond `--run` yet. |
 
-The switch test is the next concrete milestone. Until it runs and produces the diagnostic above, SWARNA is not ready for its target user.
+The switch test is the next concrete milestone. The runnable read/validate/aggregate version lives in `examples/team_averages.sw`; the concise grouping form and the full diagnostic path still need to land before SWARNA is ready for its target user.
 
 ## How this changes the roadmap
 
 - Lists and maps come before broad syntax work; the switch test needs them. Lists, maps, functions, `for` loops, file I/O, and CSV are in place.
-- CSV and the remaining file I/O are not "later"; they are part of the first usable release. `read_file`, `read_csv`, and map index assignment are in place; grouping and the runnable end-to-end example are next.
+- CSV and the remaining file I/O are not "later"; they are part of the first usable release. `read_file`, `read_csv`, and map index assignment are in place, and `examples/team_averages.sw` runs the read/validate/aggregate path; the concise grouping form is next.
 - A feature that does not improve the switch test or the four pillars waits.
 - The `--explain`/`why` diagnostic mode is a natural extension of pillar 1, not a separate product.
