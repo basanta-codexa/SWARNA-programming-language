@@ -364,6 +364,28 @@ class VM:
                         ins.span,
                         hint="Use a scalar key.",
                     ) from None
+            elif ins.op == Op.MAP_GET:
+                default = self._pop(ins)
+                key = self._pop(ins)
+                collection = self._pop(ins)
+                if not isinstance(collection, dict):
+                    raise SwarnaTypeError(
+                        f"`get` expects a Map, got {value_type_name(collection)}",
+                        ins.span,
+                        hint="Pass a map as the first argument.",
+                    )
+                try:
+                    if key in collection:
+                        self.stack.append(collection[key])
+                    else:
+                        self.stack.append(default)
+                except TypeError:
+                    raise SwarnaTypeError(
+                        f"Map keys must be Int, Float, String, or Bool, "
+                        f"got {value_type_name(key)}",
+                        ins.span,
+                        hint="Use a scalar key.",
+                    ) from None
             elif ins.op == Op.LEN:
                 value = self._pop(ins)
                 if isinstance(value, (list, dict, str)):

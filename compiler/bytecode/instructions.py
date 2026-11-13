@@ -36,6 +36,7 @@ class Op(Enum):
     BUILD_MAP = auto()
     INDEX = auto()
     STORE_INDEX = auto()
+    MAP_GET = auto()
     LEN = auto()
     READ_FILE = auto()
     READ_CSV = auto()

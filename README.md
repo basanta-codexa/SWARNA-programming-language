@@ -116,7 +116,7 @@ python -m swarna --run
 - functions in the interpreter, the VM, and the REPL
 - list literals such as `[1, 2, 3]`, indexing with `values[i]`, negative indexing, `len(...)`, list equality, and `+` concatenation
 - inferred element types for lists, including nested lists
-- map literals such as `{ "Ada": 36 }`, indexing with `map[key]`, `map[key] = value`, `len(...)`, map equality, and inferred key and value types
+- map literals such as `{ "Ada": 36 }`, indexing with `map[key]`, `map[key] = value`, `get(map, key, default)`, `len(...)`, map equality, and inferred key and value types
 - `read_file(path)`, which returns a UTF-8 text file's contents with diagnostics for missing files, directories, and invalid text
 - `read_csv(path, { name: String, score: Float })`, which validates the header and each cell against the schema and returns rows as maps; a bad cell names the file, row, column, and value
 - `print`, with readable list and map output such as `["Ada", "Grace"]` and `{"Ada": 36}`

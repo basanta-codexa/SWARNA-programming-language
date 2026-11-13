@@ -535,6 +535,29 @@ class TestInterpreterMaps(unittest.TestCase):
                 "let x = if true { values()[0] = 2 0 } else { 0 }"
             )
 
+    def test_get_existing_key(self):
+        env = run('let m = { "a": 1 } let x = get(m, "a", 0)')
+        self.assertEqual(env["x"], 1)
+
+    def test_get_missing_key_returns_default(self):
+        env = run('let m = { "a": 1 } let x = get(m, "b", 0)')
+        self.assertEqual(env["x"], 0)
+
+    def test_get_on_empty_map_returns_default(self):
+        env = run('let m = {} let x = get(m, "a", 3)')
+        self.assertEqual(env["x"], 3)
+
+    def test_get_requires_map(self):
+        with self.assertRaisesRegex(SwarnaTypeError, "`get` expects a Map, got Int"):
+            run('let x = get(1, "a", 0)')
+
+    def test_get_rejects_unhashable_key(self):
+        with self.assertRaisesRegex(
+            SwarnaTypeError,
+            "Map keys must be Int, Float, String, or Bool, got List",
+        ):
+            run('let m = { "a": 1 } let x = get(m, [1], 0)')
+
     def test_map_equality(self):
         env = run('let x = { "a": 1 } == { "a": 1 }')
         self.assertIs(env["x"], True)

@@ -404,6 +404,21 @@ class TestCodegen(unittest.TestCase):
             ["CONST 'a'", "INDEX", "CONST 'b'"],
         )
 
+    def test_compile_get_builtin(self):
+        compiled = compile_source('let m = { "a": 1 } let x = get(m, "a", 0)')
+        self.assertEqual([repr(i) for i in compiled], [
+            "CONST 'a'",
+            "CONST 1",
+            "BUILD_MAP 1",
+            "DECLARE_NAME 'm'",
+            "LOAD_NAME 'm'",
+            "CONST 'a'",
+            "CONST 0",
+            "MAP_GET",
+            "DECLARE_NAME 'x'",
+            "HALT",
+        ])
+
     def test_compile_index_expression(self):
         compiled = compile_source("let xs = [1, 2] let x = xs[0]")
         self.assertEqual([repr(i) for i in compiled], [

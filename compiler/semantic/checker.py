@@ -83,7 +83,7 @@ Type.BOOL = Type("Bool")
 Type.UNKNOWN = Type("Unknown")
 
 
-BUILTIN_NAMES = frozenset({"print", "len", "read_file", "read_csv"})
+BUILTIN_NAMES = frozenset({"print", "len", "get", "read_file", "read_csv"})
 
 
 @dataclass(frozen=True)
@@ -587,6 +587,48 @@ class TypeChecker:
                         "Pass a list, map, or string to `len`.",
                     )
                 return Type.INT
+            if expr.callee.name == "get":
+                if len(expr.arguments) != 3:
+                    self._error(
+                        f"Function 'get' expects 3 arguments, got {len(expr.arguments)}",
+                        expr.span,
+                        "Pass a map, a key, and a default value to `get`.",
+                    )
+                map_type = self.check_expression(expr.arguments[0])
+                key_type = self.check_expression(expr.arguments[1])
+                default_type = self.check_expression(expr.arguments[2])
+                if map_type is Type.UNKNOWN:
+                    return Type.UNKNOWN
+                if not map_type.is_map:
+                    self._error(
+                        f"`get` expects a Map, got {map_type.label}",
+                        expr.arguments[0].span,
+                        "Pass a map as the first argument.",
+                        category="type-mismatch",
+                    )
+                if key_type is not Type.UNKNOWN and not self._is_assignable(
+                    map_type.key_type, key_type
+                ):
+                    self._error(
+                        f"`get` key must be {map_type.key_type.label}, "
+                        f"got {key_type.label}",
+                        expr.arguments[1].span,
+                        "Use a key of the map's key type.",
+                        category="type-mismatch",
+                    )
+                if map_type.value_type is Type.UNKNOWN:
+                    return default_type
+                if default_type is not Type.UNKNOWN and not self._is_assignable(
+                    map_type.value_type, default_type
+                ):
+                    self._error(
+                        f"`get` default must be {map_type.value_type.label}, "
+                        f"got {default_type.label}",
+                        expr.arguments[2].span,
+                        "Use a default of the map's value type.",
+                        category="type-mismatch",
+                    )
+                return map_type.value_type
             if expr.callee.name == "read_file":
                 if len(expr.arguments) != 1:
                     self._error(

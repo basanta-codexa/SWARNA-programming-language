@@ -802,6 +802,36 @@ class TestMaps(unittest.TestCase):
                 "let x = if true { values()[0] = 2 0 } else { 0 }"
             )
 
+    def test_get_returns_map_value_type(self):
+        checker = check('let m = { "a": 1 } let x = get(m, "a", 0)')
+        self.assertIs(checker.env["x"].type, Type.INT)
+
+    def test_get_on_empty_map_uses_default_type(self):
+        checker = check('let m = {} let x = get(m, "a", 0.0)')
+        self.assertIs(checker.env["x"].type, Type.FLOAT)
+
+    def test_get_rejects_non_map(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "`get` expects a Map, got Int"):
+            check('let x = get(1, "a", 0)')
+
+    def test_get_rejects_wrong_key_type(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError, "`get` key must be String, got Int"
+        ):
+            check('let m = { "a": 1 } let x = get(m, 0, 0)')
+
+    def test_get_rejects_wrong_default_type(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError, "`get` default must be Int, got String"
+        ):
+            check('let m = { "a": 1 } let x = get(m, "a", "x")')
+
+    def test_get_requires_three_arguments(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError, "Function 'get' expects 3 arguments, got 2"
+        ):
+            check('let m = { "a": 1 } let x = get(m, "a")')
+
     def test_map_if_branches_unify(self):
         checker = check('let m = if true { { "a": 1 } } else { {} }')
         self.assertEqual(

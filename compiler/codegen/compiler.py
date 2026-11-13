@@ -205,6 +205,13 @@ class Compiler:
                 self.compile_expression(expr.arguments[0])
                 self.emit(Op.LEN, span=expr.span)
                 return
+            if expr.callee.name == "get":
+                if len(expr.arguments) != 3:
+                    raise RuntimeError("`get` expects exactly three arguments")
+                for argument in expr.arguments:
+                    self.compile_expression(argument)
+                self.emit(Op.MAP_GET, span=expr.span)
+                return
             if expr.callee.name == "read_file":
                 if len(expr.arguments) != 1:
                     raise RuntimeError("`read_file` expects exactly one argument")

@@ -248,6 +248,33 @@ class Interpreter:
                 expr.arguments[0].span,
                 hint="Pass a list, map, or string to `len`.",
             )
+        if expr.callee.name == "get":
+            if len(expr.arguments) != 3:
+                raise SwarnaRuntimeError(
+                    f"Function 'get' expects 3 arguments, got {len(expr.arguments)}",
+                    expr.span,
+                    hint="Pass a map, a key, and a default value to `get`.",
+                )
+            collection = self.eval_expression(expr.arguments[0])
+            key = self.eval_expression(expr.arguments[1])
+            default = self.eval_expression(expr.arguments[2])
+            if not isinstance(collection, dict):
+                raise SwarnaTypeError(
+                    f"`get` expects a Map, got {value_type_name(collection)}",
+                    expr.arguments[0].span,
+                    hint="Pass a map as the first argument.",
+                )
+            try:
+                if key in collection:
+                    return collection[key]
+            except TypeError:
+                raise SwarnaTypeError(
+                    f"Map keys must be Int, Float, String, or Bool, "
+                    f"got {value_type_name(key)}",
+                    expr.arguments[1].span,
+                    hint="Use a scalar key.",
+                ) from None
+            return default
         if expr.callee.name == "read_file":
             if len(expr.arguments) != 1:
                 raise SwarnaRuntimeError(
