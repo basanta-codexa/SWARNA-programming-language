@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
 from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
@@ -113,19 +113,10 @@ class Parser:
         return_type = None
         if self.current.type == TokenType.ARROW:
             self._advance()
-            type_token = self.current
-            type_value = self._expect(
-                TokenType.IDENTIFIER,
+            return_type = self.parse_type_annotation(
                 "Expected a return type after '->'",
-                hint="Use `Int`, `Float`, `String`, or `Bool`.",
+                "Use `Int`, `Float`, `String`, `Bool`, `List[T]`, or `Map[K, V]`.",
             )
-            return_type = Identifier(type_value, span=type_token.span)
-            if self.current.type == TokenType.LBRACKET:
-                raise SwarnaSyntaxError(
-                    "Generic type annotations are not supported yet",
-                    self.current.span,
-                    hint="Leave the annotation off; the checker infers collection element types.",
-                )
         body = self.parse_block_expression()
         return FunctionDeclaration(
             name=name,
@@ -146,20 +137,50 @@ class Parser:
         type_name = None
         if self.current.type == TokenType.COLON:
             self._advance()
-            type_token = self.current
-            type_value = self._expect(
-                TokenType.IDENTIFIER,
+            type_name = self.parse_type_annotation(
                 "Expected a type after ':'",
-                hint="Use `Int`, `Float`, `String`, or `Bool`.",
+                "Use `Int`, `Float`, `String`, `Bool`, `List[T]`, or `Map[K, V]`.",
             )
-            type_name = Identifier(type_value, span=type_token.span)
-            if self.current.type == TokenType.LBRACKET:
-                raise SwarnaSyntaxError(
-                    "Generic type annotations are not supported yet",
-                    self.current.span,
-                    hint="Leave the annotation off; the checker infers collection element types.",
-                )
         return Parameter(name=name, type_name=type_name)
+
+    def parse_type_annotation(
+        self,
+        message: str = "Expected a type",
+        hint: str = "Use `Int`, `Float`, `String`, `Bool`, `List[T]`, or `Map[K, V]`.",
+    ) -> TypeAnnotation:
+        type_token = self.current
+        type_value = self._expect(
+            TokenType.IDENTIFIER,
+            message,
+            hint=hint,
+        )
+        arguments: list[TypeAnnotation] = []
+        if self.current.type == TokenType.LBRACKET:
+            self._advance()
+            if self.current.type == TokenType.RBRACKET:
+                raise SwarnaSyntaxError(
+                    f"Type '{type_value}' needs a type argument",
+                    self.current.span,
+                    hint="Write `List[Int]` or `Map[String, Float]`.",
+                )
+            while True:
+                arguments.append(self.parse_type_annotation())
+                if self.current.type == TokenType.COMMA:
+                    self._advance()
+                    if self.current.type == TokenType.RBRACKET:
+                        raise SwarnaSyntaxError(
+                            "Type argument list ends with a comma",
+                            self.current.span,
+                            hint="Remove the trailing comma.",
+                        )
+                    continue
+                break
+            self._expect(
+                TokenType.RBRACKET,
+                "Expected ']' after type arguments",
+                hint=f"Close the type with `]`, as in `{type_value}[Int]`.",
+            )
+        return TypeAnnotation(type_value, arguments, span=type_token.span)
 
     def parse_if_statement(self) -> IfStatement:
         if_token = self.current
@@ -348,13 +369,26 @@ class Parser:
             ),
             span=name_token.span,
         )
+        type_name = None
+        if self.current.type == TokenType.COLON:
+            self._advance()
+            type_name = self.parse_type_annotation(
+                "Expected a type after ':'",
+                "Use `Int`, `Float`, `String`, `Bool`, `List[T]`, or `Map[K, V]`.",
+            )
         self._expect(
             TokenType.EQUAL,
             "Expected '='",
-            hint="Bindings use `let name = value` or `const name = value`.",
+            hint="Bindings use `let name = value` or `let name: Type = value`.",
         )
         value = self.parse_expression()
-        return LetStatement(name=name, value=value, constant=constant, span=keyword_token.span)
+        return LetStatement(
+            name=name,
+            value=value,
+            constant=constant,
+            type_name=type_name,
+            span=keyword_token.span,
+        )
 
     def parse_expression(self) -> Expression:
         return self.parse_or()

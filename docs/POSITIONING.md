@@ -134,7 +134,7 @@ The comparison is not "SWARNA vs. Python with a carefully written validation lay
 | Pillar | Today |
 |---|---|
 | Errors that explain | Implemented for lexer, parser, semantic, and current runtime errors, including function calls, lists, and maps. A minimal `--explain` mode adds a plain-language explanation for undefined-name and type-mismatch errors; coverage will grow. |
-| Types without ceremony | Inferred `Int`, `Float`, `String`, `Bool`, `List[T]`, and `Map[K, V]` for the current subset. Named functions with optional parameter and return annotations; unannotated returns are inferred. `for` loops over lists are checked and scoped. No list or map annotations, or generics yet. |
+| Types without ceremony | Inferred `Int`, `Float`, `String`, `Bool`, `List[T]`, and `Map[K, V]` for the current subset. Named functions with optional parameter and return annotations; unannotated returns are inferred. `List[T]` and `Map[K, V]` annotations work on parameters, returns, and bindings, including nested types; there are no user-defined generics. `for` loops over lists are checked and scoped. |
 | Task-first standard library | Started. `read_file` reads UTF-8 text and `read_csv` validates a schema with file/row/column diagnostics; `print`, `len`, `get`, map index assignment, and built-in operators exist. Grouping, aggregation, and the rest of the standard library are next. |
 | One workflow | REPL and `--run` exist; bindings, functions, and collection types persist in the REPL. No formatter or file runner beyond `--run` yet. |
 

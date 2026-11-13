@@ -457,6 +457,26 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("`if` condition must be Bool, got Int", stderr.getvalue())
 
+    def test_repl_preserves_collection_annotations(self):
+        stderr = io.StringIO()
+        inputs = iter([
+            "fn first(xs: List[Int]) -> Int { xs[0] }",
+            'let x = first(["a"])',
+            ":q",
+        ])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = main(["--run"])
+        self.assertEqual(code, 0)
+        self.assertIn(
+            "Argument 1 of 'first' must be List[Int], got List[String]",
+            stderr.getvalue(),
+        )
+
     def test_repl_preserves_function_after_runtime_error(self):
         stdout = io.StringIO()
         stderr = io.StringIO()

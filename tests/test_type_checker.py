@@ -659,9 +659,84 @@ class TestFunctions(unittest.TestCase):
         with self.assertRaisesRegex(SwarnaSemanticError, "cannot compare List\\[Int\\] and List\\[Int\\]"):
             check("let x = [1] < [2]")
 
-    def test_list_annotation_is_not_supported_yet(self):
-        with self.assertRaisesRegex(SwarnaSemanticError, "List type annotations are not supported yet"):
+    def test_bare_list_annotation_requires_argument(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "List needs exactly one type argument"):
             check("fn f(xs: List) -> Int { 0 }")
+
+    def test_function_collection_annotations(self):
+        checker = check(
+            "fn first(xs: List[Int]) -> Int { xs[0] } "
+            "let x = first([1, 2])"
+        )
+        self.assertIs(checker.env["x"].type, Type.INT)
+
+    def test_function_collection_annotation_rejects_wrong_argument(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Argument 1 of 'first' must be List\\[Int\\], got List\\[Float\\]",
+        ):
+            check("fn first(xs: List[Int]) -> Int { xs[0] } let x = first([1.0])")
+
+    def test_function_collection_return_annotation_is_checked(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "declares List\\[Int\\] but its body produces List\\[Float\\]",
+        ):
+            check("fn values() -> List[Int] { [1.0] }")
+
+    def test_nested_collection_annotations(self):
+        checker = check(
+            "fn rows() -> List[Map[String, Float]] { [{ \"a\": 1.0 }] } "
+            "let x = rows()[0][\"a\"]"
+        )
+        self.assertIs(checker.env["x"].type, Type.FLOAT)
+
+    def test_binding_annotation_sets_type(self):
+        checker = check("let x: Float = 1.0")
+        self.assertIs(checker.env["x"].type, Type.FLOAT)
+
+    def test_binding_annotation_rejects_wrong_value(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Cannot assign Float to Int binding 'x'",
+        ):
+            check("let x: Int = 1.0")
+
+    def test_binding_annotation_seeds_empty_map(self):
+        checker = check(
+            'let totals: Map[String, Float] = {} '
+            'let x = totals["a"]'
+        )
+        self.assertEqual(checker.env["totals"].type, Type.map_of(Type.STRING, Type.FLOAT))
+        self.assertIs(checker.env["x"].type, Type.FLOAT)
+
+    def test_binding_annotation_seeds_empty_list(self):
+        checker = check("let xs: List[Int] = [] let x = xs[0]")
+        self.assertEqual(checker.env["xs"].type, Type.list_of(Type.INT))
+        self.assertIs(checker.env["x"].type, Type.INT)
+
+    def test_map_annotation_requires_scalar_key(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Map keys must be Int, Float, String, or Bool, got List\\[Int\\]",
+        ):
+            check("let m: Map[List[Int], Int] = {}")
+
+    def test_map_annotation_requires_two_arguments(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError, "Map needs exactly two type arguments"
+        ):
+            check("let m: Map[String] = {}")
+
+    def test_scalar_annotation_rejects_type_arguments(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError, "Type 'Int' does not take type arguments"
+        ):
+            check("let x: Int[String] = 1")
+
+    def test_unknown_annotation_type(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Unknown type 'Foo'"):
+            check("let x: Foo = 1")
 
     def test_initial_function_is_visible(self):
         checker = check(

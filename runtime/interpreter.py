@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
 from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.csv import read_csv_data
@@ -16,8 +16,8 @@ class Function:
     parameters: tuple[str, ...]
     body: Expression
     span: SourceSpan | None = None
-    parameter_annotations: tuple[str | None, ...] = ()
-    return_annotation: str | None = None
+    parameter_annotations: tuple[TypeAnnotation | None, ...] = ()
+    return_annotation: TypeAnnotation | None = None
 
 
 class Interpreter:
@@ -66,10 +66,9 @@ class Interpreter:
                 body=stmt.body,
                 span=stmt.span,
                 parameter_annotations=tuple(
-                    parameter.type_name.name if parameter.type_name is not None else None
-                    for parameter in stmt.parameters
+                    parameter.type_name for parameter in stmt.parameters
                 ),
-                return_annotation=stmt.return_type.name if stmt.return_type is not None else None,
+                return_annotation=stmt.return_type,
             )
         for stmt in program.statements:
             if isinstance(stmt, FunctionDeclaration):

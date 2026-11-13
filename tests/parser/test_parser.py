@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
 from compiler.diagnostics import SourceSpan
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
@@ -435,10 +435,10 @@ class TestParser(unittest.TestCase):
                 FunctionDeclaration(
                     name=Identifier("add"),
                     parameters=[
-                        Parameter(name=Identifier("a"), type_name=Identifier("Int")),
-                        Parameter(name=Identifier("b"), type_name=Identifier("Int")),
+                        Parameter(name=Identifier("a"), type_name=TypeAnnotation("Int", [])),
+                        Parameter(name=Identifier("b"), type_name=TypeAnnotation("Int", [])),
                     ],
-                    return_type=Identifier("Int"),
+                    return_type=TypeAnnotation("Int", []),
                     body=BinaryExpression(left=Identifier("a"), operator="+", right=Identifier("b")),
                 )
             ]),
@@ -466,7 +466,7 @@ class TestParser(unittest.TestCase):
         program = Parser(Lexer("fn f(a: Int,) { a }")).parse_program()
         stmt = program.statements[0]
         assert isinstance(stmt, FunctionDeclaration)
-        self.assertEqual(stmt.parameters, [Parameter(name=Identifier("a"), type_name=Identifier("Int"))])
+        self.assertEqual(stmt.parameters, [Parameter(name=Identifier("a"), type_name=TypeAnnotation("Int", []))])
 
     def test_parse_call_expression(self):
         program = Parser(Lexer("let x = add(1, 2)")).parse_program()
@@ -696,9 +696,59 @@ class TestParser(unittest.TestCase):
         assert isinstance(assignment, BlockExpression)
         self.assertIsInstance(assignment.statements[0], IndexAssignmentStatement)
 
-    def test_parse_generic_type_annotation_rejected(self):
-        parser = Parser(Lexer("fn f(xs: List[Int]) -> Int { 0 }"))
-        with self.assertRaisesRegex(SyntaxError, "Generic type annotations are not supported yet"):
+    def test_parse_generic_type_annotation(self):
+        program = Parser(
+            Lexer("fn f(xs: List[Int], m: Map[String, List[Float]]) -> List[Map[String, Float]] { xs }")
+        ).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, FunctionDeclaration)
+        self.assertEqual(
+            stmt.parameters[0].type_name,
+            TypeAnnotation("List", [TypeAnnotation("Int", [])]),
+        )
+        self.assertEqual(
+            stmt.parameters[1].type_name,
+            TypeAnnotation(
+                "Map",
+                [
+                    TypeAnnotation("String", []),
+                    TypeAnnotation("List", [TypeAnnotation("Float", [])]),
+                ],
+            ),
+        )
+        self.assertEqual(
+            stmt.return_type,
+            TypeAnnotation(
+                "List",
+                [
+                    TypeAnnotation(
+                        "Map",
+                        [TypeAnnotation("String", []), TypeAnnotation("Float", [])],
+                    )
+                ],
+            ),
+        )
+
+    def test_parse_binding_type_annotation(self):
+        program = Parser(Lexer("let totals: Map[String, Float] = {}")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        self.assertEqual(
+            stmt.type_name,
+            TypeAnnotation(
+                "Map",
+                [TypeAnnotation("String", []), TypeAnnotation("Float", [])],
+            ),
+        )
+
+    def test_parse_empty_type_arguments_rejected(self):
+        parser = Parser(Lexer("fn f(xs: List[]) { xs }"))
+        with self.assertRaisesRegex(SyntaxError, "Type 'List' needs a type argument"):
+            parser.parse_program()
+
+    def test_parse_trailing_type_argument_comma_rejected(self):
+        parser = Parser(Lexer("fn f(xs: List[Int,]) { xs }"))
+        with self.assertRaisesRegex(SyntaxError, "Type argument list ends with a comma"):
             parser.parse_program()
 
     def test_parse_list_missing_comma_rejected(self):

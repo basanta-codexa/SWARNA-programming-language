@@ -12,6 +12,13 @@ class Identifier:
 
 
 @dataclass(frozen=True)
+class TypeAnnotation:
+    name: str
+    arguments: list["TypeAnnotation"]
+    span: SourceSpan | None = field(default=None, compare=False, repr=False)
+
+
+@dataclass(frozen=True)
 class IntegerLiteral:
     value: int
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
@@ -99,6 +106,7 @@ class LetStatement:
     name: Identifier
     value: Expression
     constant: bool = False
+    type_name: TypeAnnotation | None = None
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
 
 
@@ -154,14 +162,14 @@ class ForStatement:
 @dataclass(frozen=True)
 class Parameter:
     name: Identifier
-    type_name: Identifier | None = None
+    type_name: TypeAnnotation | None = None
 
 
 @dataclass(frozen=True)
 class FunctionDeclaration:
     name: Identifier
     parameters: list[Parameter]
-    return_type: Identifier | None
+    return_type: TypeAnnotation | None
     body: Expression
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
 

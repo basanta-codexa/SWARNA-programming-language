@@ -127,11 +127,11 @@ A list is written `[value, value, ...]`. `values[index]` reads an element, and n
 
 Element types are inferred. `[1, 2, 3]` is `List[Int]`, and `[]` is `List[Unknown]` until it meets a known element type. Lists are homogeneous: `[1, 2.5]` is rejected; write `[1.0, 2.5]` for a list of floats. This matches the rest of the type system, which does not silently widen `Int` to `Float`.
 
-Lists are immutable for now. Index assignment and append are not implemented. `for` loops iterate over lists; ranges, strings, and maps are not iterable yet. List type annotations such as `List[Int]` are also not supported yet; leave a list parameter unannotated and the checker infers what it can from the body and call sites.
+Lists are immutable for now. Index assignment and append are not implemented. `for` loops iterate over lists; ranges, strings, and maps are not iterable yet. List annotations such as `List[Int]` are supported on parameters, returns, and bindings; an unannotated list parameter still infers what it can from the body and call sites.
 
-Reason: lists are the first collection and the base for `for` loops, maps, and CSV rows. Homogeneous elements make inference and diagnostics useful without generics. Deferring mutation and annotations keeps the first collection increment small and honest.
+Reason: lists are the first collection and the base for `for` loops, maps, and CSV rows. Homogeneous elements make inference and diagnostics useful without user-defined generics. Deferring mutation kept the first collection increment small; annotations were added once the collection model was stable.
 
-Status: implemented in the interpreter, VM, REPL, and type checker. `for` loops over lists work. No list mutation, list annotations, or list methods yet. Maps have their own decision below.
+Status: implemented in the interpreter, VM, REPL, and type checker. `for` loops over lists work. No list mutation or list methods yet. Maps have their own decision below.
 
 ### 10. `for` loops iterate over lists
 
@@ -173,11 +173,11 @@ print(totals)
 
 Key and value types are inferred. `{ "Ada": 36 }` is `Map[String, Int]`, and `{}` is `Map[Unknown, Unknown]` until it meets a known type. Maps are homogeneous in both positions: all keys share one type and all values share one type. Keys must be `Int`, `Float`, `String`, or `Bool` so they stay hashable at runtime; a list key is rejected before the program runs. Values may be any supported type, including nested maps.
 
-A map binding must be declared with `let` to be assigned; a `const` map rejects index assignment. Lists stay immutable: `values[0] = x` is an error, and list elements are changed by building a new list with `+`. `get(map, key, default)` reads a key and returns `default` when the key is missing, which keeps accumulation from special-casing the first row. `for` loops iterate over lists, not maps. Map type annotations such as `Map[String, Int]` are not supported yet; leave a map parameter unannotated and the checker infers what it can.
+A map binding must be declared with `let` to be assigned; a `const` map rejects index assignment. Lists stay immutable: `values[0] = x` is an error, and list elements are changed by building a new list with `+`. `get(map, key, default)` reads a key and returns `default` when the key is missing, which keeps accumulation from special-casing the first row. `for` loops iterate over lists, not maps. Map annotations such as `Map[String, Int]` are supported on parameters, returns, and bindings; an unannotated map parameter still infers what it can.
 
 Reason: maps are the shape of a CSV row and the base for the switch test. Restricting keys to scalars keeps hashing and equality predictable without a custom protocol. Index assignment is the smallest mutation that makes grouping and aggregation possible; keeping lists immutable preserves the simpler list model until a real need appears.
 
-Status: implemented in the interpreter, VM, REPL, and type checker. No insert or delete helper, map annotations, or map iteration yet. The runnable aggregation example is `examples/team_averages.sw`.
+Status: implemented in the interpreter, VM, REPL, and type checker. No insert or delete helper or map iteration yet. The runnable aggregation example is `examples/team_averages.sw`.
 
 ## Rules for changes
 
@@ -227,7 +227,7 @@ Status: implemented for lexer, parser, semantic, and the current runtime errors 
 
 ## Type checking
 
-The current language is statically checked but does not require annotations. A separate semantic pass infers `Int`, `Float`, `String`, `Bool`, `List[T]`, and `Map[K, V]`; an internal `Unknown` type suppresses cascading errors.
+The current language is statically checked but does not require annotations. A separate semantic pass infers `Int`, `Float`, `String`, `Bool`, `List[T]`, and `Map[K, V]`; an internal `Unknown` type suppresses cascading errors. Annotations are optional but checked when present, and a binding annotation sets the binding's type, so `let totals: Map[String, Float] = {}` starts with a precise map type.
 
 The rules for the current subset:
 
@@ -242,7 +242,8 @@ The rules for the current subset:
 - `read_csv` requires a `String` path and a schema literal such as `{ name: String, score: Float }`. It returns `List[Map[String, Unknown]]`. The schema is checked against the file header and every cell at runtime; a bad cell points at its file, row, column, and value.
 - `+` accepts two numbers, two strings, or two lists with the same element type. Mixed `Int`/`Float` arithmetic produces `Float`, but list element types must match exactly.
 - `print` accepts any type, including lists and maps.
-- List and map type annotations such as `List[Int]` and `Map[String, Int]` are not supported yet.
+- List and map annotations use `List[T]` and `Map[K, V]`, including nested types such as `Map[String, List[Float]]`. A scalar type rejects type arguments; `List` needs one argument; `Map` needs two and its key must be a scalar type.
+- A `let`/`const` annotation sets the binding's type and must accept the value. A function parameter or return annotation is checked against arguments and the body.
 - `-`, `*`, and `/` accept numbers. `/` always produces `Float`.
 - `//` requires two `Int` operands and produces `Int`.
 - Equality accepts values of the same type, two numbers, or two lists or maps with compatible types. Ordered comparisons accept two numbers or two strings.
@@ -256,18 +257,18 @@ The rules for the current subset:
 - Reassigning a `const` is a semantic error.
 - Undefined names are semantic errors.
 - `fn` declarations are hoisted, so a call can appear before the declaration. Duplicate function names and duplicate parameter names are errors.
-- Parameter annotations are optional; an unannotated parameter is `Unknown`. Annotated parameter types must be one of `Int`, `Float`, `String`, or `Bool`.
+- Parameter annotations are optional; an unannotated parameter is `Unknown`. Annotated parameter types may be scalar, `List[T]`, or `Map[K, V]`, including nested types.
 - An annotated return type is checked against the body. An unannotated return type is inferred from the body after top-level statements are checked; a top-level call to that function is `Unknown`.
 - Calls check the argument count and each annotated parameter type. A type error points at the argument that does not match.
 - A function body runs in a local scope copied from the top-level bindings. Local bindings do not leak, and assignment to a top-level name changes the local copy, not the global.
-- Function names and variable names must not conflict. `print` and `len` are reserved names: they cannot be used for functions, variables, or parameters.
+- Function names and variable names must not conflict. Built-in names such as `print`, `len`, `get`, `read_file`, and `read_csv` are reserved: they cannot be used for functions, variables, or parameters.
 - `print` accepts any type, including lists and maps.
 
 The checker runs before execution in `--run` and before code generation in `--emit-bytecode`. `--parse` and `--lex` do not run it. In the executing REPL, the checker is seeded from the interpreter's current bindings and function signatures, so types and inferred function returns persist between lines without a second symbol table.
 
 Division by zero remains a runtime error; the checker does not evaluate expressions.
 
-Known gaps: no generics, no list or map type annotations, no list mutation, no iteration over ranges, strings, or maps, no `break` or `continue`, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. Function bodies must end with a value; procedures are unsupported. The interpreter and VM keep their runtime checks so they can still be tested independently.
+Known gaps: no user-defined generics or type aliases, no list mutation, no iteration over ranges, strings, or maps, no `break` or `continue`, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. Function bodies must end with a value; procedures are unsupported. The interpreter and VM keep their runtime checks so they can still be tested independently.
 
 Status: implemented as a separate pass for the current subset.
 
@@ -311,3 +312,4 @@ Status: implemented as a separate pass for the current subset.
 | 11 | Maps are built in, homogeneous, and statically inferred | Implemented (minimal) |
 | 12 | `read_file` returns UTF-8 text with file-level diagnostics | Implemented (minimal) |
 | 13 | `read_csv` validates a schema at the boundary | Implemented (minimal) |
+| 14 | Explicit `List[T]` and `Map[K, V]` annotations are optional | Implemented |

@@ -27,6 +27,7 @@ from compiler.ast.nodes import (
     Program,
     Statement,
     StringLiteral,
+    TypeAnnotation,
     UnaryExpression,
     WhileStatement,
 )
@@ -131,6 +132,28 @@ def is_scalar_type(type: Type) -> bool:
     """
 
     return type is Type.INT or type is Type.FLOAT or type is Type.STRING or type is Type.BOOL
+
+
+def type_from_annotation(annotation: TypeAnnotation) -> Type:
+    """Convert a validated annotation to a type, without raising diagnostics."""
+
+    scalars = {
+        "Int": Type.INT,
+        "Float": Type.FLOAT,
+        "String": Type.STRING,
+        "Bool": Type.BOOL,
+    }
+    scalar = scalars.get(annotation.name)
+    if scalar is not None:
+        return scalar
+    if annotation.name == "List" and len(annotation.arguments) == 1:
+        return Type.list_of(type_from_annotation(annotation.arguments[0]))
+    if annotation.name == "Map" and len(annotation.arguments) == 2:
+        return Type.map_of(
+            type_from_annotation(annotation.arguments[0]),
+            type_from_annotation(annotation.arguments[1]),
+        )
+    return Type.UNKNOWN
 
 
 def type_of_value(value: object) -> Type:
@@ -285,29 +308,53 @@ class TypeChecker:
         finally:
             self.env = saved_env
 
-    def _resolve_type(self, type_name: Identifier | None, default: Type | None) -> Type | None:
+    def _resolve_type(self, type_name: TypeAnnotation | None, default: Type | None) -> Type | None:
         if type_name is None:
             return default
-        types = {
+        scalars = {
             "Int": Type.INT,
             "Float": Type.FLOAT,
             "String": Type.STRING,
             "Bool": Type.BOOL,
         }
-        resolved = types.get(type_name.name)
-        if resolved is None:
-            if type_name.name in ("List", "Map"):
+        scalar = scalars.get(type_name.name)
+        if scalar is not None:
+            if type_name.arguments:
                 self._error(
-                    f"{type_name.name} type annotations are not supported yet",
+                    f"Type '{type_name.name}' does not take type arguments",
                     type_name.span,
-                    "Leave the annotation off; the checker infers collection element types.",
+                    "Use a scalar type such as `Int`.",
                 )
-            self._error(
-                f"Unknown type '{type_name.name}'",
-                type_name.span,
-                "Use `Int`, `Float`, `String`, or `Bool`.",
-            )
-        return resolved
+            return scalar
+        if type_name.name == "List":
+            if len(type_name.arguments) != 1:
+                self._error(
+                    "List needs exactly one type argument",
+                    type_name.span,
+                    "Write `List[Int]`.",
+                )
+            return Type.list_of(self._resolve_type(type_name.arguments[0], None))
+        if type_name.name == "Map":
+            if len(type_name.arguments) != 2:
+                self._error(
+                    "Map needs exactly two type arguments",
+                    type_name.span,
+                    "Write `Map[String, Float]`.",
+                )
+            key_type = self._resolve_type(type_name.arguments[0], None)
+            value_type = self._resolve_type(type_name.arguments[1], None)
+            if not is_scalar_type(key_type):
+                self._error(
+                    f"Map keys must be Int, Float, String, or Bool, got {key_type.label}",
+                    type_name.arguments[0].span,
+                    "Use a scalar key type.",
+                )
+            return Type.map_of(key_type, value_type)
+        self._error(
+            f"Unknown type '{type_name.name}'",
+            type_name.span,
+            "Use `Int`, `Float`, `String`, `Bool`, `List[T]`, or `Map[K, V]`.",
+        )
 
     def check_statement(self, stmt: Statement) -> None:
         if isinstance(stmt, FunctionDeclaration):
@@ -330,8 +377,20 @@ class TypeChecker:
                     "Use a different name for the binding.",
                 )
             value_type = self.check_expression(stmt.value)
+            binding_type = value_type
+            if stmt.type_name is not None:
+                declared_type = self._resolve_type(stmt.type_name, None)
+                if not self._is_assignable(declared_type, value_type):
+                    self._error(
+                        f"Cannot assign {value_type.label} to {declared_type.label} "
+                        f"binding '{stmt.name.name}'",
+                        stmt.value.span,
+                        "Make the value match the annotation.",
+                        category="type-mismatch",
+                    )
+                binding_type = declared_type
             self.env[stmt.name.name] = Binding(
-                value_type,
+                binding_type,
                 constant=stmt.constant,
                 span=stmt.name.span,
             )

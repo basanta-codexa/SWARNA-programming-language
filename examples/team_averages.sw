@@ -1,8 +1,8 @@
 let rows = read_csv("examples/scores.csv", { name: String, team: String, score: Float })
 
-let totals = {}
-let counts = {}
-let averages = {}
+let totals: Map[String, Float] = {}
+let counts: Map[String, Int] = {}
+let averages: Map[String, Float] = {}
 
 for row in rows {
     let team = row["team"]

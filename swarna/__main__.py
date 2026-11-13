@@ -5,7 +5,7 @@ from compiler.codegen.compiler import Compiler
 from compiler.diagnostics import DiagnosticError, render_diagnostic
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
-from compiler.semantic.checker import Binding, FunctionSignature, Type, TypeChecker, type_of_value
+from compiler.semantic.checker import Binding, FunctionSignature, Type, TypeChecker, type_from_annotation, type_of_value
 from runtime.interpreter import Interpreter
 from runtime.values import format_value
 
@@ -42,23 +42,17 @@ def _bindings_from_interpreter(interpreter: Interpreter) -> dict[str, Binding]:
 
 
 def _functions_from_interpreter(interpreter: Interpreter) -> dict[str, FunctionSignature]:
-    known_types = {
-        "Int": Type.INT,
-        "Float": Type.FLOAT,
-        "String": Type.STRING,
-        "Bool": Type.BOOL,
-    }
     signatures: dict[str, FunctionSignature] = {}
     for name, function in interpreter.functions.items():
         annotations = function.parameter_annotations
         if len(annotations) != len(function.parameters):
             annotations = tuple(None for _ in function.parameters)
         parameters = tuple(
-            known_types.get(annotation, Type.UNKNOWN) if annotation is not None else Type.UNKNOWN
+            type_from_annotation(annotation) if annotation is not None else Type.UNKNOWN
             for annotation in annotations
         )
         return_type = (
-            known_types.get(function.return_annotation)
+            type_from_annotation(function.return_annotation)
             if function.return_annotation is not None
             else None
         )
