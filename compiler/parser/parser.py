@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
@@ -51,7 +51,7 @@ class Parser:
             hint="Expected `let`, `const`, `fn`, `if`, `while`, `for`, `print`, or an assignment.",
         )
 
-    def parse_assignment_statement(self) -> AssignmentStatement:
+    def parse_assignment_statement(self) -> AssignmentStatement | IndexAssignmentStatement:
         name_token = self.current
         name = Identifier(name_token.value, span=name_token.span)
         self._advance()
@@ -62,11 +62,16 @@ class Parser:
                 hint="Use the call in a `let` binding or inside `print(...)`.",
             )
         if self.current.type == TokenType.LBRACKET:
-            raise SwarnaSyntaxError(
-                "Index assignment is not supported yet",
-                self.current.span,
-                hint="Lists are immutable for now; create a new list with `+`.",
+            target = self.parse_index(name)
+            while self.current.type == TokenType.LBRACKET:
+                target = self.parse_index(target)
+            self._expect(
+                TokenType.EQUAL,
+                "Expected '=' in index assignment",
+                hint="Assign an element as `values[index] = value`.",
             )
+            value = self.parse_expression()
+            return IndexAssignmentStatement(target=target, value=value, span=name_token.span)
         self._expect(
             TokenType.EQUAL,
             "Expected '=' in assignment",
@@ -247,11 +252,16 @@ class Parser:
                 expr = self.parse_expression()
                 if self.current.type == TokenType.EQUAL:
                     if isinstance(expr, IndexExpression):
-                        raise SwarnaSyntaxError(
-                            "Index assignment is not supported yet",
-                            expr.span,
-                            hint="Lists are immutable for now; create a new list with `+`.",
+                        self._advance()
+                        value = self.parse_expression()
+                        statements.append(
+                            IndexAssignmentStatement(
+                                target=expr, value=value, span=expr.span
+                            )
                         )
+                        while self.current.type == TokenType.SEMICOLON:
+                            self._advance()
+                        continue
                     if not isinstance(expr, Identifier):
                         raise SwarnaSyntaxError(
                             "Invalid assignment target",

@@ -135,14 +135,14 @@ The comparison is not "SWARNA vs. Python with a carefully written validation lay
 |---|---|
 | Errors that explain | Implemented for lexer, parser, semantic, and current runtime errors, including function calls, lists, and maps. A minimal `--explain` mode adds a plain-language explanation for undefined-name and type-mismatch errors; coverage will grow. |
 | Types without ceremony | Inferred `Int`, `Float`, `String`, `Bool`, `List[T]`, and `Map[K, V]` for the current subset. Named functions with optional parameter and return annotations; unannotated returns are inferred. `for` loops over lists are checked and scoped. No list or map annotations, or generics yet. |
-| Task-first standard library | Started. `read_file` reads UTF-8 text and `read_csv` validates a schema with file/row/column diagnostics; `print`, `len`, and built-in operators exist. Grouping, aggregation, and the rest of the standard library are next. |
+| Task-first standard library | Started. `read_file` reads UTF-8 text and `read_csv` validates a schema with file/row/column diagnostics; `print`, `len`, map index assignment, and built-in operators exist. Grouping, aggregation, and the rest of the standard library are next. |
 | One workflow | REPL and `--run` exist; bindings, functions, and collection types persist in the REPL. No formatter or file runner beyond `--run` yet. |
 
 The switch test is the next concrete milestone. Until it runs and produces the diagnostic above, SWARNA is not ready for its target user.
 
 ## How this changes the roadmap
 
-- Lists and maps come before broad syntax work; the switch test needs them. Lists, maps, functions, and `for` loops are in place; file I/O and CSV are next.
-- CSV and the remaining file I/O are not "later"; they are part of the first usable release. `read_file` and `read_csv` are in place; grouping and the runnable end-to-end example are next.
+- Lists and maps come before broad syntax work; the switch test needs them. Lists, maps, functions, `for` loops, file I/O, and CSV are in place.
+- CSV and the remaining file I/O are not "later"; they are part of the first usable release. `read_file`, `read_csv`, and map index assignment are in place; grouping and the runnable end-to-end example are next.
 - A feature that does not improve the switch test or the four pillars waits.
 - The `--explain`/`why` diagnostic mode is a natural extension of pillar 1, not a separate product.

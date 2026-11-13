@@ -477,6 +477,64 @@ class TestInterpreterMaps(unittest.TestCase):
         env = run('let m = { "a": { "b": 2 } } let x = m["a"]["b"]')
         self.assertEqual(env["x"], 2)
 
+    def test_map_index_assignment_updates_existing_key(self):
+        env = run('let m = { "a": 1 } m["a"] = 2')
+        self.assertEqual(env["m"], {"a": 2})
+
+    def test_map_index_assignment_adds_new_key(self):
+        env = run('let m = { "a": 1 } m["b"] = 2')
+        self.assertEqual(env["m"], {"a": 1, "b": 2})
+
+    def test_map_index_assignment_accumulates(self):
+        env = run(
+            'let totals = { "red": 0 } '
+            'totals["red"] = totals["red"] + 5 '
+            'totals["red"] = totals["red"] + 3'
+        )
+        self.assertEqual(env["totals"], {"red": 8})
+
+    def test_nested_map_index_assignment(self):
+        env = run('let m = { "a": { "b": 1 } } m["a"]["b"] = 2')
+        self.assertEqual(env["m"], {"a": {"b": 2}})
+
+    def test_list_index_assignment_rejected(self):
+        with self.assertRaisesRegex(
+            SwarnaTypeError, "Lists are immutable; cannot assign to an index"
+        ):
+            run("let xs = [1, 2] xs[0] = 3")
+
+    def test_const_map_index_assignment_rejected(self):
+        with self.assertRaisesRegex(
+            SwarnaRuntimeError, "Cannot assign to const binding 'm'"
+        ):
+            run('const m = { "a": 1 } m["a"] = 2')
+
+    def test_index_assignment_to_undefined_name(self):
+        with self.assertRaisesRegex(SwarnaNameError, "Undefined name 'm'"):
+            run('m["a"] = 1')
+
+    def test_index_assignment_requires_map(self):
+        with self.assertRaisesRegex(
+            SwarnaTypeError, "Cannot assign to Int"
+        ):
+            run("let x = 1 x[0] = 2")
+
+    def test_index_assignment_key_must_be_hashable(self):
+        with self.assertRaisesRegex(
+            SwarnaTypeError,
+            "Map keys must be Int, Float, String, or Bool, got List",
+        ):
+            run('let m = { "a": 1 } m[[1]] = 2')
+
+    def test_index_assignment_requires_name_target(self):
+        with self.assertRaisesRegex(
+            SwarnaTypeError, "Index assignment must target a name"
+        ):
+            run(
+                "fn values() { [1] } "
+                "let x = if true { values()[0] = 2 0 } else { 0 }"
+            )
+
     def test_map_equality(self):
         env = run('let x = { "a": 1 } == { "a": 1 }')
         self.assertIs(env["x"], True)

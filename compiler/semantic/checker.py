@@ -17,6 +17,7 @@ from compiler.ast.nodes import (
     Identifier,
     IfExpression,
     IfStatement,
+    IndexAssignmentStatement,
     IndexExpression,
     IntegerLiteral,
     LetStatement,
@@ -374,6 +375,61 @@ class TypeChecker:
                 )
             return
 
+        if isinstance(stmt, IndexAssignmentStatement):
+            value_type = self.check_expression(stmt.value)
+            root = self._index_root(stmt.target)
+            if root is None:
+                self._error(
+                    "Index assignment must target a name",
+                    stmt.target.span,
+                    "Assign through a variable, as in `m[key] = value`.",
+                )
+                return
+            name = root.name
+            if name in BUILTIN_NAMES:
+                self._error(
+                    f"Cannot assign to reserved name '{name}'",
+                    root.span,
+                    "Use a different name for the binding.",
+                )
+            binding = self.env.get(name)
+            if binding is None:
+                if name in self.functions:
+                    self._error(
+                        f"Cannot assign to function '{name}'",
+                        root.span,
+                        "Call the function and assign its result to a variable.",
+                    )
+                self._error(
+                    f"Undefined name '{name}'",
+                    root.span,
+                    "Declare it first with `let name = value` or `const name = value`.",
+                    category="undefined-name",
+                )
+            if binding.constant:
+                self._error(
+                    f"Cannot assign to const binding '{name}'",
+                    root.span,
+                    "Change the binding to `let` if it needs to be reassigned.",
+                )
+            collection_type, _ = self._check_index_types(stmt.target)
+            if collection_type is Type.UNKNOWN:
+                return
+            if collection_type.is_list:
+                self._error(
+                    "Lists are immutable; cannot assign to an index",
+                    stmt.target.span,
+                    "Build a new list with `+` instead.",
+                )
+            if not self._is_assignable(collection_type.value_type, value_type):
+                self._error(
+                    f"Cannot assign {value_type.label} to {collection_type.label}",
+                    stmt.value.span,
+                    f"Use a {collection_type.value_type.label} value.",
+                    category="type-mismatch",
+                )
+            return
+
         if isinstance(stmt, PrintStatement):
             self.check_expression(stmt.value)
             return
@@ -501,37 +557,7 @@ class TypeChecker:
             return Type.map_of(key_type, value_type)
 
         if isinstance(expr, IndexExpression):
-            collection_type = self.check_expression(expr.collection)
-            index_type = self.check_expression(expr.index)
-            if collection_type is not Type.UNKNOWN and not (
-                collection_type.is_list or collection_type.is_map
-            ):
-                self._error(
-                    f"Cannot index {collection_type.label}; only lists and maps can be indexed",
-                    expr.collection.span if expr.collection.span is not None else expr.span,
-                    "Use a list or map value before the brackets.",
-                )
-            if collection_type.is_map:
-                if index_type is not Type.UNKNOWN and not self._is_assignable(
-                    collection_type.key_type, index_type
-                ):
-                    self._error(
-                        f"Map index must be {collection_type.key_type.label}, "
-                        f"got {index_type.label}",
-                        expr.index.span,
-                        "Use a key of the map's key type.",
-                        category="type-mismatch",
-                    )
-                return collection_type.value_type
-            if index_type is not Type.UNKNOWN and index_type is not Type.INT:
-                self._error(
-                    f"List index must be Int, got {index_type.label}",
-                    expr.index.span,
-                    "Use an Int index, such as `values[0]`.",
-                )
-            if collection_type is Type.UNKNOWN:
-                return Type.UNKNOWN
-            return collection_type.element_type
+            return self._check_index(expr)
 
         if isinstance(expr, CallExpression):
             if expr.callee.name == "print":
@@ -694,6 +720,60 @@ class TypeChecker:
             expr.span,
             "This expression is not supported by the type checker yet.",
         )
+
+    def _check_index(self, expr: IndexExpression) -> Type:
+        _, result_type = self._check_index_types(expr)
+        return result_type
+
+    def _check_index_types(self, expr: IndexExpression) -> tuple[Type, Type]:
+        """Validate an index expression and return its collection and result types."""
+
+        collection_type = self.check_expression(expr.collection)
+        index_type = self.check_expression(expr.index)
+        if collection_type is not Type.UNKNOWN and not (
+            collection_type.is_list or collection_type.is_map
+        ):
+            self._error(
+                f"Cannot index {collection_type.label}; only lists and maps can be indexed",
+                expr.collection.span if expr.collection.span is not None else expr.span,
+                "Use a list or map value before the brackets.",
+            )
+        if collection_type.is_map:
+            if index_type is not Type.UNKNOWN and not self._is_assignable(
+                collection_type.key_type, index_type
+            ):
+                self._error(
+                    f"Map index must be {collection_type.key_type.label}, "
+                    f"got {index_type.label}",
+                    expr.index.span,
+                    "Use a key of the map's key type.",
+                    category="type-mismatch",
+                )
+            return collection_type, collection_type.value_type
+        if collection_type is Type.UNKNOWN:
+            if index_type is not Type.UNKNOWN and index_type is not Type.INT:
+                self._error(
+                    f"List index must be Int, got {index_type.label}",
+                    expr.index.span,
+                    "Use an Int index, such as `values[0]`.",
+                )
+            return collection_type, Type.UNKNOWN
+        if index_type is not Type.UNKNOWN and index_type is not Type.INT:
+            self._error(
+                f"List index must be Int, got {index_type.label}",
+                expr.index.span,
+                "Use an Int index, such as `values[0]`.",
+            )
+        return collection_type, collection_type.element_type
+
+    @staticmethod
+    def _index_root(target: IndexExpression) -> Identifier | None:
+        node: Expression = target.collection
+        while isinstance(node, IndexExpression):
+            node = node.collection
+        if isinstance(node, Identifier):
+            return node
+        return None
 
     def _check_binary(self, expr: BinaryExpression) -> Type:
         if expr.operator in ("&&", "||"):

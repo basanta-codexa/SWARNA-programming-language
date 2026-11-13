@@ -68,6 +68,19 @@ print(len(ages))
 
 Prints `36`, then `2`.
 
+A map entry can be assigned. Assigning a missing key adds it:
+
+```
+@'
+let totals = { "red": 0 }
+totals["red"] = totals["red"] + 5
+totals["blue"] = 3
+print(totals)
+'@ | python -m swarna --run
+```
+
+Prints `{"red": 5, "blue": 3}`.
+
 For multi-line programs, pipe the source through stdin. On PowerShell:
 
 ```
@@ -103,7 +116,7 @@ python -m swarna --run
 - functions in the interpreter, the VM, and the REPL
 - list literals such as `[1, 2, 3]`, indexing with `values[i]`, negative indexing, `len(...)`, list equality, and `+` concatenation
 - inferred element types for lists, including nested lists
-- map literals such as `{ "Ada": 36 }`, indexing with `map[key]`, `len(...)`, map equality, and inferred key and value types
+- map literals such as `{ "Ada": 36 }`, indexing with `map[key]`, `map[key] = value`, `len(...)`, map equality, and inferred key and value types
 - `read_file(path)`, which returns a UTF-8 text file's contents with diagnostics for missing files, directories, and invalid text
 - `read_csv(path, { name: String, score: Float })`, which validates the header and each cell against the schema and returns rows as maps; a bad cell names the file, row, column, and value
 - `print`, with readable list and map output such as `["Ada", "Grace"]` and `{"Ada": 36}`
@@ -115,7 +128,7 @@ python -m swarna --run
 
 ## What does not work yet
 
-Records, modules, file writing, and the standard library are still missing. `read_file` and `read_csv` are the file operations; there is no CSV writing. CSV rows are read-only maps, and their column values are statically `Unknown` until schema-aware row types land. There are no grouping or aggregation helpers yet; use `for` loops and variables. `for` loops iterate over lists only; there are no ranges or string iteration yet, and there is no `break` or `continue`. Lists and maps cannot be mutated; build a new list with `+`, and there is no map index assignment, insert, or delete. Lists are homogeneous: `[1, 2.5]` is rejected, so write `[1.0, 2.5]` when you want a list of floats. Maps are homogeneous in both positions, and keys must be `Int`, `Float`, `String`, or `Bool`; a list key is rejected. List and map type annotations such as `List[Int]` and `Map[String, Int]` are not supported yet, so an unannotated collection parameter is `Unknown`. Function limitations: no first-class functions, no `return` keyword, no nested declarations, no expression statements, and no global mutation. A function body must end with a value, so procedures are not supported. Generics, type aliases, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
+Records, modules, file writing, and the standard library are still missing. `read_file` and `read_csv` are the file operations; there is no CSV writing. CSV rows are maps, and their column values are statically `Unknown` until schema-aware row types land. There are no grouping or aggregation helpers yet; use `for` loops, map assignment, and variables. `for` loops iterate over lists only; there are no ranges or string iteration yet, and there is no `break` or `continue`. Lists cannot be mutated; build a new list with `+`. Maps support `map[key] = value` for existing and new keys, but there is no insert or delete helper. Lists are homogeneous: `[1, 2.5]` is rejected, so write `[1.0, 2.5]` when you want a list of floats. Maps are homogeneous in both positions, and keys must be `Int`, `Float`, `String`, or `Bool`; a list key is rejected. List and map type annotations such as `List[Int]` and `Map[String, Int]` are not supported yet, so an unannotated collection parameter is `Unknown`. Function limitations: no first-class functions, no `return` keyword, no nested declarations, no expression statements, and no global mutation. A function body must end with a value, so procedures are not supported. Generics, type aliases, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
 
 Unannotated parameter types are `Unknown`. An unannotated return type is inferred from the body after top-level statements are checked, so a top-level call to that function is checked as `Unknown`; annotate the return type when the call site needs precision. The REPL reuses the inferred signature on later lines.
 

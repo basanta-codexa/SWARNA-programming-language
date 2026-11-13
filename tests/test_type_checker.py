@@ -750,6 +750,58 @@ class TestMaps(unittest.TestCase):
         ):
             check('let m = { "a": 1 } m = { "a": 1.0 }')
 
+    def test_map_index_assignment_accepts_value_type(self):
+        checker = check('let m = { "a": 1 } m["a"] = 2')
+        self.assertEqual(checker.env["m"].type, Type.map_of(Type.STRING, Type.INT))
+
+    def test_map_index_assignment_allows_new_key(self):
+        checker = check('let m = { "a": 1 } m["b"] = 2')
+        self.assertEqual(checker.env["m"].type, Type.map_of(Type.STRING, Type.INT))
+
+    def test_map_index_assignment_rejects_wrong_value_type(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError,
+            "Cannot assign String to Map\\[String, Int\\]",
+        ):
+            check('let m = { "a": 1 } m["a"] = "x"')
+
+    def test_map_index_assignment_rejects_wrong_key_type(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError, "Map index must be String, got Int"
+        ):
+            check('let m = { "a": 1 } m[0] = 2')
+
+    def test_list_index_assignment_rejected(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError, "Lists are immutable; cannot assign to an index"
+        ):
+            check("let xs = [1, 2] xs[0] = 3")
+
+    def test_const_map_index_assignment_rejected(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError, "Cannot assign to const binding 'm'"
+        ):
+            check('const m = { "a": 1 } m["a"] = 2')
+
+    def test_index_assignment_to_undefined_name(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Undefined name 'm'"):
+            check('m["a"] = 1')
+
+    def test_index_assignment_to_function_rejected(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError, "Cannot assign to function 'f'"
+        ):
+            check('fn f(x: Int) -> Int { x } f["a"] = 1')
+
+    def test_index_assignment_requires_name_target(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError, "Index assignment must target a name"
+        ):
+            check(
+                "fn values() { [1] } "
+                "let x = if true { values()[0] = 2 0 } else { 0 }"
+            )
+
     def test_map_if_branches_unify(self):
         checker = check('let m = if true { { "a": 1 } } else { {} }')
         self.assertEqual(

@@ -319,6 +319,51 @@ class VM:
                         ins.span,
                         hint="Only lists and maps can be indexed.",
                     )
+            elif ins.op == Op.STORE_INDEX:
+                value = self._pop(ins)
+                index = self._pop(ins)
+                collection = self._pop(ins)
+                name = ins.arg
+                if name in self.functions:
+                    raise SwarnaNameError(
+                        f"Cannot assign to function '{name}'",
+                        ins.span,
+                        hint="Call the function and assign its result to a variable.",
+                    )
+                if name not in self.env:
+                    raise SwarnaNameError(
+                        f"Undefined name '{name}'",
+                        ins.span,
+                        hint="Declare it first with `let name = value` or `const name = value`.",
+                        category="undefined-name",
+                    )
+                if name in self.constant:
+                    raise SwarnaRuntimeError(
+                        f"Cannot assign to const binding '{name}'",
+                        ins.span,
+                        hint="Change the binding to `let` if it needs to be reassigned.",
+                    )
+                if isinstance(collection, list):
+                    raise SwarnaTypeError(
+                        "Lists are immutable; cannot assign to an index",
+                        ins.span,
+                        hint="Build a new list with `+` instead.",
+                    )
+                if not isinstance(collection, dict):
+                    raise SwarnaTypeError(
+                        f"Cannot assign to {value_type_name(collection)}",
+                        ins.span,
+                        hint="Only maps support index assignment.",
+                    )
+                try:
+                    collection[index] = value
+                except TypeError:
+                    raise SwarnaTypeError(
+                        f"Map keys must be Int, Float, String, or Bool, "
+                        f"got {value_type_name(index)}",
+                        ins.span,
+                        hint="Use a scalar key.",
+                    ) from None
             elif ins.op == Op.LEN:
                 value = self._pop(ins)
                 if isinstance(value, (list, dict, str)):

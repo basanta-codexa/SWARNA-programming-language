@@ -14,6 +14,7 @@ from compiler.ast.nodes import (
     Identifier,
     IfExpression,
     IfStatement,
+    IndexAssignmentStatement,
     IndexExpression,
     IntegerLiteral,
     LetStatement,
@@ -92,6 +93,12 @@ class Compiler:
             self.compile_expression(stmt.value)
             self.emit(Op.STORE_NAME, stmt.name.name, stmt.name.span)
             return
+        if isinstance(stmt, IndexAssignmentStatement):
+            self.compile_expression(stmt.target.collection)
+            self.compile_expression(stmt.target.index)
+            self.compile_expression(stmt.value)
+            self.emit(Op.STORE_INDEX, self._index_root(stmt.target).name, stmt.span)
+            return
         if isinstance(stmt, PrintStatement):
             self.compile_expression(stmt.value)
             self.emit(Op.PRINT, span=stmt.span)
@@ -131,6 +138,15 @@ class Compiler:
         if isinstance(stmt, FunctionDeclaration):
             raise NotImplementedError("Function declarations are only allowed at the top level")
         raise NotImplementedError(f"Codegen not implemented for: {type(stmt).__name__}")
+
+    @staticmethod
+    def _index_root(target: IndexExpression) -> Identifier:
+        node: Expression = target.collection
+        while isinstance(node, IndexExpression):
+            node = node.collection
+        if isinstance(node, Identifier):
+            return node
+        return Identifier("<expression>", span=target.span)
 
     def compile_block(self, block: BlockStatement) -> None:
         for stmt in block.statements:

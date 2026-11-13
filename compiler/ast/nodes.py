@@ -110,6 +110,13 @@ class AssignmentStatement:
 
 
 @dataclass(frozen=True)
+class IndexAssignmentStatement:
+    target: IndexExpression
+    value: Expression
+    span: SourceSpan | None = field(default=None, compare=False, repr=False)
+
+
+@dataclass(frozen=True)
 class PrintStatement:
     value: Expression
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
@@ -159,7 +166,7 @@ class FunctionDeclaration:
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
 
 
-Statement = LetStatement | AssignmentStatement | PrintStatement | IfStatement | WhileStatement | ForStatement | BlockStatement | FunctionDeclaration
+Statement = LetStatement | AssignmentStatement | IndexAssignmentStatement | PrintStatement | IfStatement | WhileStatement | ForStatement | BlockStatement | FunctionDeclaration
 
 
 @dataclass(frozen=True)

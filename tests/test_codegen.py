@@ -379,6 +379,31 @@ class TestCodegen(unittest.TestCase):
             "HALT",
         ])
 
+    def test_compile_map_index_assignment(self):
+        compiled = compile_source('let m = { "a": 1 } m["a"] = 2')
+        self.assertEqual([repr(i) for i in compiled], [
+            "CONST 'a'",
+            "CONST 1",
+            "BUILD_MAP 1",
+            "DECLARE_NAME 'm'",
+            "LOAD_NAME 'm'",
+            "CONST 'a'",
+            "CONST 2",
+            "STORE_INDEX 'm'",
+            "HALT",
+        ])
+
+    def test_compile_nested_map_index_assignment(self):
+        compiled = compile_source('let m = { "a": { "b": 1 } } m["a"]["b"] = 2')
+        self.assertEqual(
+            [repr(i) for i in compiled[-3:]],
+            ["CONST 2", "STORE_INDEX 'm'", "HALT"],
+        )
+        self.assertEqual(
+            [repr(i) for i in compiled[-6:-3]],
+            ["CONST 'a'", "INDEX", "CONST 'b'"],
+        )
+
     def test_compile_index_expression(self):
         compiled = compile_source("let xs = [1, 2] let x = xs[0]")
         self.assertEqual([repr(i) for i in compiled], [

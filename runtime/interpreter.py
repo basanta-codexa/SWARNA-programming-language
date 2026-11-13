@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, Statement, StringLiteral, UnaryExpression, WhileStatement
 from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.csv import read_csv_data
@@ -113,6 +113,60 @@ class Interpreter:
                 )
             self.env[name] = value
             return
+        if isinstance(stmt, IndexAssignmentStatement):
+            root = self._index_root(stmt.target)
+            if root is None:
+                raise SwarnaTypeError(
+                    "Index assignment must target a name",
+                    stmt.target.span,
+                    hint="Assign through a variable, as in `m[key] = value`.",
+                )
+            name = root.name
+            if name in self.functions:
+                raise SwarnaNameError(
+                    f"Cannot assign to function '{name}'",
+                    root.span,
+                    hint="Call the function and assign its result to a variable.",
+                )
+            if name not in self.env:
+                raise SwarnaNameError(
+                    f"Undefined name '{name}'",
+                    root.span,
+                    hint="Declare it first with `let name = value` or `const name = value`.",
+                    category="undefined-name",
+                )
+            if self.constant.get(name, False):
+                raise SwarnaRuntimeError(
+                    f"Cannot assign to const binding '{name}'",
+                    root.span,
+                    hint="Change the binding to `let` if it needs to be reassigned.",
+                )
+            collection = self.eval_expression(stmt.target.collection)
+            index = self.eval_expression(stmt.target.index)
+            value = self.eval_expression(stmt.value)
+            if isinstance(collection, list):
+                raise SwarnaTypeError(
+                    "Lists are immutable; cannot assign to an index",
+                    stmt.target.span,
+                    hint="Build a new list with `+` instead.",
+                )
+            if not isinstance(collection, dict):
+                raise SwarnaTypeError(
+                    f"Cannot assign to {value_type_name(collection)}",
+                    stmt.target.span,
+                    hint="Only maps support index assignment.",
+                )
+            try:
+                hash(index)
+            except TypeError:
+                raise SwarnaTypeError(
+                    f"Map keys must be Int, Float, String, or Bool, "
+                    f"got {value_type_name(index)}",
+                    stmt.target.index.span,
+                    hint="Use a scalar key.",
+                ) from None
+            collection[index] = value
+            return
         if isinstance(stmt, PrintStatement):
             self.output.append(self.eval_expression(stmt.value))
             return
@@ -159,6 +213,15 @@ class Interpreter:
             stmt.span,
             hint="This statement is not supported by the interpreter yet.",
         )
+
+    @staticmethod
+    def _index_root(target: IndexExpression) -> Identifier | None:
+        node: Expression = target.collection
+        while isinstance(node, IndexExpression):
+            node = node.collection
+        if isinstance(node, Identifier):
+            return node
+        return None
 
     def eval_block(self, block: BlockStatement) -> None:
         for stmt in block.statements:

@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, StringLiteral, UnaryExpression, WhileStatement
 from compiler.diagnostics import SourceSpan
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
@@ -661,15 +661,40 @@ class TestParser(unittest.TestCase):
         with self.assertRaisesRegex(SyntaxError, "List index is empty"):
             parser.parse_program()
 
-    def test_parse_index_assignment_rejected(self):
-        parser = Parser(Lexer("xs[0] = 1"))
-        with self.assertRaisesRegex(SyntaxError, "Index assignment is not supported yet"):
-            parser.parse_program()
+    def test_parse_index_assignment(self):
+        program = Parser(Lexer('xs[0] = 1')).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, IndexAssignmentStatement)
+        self.assertEqual(
+            stmt.target,
+            IndexExpression(collection=Identifier("xs"), index=IntegerLiteral(0)),
+        )
+        self.assertEqual(stmt.value, IntegerLiteral(1))
 
-    def test_parse_index_assignment_in_block_rejected(self):
-        parser = Parser(Lexer("let x = if true { xs[0] = 1 0 } else { 0 }"))
-        with self.assertRaisesRegex(SyntaxError, "Index assignment is not supported yet"):
-            parser.parse_program()
+    def test_parse_nested_index_assignment(self):
+        program = Parser(Lexer('m["a"]["b"] = 2')).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, IndexAssignmentStatement)
+        self.assertEqual(
+            stmt.target,
+            IndexExpression(
+                collection=IndexExpression(
+                    collection=Identifier("m"), index=StringLiteral("a")
+                ),
+                index=StringLiteral("b"),
+            ),
+        )
+        self.assertEqual(stmt.value, IntegerLiteral(2))
+
+    def test_parse_index_assignment_in_block(self):
+        program = Parser(Lexer("let x = if true { xs[0] = 1 0 } else { 0 }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        branch = stmt.value
+        assert isinstance(branch, IfExpression)
+        assignment = branch.then_value
+        assert isinstance(assignment, BlockExpression)
+        self.assertIsInstance(assignment.statements[0], IndexAssignmentStatement)
 
     def test_parse_generic_type_annotation_rejected(self):
         parser = Parser(Lexer("fn f(xs: List[Int]) -> Int { 0 }"))

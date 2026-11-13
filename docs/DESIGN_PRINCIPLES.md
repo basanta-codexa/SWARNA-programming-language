@@ -162,13 +162,22 @@ print(len(ages))
 
 A map is written `{ key: value, ... }`; `{}` is the empty map. `map[key]` reads a value and `len(map)` returns the number of entries. `==` and `!=` compare maps, and `print` shows a readable map such as `{"Ada": 36}`.
 
+`map[key] = value` assigns an entry. It updates an existing key or adds a missing one:
+
+```
+let totals = { "red": 0 }
+totals["red"] = totals["red"] + 5
+totals["blue"] = 3
+print(totals)
+```
+
 Key and value types are inferred. `{ "Ada": 36 }` is `Map[String, Int]`, and `{}` is `Map[Unknown, Unknown]` until it meets a known type. Maps are homogeneous in both positions: all keys share one type and all values share one type. Keys must be `Int`, `Float`, `String`, or `Bool` so they stay hashable at runtime; a list key is rejected before the program runs. Values may be any supported type, including nested maps.
 
-Maps are immutable for now: there is no index assignment, insert, or delete. `for` loops iterate over lists, not maps. Map type annotations such as `Map[String, Int]` are not supported yet; leave a map parameter unannotated and the checker infers what it can.
+A map binding must be declared with `let` to be assigned; a `const` map rejects index assignment. Lists stay immutable: `values[0] = x` is an error, and list elements are changed by building a new list with `+`. `for` loops iterate over lists, not maps. Map type annotations such as `Map[String, Int]` are not supported yet; leave a map parameter unannotated and the checker infers what it can.
 
-Reason: maps are the shape of a CSV row and the base for the switch test. Restricting keys to scalars keeps hashing and equality predictable without a custom protocol, and deferring mutation and annotations keeps the increment small and honest.
+Reason: maps are the shape of a CSV row and the base for the switch test. Restricting keys to scalars keeps hashing and equality predictable without a custom protocol. Index assignment is the smallest mutation that makes grouping and aggregation possible; keeping lists immutable preserves the simpler list model until a real need appears.
 
-Status: implemented in the interpreter, VM, REPL, and type checker. No map mutation, map annotations, or map iteration yet.
+Status: implemented in the interpreter, VM, REPL, and type checker. No insert or delete helper, map annotations, or map iteration yet.
 
 ## Rules for changes
 
@@ -226,6 +235,7 @@ The rules for the current subset:
 - A list literal infers a `List[T]` element type. All elements must have the same type, or be `Unknown`. An empty list is `List[Unknown]`. Nested lists infer nested element types.
 - A map literal infers a `Map[K, V]` type. All keys must have one scalar type and all values one type, or be `Unknown`. An empty map is `Map[Unknown, Unknown]`. Nested maps infer nested value types. Keys must be `Int`, `Float`, `String`, or `Bool`.
 - Indexing requires a list or a map. A list needs an `Int` index and produces the element type; a map needs a key assignable to `K` and produces `V`. Negative list indices are accepted at runtime and count from the end.
+- Index assignment `map[key] = value` requires a mutable `let` map binding. The key must be assignable to `K` and the value to `V`. Assigning through a `const` binding is rejected, and a list index assignment is rejected because lists are immutable.
 - `len` accepts a list, a map, or a string and produces `Int`.
 - `read_file` requires a `String` path and produces the file's text as `String`.
 - `read_csv` requires a `String` path and a schema literal such as `{ name: String, score: Float }`. It returns `List[Map[String, Unknown]]`. The schema is checked against the file header and every cell at runtime; a bad cell points at its file, row, column, and value.
@@ -256,7 +266,7 @@ The checker runs before execution in `--run` and before code generation in `--em
 
 Division by zero remains a runtime error; the checker does not evaluate expressions.
 
-Known gaps: no generics, no list or map type annotations, no list or map mutation, no iteration over ranges, strings, or maps, no `break` or `continue`, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. Function bodies must end with a value; procedures are unsupported. The interpreter and VM keep their runtime checks so they can still be tested independently.
+Known gaps: no generics, no list or map type annotations, no list mutation, no iteration over ranges, strings, or maps, no `break` or `continue`, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. Function bodies must end with a value; procedures are unsupported. The interpreter and VM keep their runtime checks so they can still be tested independently.
 
 Status: implemented as a separate pass for the current subset.
 
