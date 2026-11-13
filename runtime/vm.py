@@ -424,11 +424,11 @@ class VM:
                 self.stack.append(read_csv_data(text, path, schema))
             elif ins.op == Op.ITER_START:
                 iterable = self._pop(ins)
-                if not isinstance(iterable, list):
+                if not isinstance(iterable, (list, dict)):
                     raise SwarnaTypeError(
-                        f"`for` expects a List, got {value_type_name(iterable)}",
+                        f"`for` expects a List or Map, got {value_type_name(iterable)}",
                         ins.span,
-                        hint="Use a list after `in`.",
+                        hint="Use a list or map after `in`.",
                     )
                 name = ins.arg
                 if not isinstance(name, str):

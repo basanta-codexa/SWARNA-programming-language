@@ -127,13 +127,13 @@ A list is written `[value, value, ...]`. `values[index]` reads an element, and n
 
 Element types are inferred. `[1, 2, 3]` is `List[Int]`, and `[]` is `List[Unknown]` until it meets a known element type. Lists are homogeneous: `[1, 2.5]` is rejected; write `[1.0, 2.5]` for a list of floats. This matches the rest of the type system, which does not silently widen `Int` to `Float`.
 
-Lists are immutable for now. Index assignment and append are not implemented. `for` loops iterate over lists; ranges, strings, and maps are not iterable yet. List annotations such as `List[Int]` are supported on parameters, returns, and bindings; an unannotated list parameter still infers what it can from the body and call sites.
+Lists are immutable for now. Index assignment and append are not implemented. `for` loops iterate over lists and map keys; ranges and strings are not iterable yet. List annotations such as `List[Int]` are supported on parameters, returns, and bindings; an unannotated list parameter still infers what it can from the body and call sites.
 
 Reason: lists are the first collection and the base for `for` loops, maps, and CSV rows. Homogeneous elements make inference and diagnostics useful without user-defined generics. Deferring mutation kept the first collection increment small; annotations were added once the collection model was stable.
 
 Status: implemented in the interpreter, VM, REPL, and type checker. `for` loops over lists work. No list mutation or list methods yet. Maps have their own decision below.
 
-### 10. `for` loops iterate over lists
+### 10. `for` loops iterate over lists and map keys
 
 ```
 let scores = [72, 85, 90]
@@ -144,13 +144,13 @@ for score in scores {
 print(total)
 ```
 
-The loop variable takes the list's element type. It is mutable and scoped to the loop. If an outer binding has the same name, the outer binding is restored after the loop. Declarations inside the loop body leak, matching `while` and `if`.
+The loop variable takes the list's element type, or the map's key type. It is mutable and scoped to the loop. If an outer binding has the same name, the outer binding is restored after the loop. Declarations inside the loop body leak, matching `while` and `if`.
 
-The iterable must be a `List[T]`; an `Unknown` iterable is accepted and makes the loop variable `Unknown`. There is no iteration over ranges, strings, or maps yet, and there is no `break` or `continue`.
+The iterable must be a `List[T]` or a `Map[K, V]`; an `Unknown` iterable is accepted and makes the loop variable `Unknown`. Iterating a map yields its keys in insertion order, so `totals[team]` reads the value. There is no iteration over ranges or strings yet, and there is no `break` or `continue`.
 
-Reason: list iteration is the smallest useful loop over a collection and the base for maps, ranges, and CSV rows. Reusing the existing block and binding rules keeps the feature small.
+Reason: list iteration is the smallest useful loop over a collection, and map keys are the other shape the CSV and grouping work needs. Reusing the existing block and binding rules keeps the feature small.
 
-Status: implemented in the type checker, interpreter, VM, REPL, and CLI. `for` loops iterate over lists only.
+Status: implemented in the type checker, interpreter, VM, REPL, and CLI. `for` loops iterate over lists and map keys.
 
 ### 11. Maps are built in and statically typed
 
@@ -173,7 +173,7 @@ print(totals)
 
 Key and value types are inferred. `{ "Ada": 36 }` is `Map[String, Int]`, and `{}` is `Map[Unknown, Unknown]` until it meets a known type. Maps are homogeneous in both positions: all keys share one type and all values share one type. Keys must be `Int`, `Float`, `String`, or `Bool` so they stay hashable at runtime; a list key is rejected before the program runs. Values may be any supported type, including nested maps.
 
-A map binding must be declared with `let` to be assigned; a `const` map rejects index assignment. Lists stay immutable: `values[0] = x` is an error, and list elements are changed by building a new list with `+`. `get(map, key, default)` reads a key and returns `default` when the key is missing, which keeps accumulation from special-casing the first row. `for` loops iterate over lists, not maps. Map annotations such as `Map[String, Int]` are supported on parameters, returns, and bindings; an unannotated map parameter still infers what it can.
+A map binding must be declared with `let` to be assigned; a `const` map rejects index assignment. Lists stay immutable: `values[0] = x` is an error, and list elements are changed by building a new list with `+`. `get(map, key, default)` reads a key and returns `default` when the key is missing, which keeps accumulation from special-casing the first row. `for` loops iterate over map keys in insertion order. Map annotations such as `Map[String, Int]` are supported on parameters, returns, and bindings; an unannotated map parameter still infers what it can.
 
 Reason: maps are the shape of a CSV row and the base for the switch test. Restricting keys to scalars keeps hashing and equality predictable without a custom protocol. Index assignment is the smallest mutation that makes grouping and aggregation possible; keeping lists immutable preserves the simpler list model until a real need appears.
 
@@ -268,7 +268,7 @@ The checker runs before execution in `--run` and before code generation in `--em
 
 Division by zero remains a runtime error; the checker does not evaluate expressions.
 
-Known gaps: no user-defined generics or type aliases, no list mutation, no iteration over ranges, strings, or maps, no `break` or `continue`, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. Function bodies must end with a value; procedures are unsupported. The interpreter and VM keep their runtime checks so they can still be tested independently.
+Known gaps: no user-defined generics or type aliases, no list mutation, no iteration over ranges or strings, no `break` or `continue`, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. Function bodies must end with a value; procedures are unsupported. The interpreter and VM keep their runtime checks so they can still be tested independently.
 
 Status: implemented as a separate pass for the current subset.
 
@@ -308,7 +308,7 @@ Status: implemented as a separate pass for the current subset.
 | 7 | Inferred static types, no annotations required | Implemented (minimal) |
 | 8 | Functions are named declarations with expression bodies | Implemented (minimal) |
 | 9 | Lists are built in, homogeneous, and statically inferred | Implemented (minimal) |
-| 10 | `for` loops iterate over lists | Implemented (minimal) |
+| 10 | `for` loops iterate over lists and map keys | Implemented (minimal) |
 | 11 | Maps are built in, homogeneous, and statically inferred | Implemented (minimal) |
 | 12 | `read_file` returns UTF-8 text with file-level diagnostics | Implemented (minimal) |
 | 13 | `read_csv` validates a schema at the boundary | Implemented (minimal) |

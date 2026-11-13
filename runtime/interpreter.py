@@ -181,11 +181,11 @@ class Interpreter:
             return
         if isinstance(stmt, ForStatement):
             iterable = self.eval_expression(stmt.iterable)
-            if not isinstance(iterable, list):
+            if not isinstance(iterable, (list, dict)):
                 raise SwarnaTypeError(
-                    f"`for` expects a List, got {value_type_name(iterable)}",
+                    f"`for` expects a List or Map, got {value_type_name(iterable)}",
                     stmt.iterable.span,
-                    hint="Use a list after `in`.",
+                    hint="Use a list or map after `in`.",
                 )
             name = stmt.name.name
             had_previous = name in self.env

@@ -507,11 +507,13 @@ class TypeChecker:
 
         if isinstance(stmt, ForStatement):
             iterable_type = self.check_expression(stmt.iterable)
-            if iterable_type is not Type.UNKNOWN and not iterable_type.is_list:
+            if iterable_type is not Type.UNKNOWN and not (
+                iterable_type.is_list or iterable_type.is_map
+            ):
                 self._error(
-                    f"`for` expects a List, got {iterable_type.label}",
+                    f"`for` expects a List or Map, got {iterable_type.label}",
                     stmt.iterable.span,
-                    "Use a list after `in`.",
+                    "Use a list or map after `in`.",
                 )
             name = stmt.name.name
             if name in self.functions:
@@ -526,7 +528,12 @@ class TypeChecker:
                     stmt.name.span,
                     "Use a different name for the loop variable.",
                 )
-            element_type = iterable_type.element_type if iterable_type.is_list else Type.UNKNOWN
+            if iterable_type.is_list:
+                element_type = iterable_type.element_type
+            elif iterable_type.is_map:
+                element_type = iterable_type.key_type
+            else:
+                element_type = Type.UNKNOWN
             previous = self.env.get(name)
             self.env[name] = Binding(element_type, constant=False, span=stmt.name.span)
             try:

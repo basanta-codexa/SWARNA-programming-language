@@ -271,11 +271,11 @@ class TestSemanticErrors(unittest.TestCase):
             check("let x = if true { 1 } else { 2.0 }")
 
     def test_for_loop_requires_a_list(self):
-        with self.assertRaisesRegex(SwarnaSemanticError, "`for` expects a List, got Int"):
+        with self.assertRaisesRegex(SwarnaSemanticError, "`for` expects a List or Map, got Int"):
             check("for x in 1 { print(x) }")
 
     def test_for_loop_rejects_string_iteration(self):
-        with self.assertRaisesRegex(SwarnaSemanticError, "`for` expects a List, got String"):
+        with self.assertRaisesRegex(SwarnaSemanticError, "`for` expects a List or Map, got String"):
             check('for x in "abc" { print(x) }')
 
     def test_for_loop_variable_conflicts_with_function(self):
@@ -914,12 +914,13 @@ class TestMaps(unittest.TestCase):
             Type.map_of(Type.STRING, Type.INT),
         )
 
-    def test_for_loop_rejects_map(self):
-        with self.assertRaisesRegex(
-            SwarnaSemanticError,
-            "`for` expects a List, got Map",
-        ):
-            check('for x in { "a": 1 } { print(x) }')
+    def test_for_loop_iterates_map_keys(self):
+        checker = check('for k in { "a": 1 } { let y = k }')
+        self.assertIs(checker.env["y"].type, Type.STRING)
+
+    def test_for_loop_iterates_int_map_keys(self):
+        checker = check('for k in { 1: "a" } { let y = k + 1 }')
+        self.assertIs(checker.env["y"].type, Type.INT)
 
     def test_type_of_value_infers_map(self):
         self.assertEqual(

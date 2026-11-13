@@ -270,11 +270,11 @@ class TestInterpreterForLoops(unittest.TestCase):
         self.assertEqual(interpreter.output, [1, 2])
 
     def test_for_loop_requires_list(self):
-        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List, got Int"):
+        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List or Map, got Int"):
             run("for x in 1 { print(x) }")
 
     def test_for_loop_rejects_string_iteration(self):
-        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List, got String"):
+        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List or Map, got String"):
             run('for x in "abc" { print(x) }')
 
     def test_for_loop_restores_outer_binding_on_error(self):
@@ -582,9 +582,11 @@ class TestInterpreterMaps(unittest.TestCase):
         interpreter.eval(program)
         self.assertEqual(interpreter.output, [{"a": 1, "b": 2}])
 
-    def test_for_loop_rejects_map(self):
-        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List, got Map"):
-            run('for x in { "a": 1 } { print(x) }')
+    def test_for_loop_iterates_map_keys(self):
+        program = Parser(Lexer('for k in { "a": 1, "b": 2 } { print(k) }')).parse_program()
+        interpreter = Interpreter()
+        interpreter.eval(program)
+        self.assertEqual(interpreter.output, ["a", "b"])
 
     def test_map_key_must_be_hashable(self):
         with self.assertRaisesRegex(SwarnaTypeError, "Map keys must be scalar values"):

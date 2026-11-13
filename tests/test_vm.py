@@ -436,11 +436,11 @@ class TestVMForLoops(unittest.TestCase):
         self.assertEqual(env, {"y": 10})
 
     def test_vm_for_loop_requires_list(self):
-        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List, got Int"):
+        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List or Map, got Int"):
             run_vm("for x in 1 { print(x) }")
 
     def test_vm_for_loop_rejects_string_iteration(self):
-        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List, got String"):
+        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List or Map, got String"):
             run_vm('for x in "abc" { print(x) }')
 
     def test_vm_for_loops_match_interpreter(self):
@@ -781,6 +781,12 @@ class TestVMCollections(unittest.TestCase):
         vm = VM()
         vm.run(Compiler().compile(program))
         self.assertEqual(vm.output, [{"a": 1, "b": 2}])
+
+    def test_vm_for_loop_iterates_map_keys(self):
+        program = Parser(Lexer('for k in { "a": 1, "b": 2 } { print(k) }')).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, ["a", "b"])
 
     def test_vm_map_literal_rejects_list_key(self):
         with self.assertRaisesRegex(
