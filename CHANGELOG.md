@@ -23,7 +23,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `input()` built-in to read a line from stdin.
 - `int(...)`, `float(...)`, and `str(...)` conversion built-ins.
 - `return` statements for early exit from functions.
+- Statement-form `if` blocks inside block expressions/function bodies, enabling natural early-return control flow before a final expression.
 
 ### Changed
-- Documentation (`README.md`, `docs/DESIGN_PRINCIPLES.md`) updated to reflect `break`/`continue` support and direct file execution.
+- Documentation (`README.md`, `docs/DESIGN_PRINCIPLES.md`, `CHANGELOG.md`) updated to reflect new language features and behavior.
 - Passing an existing source file now runs it by default; source files are read as UTF-8 with optional BOM.

@@ -992,6 +992,14 @@ class TestVMCsv(unittest.TestCase):
         self.assertEqual(env["a"], 0)
         self.assertEqual(env["b"], 6)
 
+    def test_vm_statement_if_early_return_in_function_body(self):
+        env = run_vm(
+            "fn early(x: Int) -> Int { if x == 0 { return 0 } x + 1 } "
+            "let a = early(0) let b = early(5)"
+        )
+        self.assertEqual(env["a"], 0)
+        self.assertEqual(env["b"], 6)
+
 
 if __name__ == "__main__":
     unittest.main()

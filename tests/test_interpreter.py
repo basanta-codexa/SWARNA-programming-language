@@ -815,6 +815,14 @@ class TestInterpreterCsv(unittest.TestCase):
         env = run("fn f() -> Int { return 42 } let x = f()")
         self.assertEqual(env["x"], 42)
 
+    def test_statement_if_early_return_in_function_body(self):
+        env = run(
+            "fn early(x: Int) -> Int { if x == 0 { return 0 } x + 1 } "
+            "let a = early(0) let b = early(5)"
+        )
+        self.assertEqual(env["a"], 0)
+        self.assertEqual(env["b"], 6)
+
 
 if __name__ == "__main__":
     unittest.main()

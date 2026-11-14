@@ -9,6 +9,18 @@ class Parser:
         self.lexer = lexer
         self.current = self.lexer.next_token()
 
+    def _save(self):
+        return (
+            self.current,
+            self.lexer.position,
+            self.lexer.line,
+            self.lexer.column,
+            self.lexer.current_char,
+        )
+
+    def _restore(self, state) -> None:
+        self.current, self.lexer.position, self.lexer.line, self.lexer.column, self.lexer.current_char = state
+
     def _advance(self) -> None:
         self.current = self.lexer.next_token()
 
@@ -277,6 +289,20 @@ class Parser:
                 statements.append(return_stmt)
                 value = return_stmt.value
                 break
+
+            if self.current.type == TokenType.KEYWORD_IF:
+                state = self._save()
+                try:
+                    if_stmt = self.parse_if_statement()
+                    while self.current.type == TokenType.SEMICOLON:
+                        self._advance()
+                    if self.current.type == TokenType.RBRACE:
+                        self._restore(state)
+                    else:
+                        statements.append(if_stmt)
+                        continue
+                except SwarnaSyntaxError:
+                    self._restore(state)
 
             if self.current.type in (
                 TokenType.KEYWORD_LET,
