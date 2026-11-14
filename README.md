@@ -4,7 +4,7 @@ SWARNA is a programming language written from scratch in Python. It has its own 
 
 It is early, and it is not ready for real programs yet. The current subset is enough to run small scripts; the rest of the language is still being built.
 
-Design decisions and the reasoning behind them are in [docs/DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md). The target user and the switch test are in [docs/POSITIONING.md](docs/POSITIONING.md).
+Design decisions and the reasoning behind them are in [docs/DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md). The long-term vision and feature direction (including error handling and data/behavior modeling) are in [docs/VISION.md](docs/VISION.md). The target user and the switch test are in [docs/POSITIONING.md](docs/POSITIONING.md).
 
 ## Run it
 

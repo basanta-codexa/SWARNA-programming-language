@@ -8,6 +8,8 @@ SWARNA is a general-purpose language for people who need to compute something bu
 
 The target is not "no code." The target is code that a motivated non-programmer can read, write, and repair without a computer science background.
 
+See [VISION.md](VISION.md) for the long-term vision, differentiators, and SWARNA-native direction for upcoming areas such as error handling and data/behavior modeling.
+
 ## What "easy" means
 
 Easy is not a property of syntax alone. We treat it as five layers, all of which have to hold up:
