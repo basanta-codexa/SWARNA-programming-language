@@ -491,13 +491,20 @@ class TestVMForLoops(unittest.TestCase):
         env = run_vm("fn f(x) { for x in [1, 2] { } x } let y = f(10)")
         self.assertEqual(env, {"y": 10})
 
-    def test_vm_for_loop_requires_list(self):
-        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List or Map, got Int"):
+    def test_vm_for_loop_requires_iterable(self):
+        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List, Map, or String, got Int"):
             run_vm("for x in 1 { print(x) }")
 
-    def test_vm_for_loop_rejects_string_iteration(self):
-        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List or Map, got String"):
-            run_vm('for x in "abc" { print(x) }')
+    def test_vm_for_loop_iterates_string(self):
+        program = Parser(Lexer('for c in "abc" { print(c) }')).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, ["a", "b", "c"])
+
+    def test_vm_string_indexing(self):
+        env = run_vm('let s = "hello" let a = s[0] let b = s[-1]')
+        self.assertEqual(env["a"], "h")
+        self.assertEqual(env["b"], "o")
 
     def test_vm_for_loops_match_interpreter(self):
         sources = [
@@ -524,7 +531,6 @@ class TestVMForLoops(unittest.TestCase):
     def test_vm_for_loop_errors_match_interpreter(self):
         sources = [
             "for x in 1 { print(x) }",
-            'for x in "abc" { print(x) }',
         ]
         for source in sources:
             with self.subTest(source=source):

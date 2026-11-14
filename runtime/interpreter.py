@@ -206,11 +206,11 @@ class Interpreter:
             return
         if isinstance(stmt, ForStatement):
             iterable = self.eval_expression(stmt.iterable)
-            if not isinstance(iterable, (list, dict)):
+            if not isinstance(iterable, (list, dict, str)):
                 raise SwarnaTypeError(
-                    f"`for` expects a List or Map, got {value_type_name(iterable)}",
+                    f"`for` expects a List, Map, or String, got {value_type_name(iterable)}",
                     stmt.iterable.span,
-                    hint="Use a list or map after `in`.",
+                    hint="Use a list, map, or string after `in`.",
                 )
             name = stmt.name.name
             had_previous = name in self.env
@@ -461,11 +461,26 @@ class Interpreter:
                         expr.index.span,
                         hint="Use an Int, Float, String, or Bool key.",
                     ) from None
+            if isinstance(collection, str):
+                if type(index) is not int:
+                    raise SwarnaTypeError(
+                        "String index must be Int",
+                        expr.index.span,
+                        hint="Use an integer index, such as `text[0]`.",
+                    )
+                try:
+                    return collection[index]
+                except IndexError:
+                    raise SwarnaRuntimeError(
+                        f"Index {index} is out of range for a string of length {len(collection)}",
+                        expr.index.span,
+                        hint="Use an index from 0 to len(text) - 1, or a negative index from -len(text) to -1.",
+                    ) from None
             if not isinstance(collection, list):
                 raise SwarnaTypeError(
                     f"Cannot index {value_type_name(collection)}",
                     expr.span,
-                    hint="Only lists and maps can be indexed.",
+                    hint="Only lists, maps, and strings can be indexed.",
                 )
             if type(index) is not int:
                 raise SwarnaTypeError(

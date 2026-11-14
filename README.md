@@ -160,7 +160,7 @@ python -m swarna --run examples/team_averages.sw
 - arithmetic, comparisons, `and`/`or`/`not`, `&&`/`||`/`!`
 - `if`/`else` statements and `if` expressions with single-expression or block branches
 - `while` loops
-- `for` loops over lists and map keys, with a loop variable scoped to the loop (use `range(...)` for numeric sequences)
+- `for` loops over lists, map keys, and strings, with a loop variable scoped to the loop (use `range(...)` for numeric sequences)
 - `break` and `continue` in `while` and `for` loops
 - `#` line comments
 - named `fn` declarations with optional parameter and return annotations
@@ -168,6 +168,7 @@ python -m swarna --run examples/team_averages.sw
 - recursion, mutual recursion, hoisted calls, and function-local scopes
 - functions in the interpreter, the VM, and the REPL
 - list literals such as `[1, 2, 3]`, indexing with `values[i]`, negative indexing, `len(...)`, list equality, and `+` concatenation
+- string indexing with `text[i]` (including negative indices) and iteration over strings with `for` loops (yielding one-character strings)
 - inferred element types for lists, including nested lists
 - map literals such as `{ "Ada": 36 }`, indexing with `map[key]`, `map[key] = value`, `get(map, key, default)`, `len(...)`, map equality, and inferred key and value types
 - `read_file(path)`, which returns a UTF-8 text file's contents with diagnostics for missing files, directories, and invalid text
@@ -184,7 +185,7 @@ python -m swarna --run examples/team_averages.sw
 
 **Language and data**
 - No records/user-defined types, modules/imports, generics, type aliases, string interpolation, or concurrency.
-- `for` loops iterate over lists and map keys; there are no ranges or string iteration yet.
+- Strings are immutable (no index assignment) and have indexing/iteration, but no string methods or slicing yet.
 - Lists are immutable (no index assignment/append/delete); build a new list with `+`.
 - Maps support `map[key] = value` for existing and new keys and `get`; there is no delete helper or map iteration over values/entries.
 - Lists are homogeneous (`[1, 2.5]` is rejected; use `[1.0, 2.5]` for floats). Maps are homogeneous in keys and values, and keys must be `Int`, `Float`, `String`, or `Bool`.

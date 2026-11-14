@@ -316,6 +316,21 @@ class VM:
                             ins.span,
                             hint="Use a scalar key.",
                         ) from None
+                elif isinstance(collection, str):
+                    if type(index) is not int:
+                        raise SwarnaTypeError(
+                            "String index must be Int",
+                            ins.span,
+                            hint="Use an integer index, such as `text[0]`.",
+                        )
+                    try:
+                        self.stack.append(collection[index])
+                    except IndexError:
+                        raise SwarnaRuntimeError(
+                            f"Index {index} is out of range for a string of length {len(collection)}",
+                            ins.span,
+                            hint="Use an index from 0 to len(text) - 1, or a negative index from -len(text) to -1.",
+                        ) from None
                 elif isinstance(collection, list):
                     if type(index) is not int:
                         raise SwarnaTypeError(
@@ -335,7 +350,7 @@ class VM:
                     raise SwarnaTypeError(
                         f"Cannot index {value_type_name(collection)}",
                         ins.span,
-                        hint="Only lists and maps can be indexed.",
+                        hint="Only lists, maps, and strings can be indexed.",
                     )
             elif ins.op == Op.STORE_INDEX:
                 value = self._pop(ins)
@@ -479,11 +494,11 @@ class VM:
                 self.stack.append(list(range(start, stop, step)))
             elif ins.op == Op.ITER_START:
                 iterable = self._pop(ins)
-                if not isinstance(iterable, (list, dict)):
+                if not isinstance(iterable, (list, dict, str)):
                     raise SwarnaTypeError(
-                        f"`for` expects a List or Map, got {value_type_name(iterable)}",
+                        f"`for` expects a List, Map, or String, got {value_type_name(iterable)}",
                         ins.span,
-                        hint="Use a list or map after `in`.",
+                        hint="Use a list, map, or string after `in`.",
                     )
                 name = ins.arg
                 if not isinstance(name, str):

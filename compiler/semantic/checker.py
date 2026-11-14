@@ -484,6 +484,12 @@ class TypeChecker:
                     stmt.target.span,
                     "Build a new list with `+` instead.",
                 )
+            if collection_type is Type.STRING:
+                self._error(
+                    "Strings are immutable; cannot assign to an index",
+                    stmt.target.span,
+                    "Build a new string instead.",
+                )
             if not self._is_assignable(collection_type.value_type, value_type):
                 self._error(
                     f"Cannot assign {value_type.label} to {collection_type.label}",
@@ -534,12 +540,12 @@ class TypeChecker:
         if isinstance(stmt, ForStatement):
             iterable_type = self.check_expression(stmt.iterable)
             if iterable_type is not Type.UNKNOWN and not (
-                iterable_type.is_list or iterable_type.is_map
+                iterable_type.is_list or iterable_type.is_map or iterable_type is Type.STRING
             ):
                 self._error(
-                    f"`for` expects a List or Map, got {iterable_type.label}",
+                    f"`for` expects a List, Map, or String, got {iterable_type.label}",
                     stmt.iterable.span,
-                    "Use a list or map after `in`.",
+                    "Use a list, map, or string after `in`.",
                 )
             name = stmt.name.name
             if name in self.functions:
@@ -558,6 +564,8 @@ class TypeChecker:
                 element_type = iterable_type.element_type
             elif iterable_type.is_map:
                 element_type = iterable_type.key_type
+            elif iterable_type is Type.STRING:
+                element_type = Type.STRING
             else:
                 element_type = Type.UNKNOWN
             previous = self.env.get(name)
@@ -885,12 +893,12 @@ class TypeChecker:
         collection_type = self.check_expression(expr.collection)
         index_type = self.check_expression(expr.index)
         if collection_type is not Type.UNKNOWN and not (
-            collection_type.is_list or collection_type.is_map
+            collection_type.is_list or collection_type.is_map or collection_type is Type.STRING
         ):
             self._error(
-                f"Cannot index {collection_type.label}; only lists and maps can be indexed",
+                f"Cannot index {collection_type.label}; only lists, maps, and strings can be indexed",
                 expr.collection.span if expr.collection.span is not None else expr.span,
-                "Use a list or map value before the brackets.",
+                "Use a list, map, or string value before the brackets.",
             )
         if collection_type.is_map:
             if index_type is not Type.UNKNOWN and not self._is_assignable(
@@ -904,10 +912,18 @@ class TypeChecker:
                     category="type-mismatch",
                 )
             return collection_type, collection_type.value_type
+        if collection_type is Type.STRING:
+            if index_type is not Type.UNKNOWN and index_type is not Type.INT:
+                self._error(
+                    f"String index must be Int, got {index_type.label}",
+                    expr.index.span,
+                    "Use an Int index, such as `text[0]`.",
+                )
+            return collection_type, Type.STRING
         if collection_type is Type.UNKNOWN:
             if index_type is not Type.UNKNOWN and index_type is not Type.INT:
                 self._error(
-                    f"List index must be Int, got {index_type.label}",
+                    f"Index must be Int, got {index_type.label}",
                     expr.index.span,
                     "Use an Int index, such as `values[0]`.",
                 )

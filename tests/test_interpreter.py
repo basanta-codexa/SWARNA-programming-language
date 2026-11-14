@@ -330,13 +330,20 @@ class TestInterpreterForLoops(unittest.TestCase):
         self.assertEqual(env["y"], 0)
         self.assertEqual(interpreter.output, [1, 2])
 
-    def test_for_loop_requires_list(self):
-        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List or Map, got Int"):
+    def test_for_loop_requires_iterable(self):
+        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List, Map, or String, got Int"):
             run("for x in 1 { print(x) }")
 
-    def test_for_loop_rejects_string_iteration(self):
-        with self.assertRaisesRegex(SwarnaTypeError, "`for` expects a List or Map, got String"):
-            run('for x in "abc" { print(x) }')
+    def test_for_loop_iterates_string(self):
+        program = Parser(Lexer('for c in "abc" { print(c) }')).parse_program()
+        interpreter = Interpreter()
+        interpreter.eval(program)
+        self.assertEqual(interpreter.output, ["a", "b", "c"])
+
+    def test_string_indexing(self):
+        env = run('let s = "hello" let a = s[0] let b = s[-1]')
+        self.assertEqual(env["a"], "h")
+        self.assertEqual(env["b"], "o")
 
     def test_for_loop_restores_outer_binding_on_error(self):
         interpreter = Interpreter()

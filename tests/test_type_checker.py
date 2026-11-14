@@ -279,13 +279,17 @@ class TestSemanticErrors(unittest.TestCase):
         with self.assertRaises(SwarnaSemanticError):
             check("let x = if true { 1 } else { 2.0 }")
 
-    def test_for_loop_requires_a_list(self):
-        with self.assertRaisesRegex(SwarnaSemanticError, "`for` expects a List or Map, got Int"):
+    def test_for_loop_requires_iterable(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "`for` expects a List, Map, or String, got Int"):
             check("for x in 1 { print(x) }")
 
-    def test_for_loop_rejects_string_iteration(self):
-        with self.assertRaisesRegex(SwarnaSemanticError, "`for` expects a List or Map, got String"):
-            check('for x in "abc" { print(x) }')
+    def test_for_loop_iterates_string(self):
+        checker = check('let out = "" for c in "abc" { let x = c }')
+        self.assertEqual(checker.env["x"].type, Type.STRING)
+
+    def test_string_indexing(self):
+        checker = check('let s = "hello" let c = s[1]')
+        self.assertEqual(checker.env["c"].type, Type.STRING)
 
     def test_for_loop_variable_conflicts_with_function(self):
         with self.assertRaisesRegex(SwarnaSemanticError, "Loop variable 'f' conflicts with a function name"):
@@ -659,13 +663,13 @@ class TestFunctions(unittest.TestCase):
             check('let xs = [1] let x = xs["a"]')
 
     def test_unknown_collection_still_checks_index_type(self):
-        with self.assertRaisesRegex(SwarnaSemanticError, "List index must be Int, got String"):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Index must be Int, got String"):
             check('fn f(xs) { xs["a"] }')
 
-    def test_only_lists_and_maps_can_be_indexed(self):
+    def test_only_lists_maps_and_strings_can_be_indexed(self):
         with self.assertRaisesRegex(
             SwarnaSemanticError,
-            "Cannot index Int; only lists and maps can be indexed",
+            "Cannot index Int; only lists, maps, and strings can be indexed",
         ):
             check("let x = 1[0]")
 

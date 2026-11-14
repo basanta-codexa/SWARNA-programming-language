@@ -19,6 +19,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `#` line comments.
 - `%` (modulo/remainder) operator.
 - `range(...)` built-in for integer sequences (usable with `for` loops).
+- String indexing (`text[i]`, including negative indices) and `for` iteration over strings.
 
 ### Changed
 - Documentation (`README.md`, `docs/DESIGN_PRINCIPLES.md`) updated to reflect `break`/`continue` support and direct file execution.

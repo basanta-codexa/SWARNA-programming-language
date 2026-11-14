@@ -234,8 +234,8 @@ The rules for the current subset:
 - Literals infer their obvious type.
 - A list literal infers a `List[T]` element type. All elements must have the same type, or be `Unknown`. An empty list is `List[Unknown]`. Nested lists infer nested element types.
 - A map literal infers a `Map[K, V]` type. All keys must have one scalar type and all values one type, or be `Unknown`. An empty map is `Map[Unknown, Unknown]`. Nested maps infer nested value types. Keys must be `Int`, `Float`, `String`, or `Bool`.
-- Indexing requires a list or a map. A list needs an `Int` index and produces the element type; a map needs a key assignable to `K` and produces `V`. Negative list indices are accepted at runtime and count from the end.
-- Index assignment `map[key] = value` requires a mutable `let` map binding. The key must be assignable to `K` and the value to `V`. Assigning through a `const` binding is rejected, and a list index assignment is rejected because lists are immutable.
+- Indexing requires a list, map, or string. A list needs an `Int` index and produces the element type; a map needs a key assignable to `K` and produces `V`; a string needs an `Int` index and produces a `String`. Negative list and string indices are accepted at runtime and count from the end.
+- Index assignment `map[key] = value` requires a mutable `let` map binding. The key must be assignable to `K` and the value to `V`. Assigning through a `const` binding is rejected. List and string index assignment is rejected because lists and strings are immutable.
 - `get(map, key, default)` requires a map, a key assignable to `K`, and a default assignable to `V`; it returns `V`. When `V` is `Unknown` (as in an empty map), the default's type becomes the result type.
 - `len` accepts a list, a map, or a string and produces `Int`.
 - `range` requires 1 to 3 `Int` arguments and produces `List[Int]`.
@@ -251,7 +251,7 @@ The rules for the current subset:
 - Equality accepts values of the same type, two numbers, or two lists or maps with compatible types. Ordered comparisons accept two numbers or two strings.
 - `&&`, `||`, and `!` require `Bool`.
 - `if` and `while` conditions require `Bool`.
-- A `for` loop requires a `List[T]`, a `Map[K, V]`, or `Unknown`. The loop variable takes the element type `T` for a list, the key type `K` for a map (in insertion order), or `Unknown`. It is mutable and scoped to the loop. An outer binding with the same name is restored afterward. Body declarations leak, matching `while` and `if`. `break` and `continue` are only allowed inside a loop.
+- A `for` loop requires a `List[T]`, a `Map[K, V]`, a `String`, or `Unknown`. The loop variable takes the element type `T` for a list, the key type `K` for a map (in insertion order), `String` for a string (one-character strings), or `Unknown`. It is mutable and scoped to the loop. An outer binding with the same name is restored afterward. Body declarations leak, matching `while` and `if`. `break` and `continue` are only allowed inside a loop.
 - Loop variables cannot conflict with functions or built-in names.
 - Both branches of an `if` expression must produce the same type. `Int` and `Float` branches are not unified yet.
 - An `if` expression branch may be a block value. Its statements run in the current scope, and its final expression determines the branch type.
