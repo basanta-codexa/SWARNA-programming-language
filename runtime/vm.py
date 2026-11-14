@@ -190,6 +190,24 @@ class VM:
                         hint="The divisor must be non-zero.",
                     )
                 self.stack.append(a // b)
+            elif ins.op == Op.MOD:
+                b = self._pop(ins)
+                a = self._pop(ins)
+                if b == 0:
+                    raise SwarnaZeroDivisionError(
+                        "modulo by zero",
+                        ins.span,
+                        hint="The divisor must be non-zero.",
+                    )
+                try:
+                    self.stack.append(a % b)
+                except TypeError as e:
+                    raise SwarnaTypeError(
+                        str(e),
+                        ins.span,
+                        hint="The operands have incompatible types.",
+                        category="type-mismatch",
+                    ) from e
             elif ins.op == Op.NEG:
                 value = self._pop(ins)
                 try:

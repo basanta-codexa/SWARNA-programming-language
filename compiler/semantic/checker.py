@@ -956,7 +956,7 @@ class TypeChecker:
                 category="type-mismatch",
             )
 
-        if expr.operator in ("-", "*"):
+        if expr.operator in ("-", "*", "%"):
             if self._is_numeric(left_type) and self._is_numeric(right_type):
                 return self._numeric_result(left_type, right_type)
             self._error(

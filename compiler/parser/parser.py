@@ -446,7 +446,7 @@ class Parser:
 
     def parse_term(self) -> Expression:
         node = self.parse_factor()
-        while self.current.type in (TokenType.STAR, TokenType.SLASH, TokenType.SLASHSLASH):
+        while self.current.type in (TokenType.STAR, TokenType.SLASH, TokenType.SLASHSLASH, TokenType.PERCENT):
             op_token = self.current
             op = self.current.value
             self._advance()

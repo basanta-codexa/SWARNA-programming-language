@@ -17,6 +17,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `--version` CLI flag.
 - Running source files directly from the CLI (pass a `.sw` file path as the `source` argument).
 - `#` line comments.
+- `%` (modulo/remainder) operator.
 
 ### Changed
 - Documentation (`README.md`, `docs/DESIGN_PRINCIPLES.md`) updated to reflect `break`/`continue` support and direct file execution.

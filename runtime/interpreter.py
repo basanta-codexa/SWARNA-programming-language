@@ -501,6 +501,13 @@ class Interpreter:
                     expr.span,
                     hint="The divisor must be non-zero.",
                 )
+            if expr.operator == "%":
+                if right == 0:
+                    raise SwarnaZeroDivisionError(
+                        "modulo by zero",
+                        expr.span,
+                        hint="The divisor must be non-zero.",
+                    )
             if expr.operator == "//":
                 if type(left) is not int or type(right) is not int:
                     raise SwarnaTypeError(
@@ -526,6 +533,8 @@ class Interpreter:
                     return left / right
                 if expr.operator == "//":
                     return left // right
+                if expr.operator == "%":
+                    return left % right
                 if expr.operator == "==":
                     return left == right
                 if expr.operator == "!=":

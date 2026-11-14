@@ -39,6 +39,7 @@ class TokenType(Enum):
     STAR = auto()
     SLASH = auto()
     SLASHSLASH = auto()
+    PERCENT = auto()
     LPAREN = auto()
     RPAREN = auto()
     LBRACE = auto()

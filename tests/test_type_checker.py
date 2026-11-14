@@ -31,13 +31,17 @@ class TestTypeInference(unittest.TestCase):
             "let b = 1 + 2.0 "
             "let c = 1.0 * 2 "
             "let d = 7 / 2 "
-            "let e = 7 // 2"
+            "let e = 7 // 2 "
+            "let f = 7 % 2 "
+            "let g = 7.5 % 2.0"
         )
         self.assertIs(checker.env["a"].type, Type.INT)
         self.assertIs(checker.env["b"].type, Type.FLOAT)
         self.assertIs(checker.env["c"].type, Type.FLOAT)
         self.assertIs(checker.env["d"].type, Type.FLOAT)
         self.assertIs(checker.env["e"].type, Type.INT)
+        self.assertIs(checker.env["f"].type, Type.INT)
+        self.assertIs(checker.env["g"].type, Type.FLOAT)
 
     def test_string_concatenation(self):
         checker = check('let s = "a" + "b"')
@@ -76,7 +80,7 @@ class TestTypeInference(unittest.TestCase):
         self.assertIs(checker.env["x"].type, Type.INT)
 
     def test_division_by_zero_is_not_a_type_error(self):
-        check("let a = 1 / 0 let b = 1 // 0")
+        check("let a = 1 / 0 let b = 1 // 0 let c = 1 % 0")
 
     def test_print_accepts_any_type(self):
         check('print(1) print(1.5) print("a") print(true)')

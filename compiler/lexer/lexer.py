@@ -199,6 +199,7 @@ class Lexer:
         single_char = {
             "+": TokenType.PLUS,
             "*": TokenType.STAR,
+            "%": TokenType.PERCENT,
             "(": TokenType.LPAREN,
             ")": TokenType.RPAREN,
             "{": TokenType.LBRACE,

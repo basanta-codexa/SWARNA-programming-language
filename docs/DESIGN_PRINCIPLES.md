@@ -24,15 +24,15 @@ A clean grammar with a bad error message is still a hard language.
 
 ## Accepted decisions
 
-### 1. `/` is true division; `//` is integer division
+### 1. `/` is true division; `//` is integer division; `%` is remainder
 
-`7 / 2` is `3.5`. `7 // 2` is `3`, and `-7 // 2` is `-4` (floor division, matching Python).
+`7 / 2` is `3.5`. `7 // 2` is `3`, and `-7 // 2` is `-4` (floor division, matching Python). `7 % 2` is `1`, and `-7 % 2` is `1` (remainder consistent with floor division).
 
-`/` returns `Float` for numeric operands. `//` requires `Int` operands and returns `Int`; passing a `Float` raises `TypeError`. Converting a `Float` to an `Int` requires an explicit operation.
+`/` returns `Float` for numeric operands. `//` requires `Int` operands and returns `Int`. `%` accepts numeric operands and returns `Int` when both operands are `Int`, otherwise `Float`. Passing a `Float` to `//` raises `TypeError`. Converting a `Float` to an `Int` requires an explicit operation.
 
-Reason: people outside programming expect division to divide. Truncating integer division is a quiet source of bugs, and one extra character for floor division is a small price.
+Reason: people outside programming expect division to divide. Truncating integer division and remainder follow the same floor-based convention for consistency, and the extra characters are a small price.
 
-Status: implemented in the interpreter and VM. `/` always produces `Float`; `//` floors toward negative infinity.
+Status: implemented in the interpreter and VM. `/` always produces `Float`; `//` floors toward negative infinity; `%` follows Python's remainder semantics.
 
 ### 2. `let` is mutable; `const` is immutable
 
@@ -244,7 +244,8 @@ The rules for the current subset:
 - `print` accepts any type, including lists and maps.
 - List and map annotations use `List[T]` and `Map[K, V]`, including nested types such as `Map[String, List[Float]]`. A scalar type rejects type arguments; `List` needs one argument; `Map` needs two and its key must be a scalar type.
 - A `let`/`const` annotation sets the binding's type and must accept the value. A function parameter or return annotation is checked against arguments and the body.
-- `-`, `*`, and `/` accept numbers. `/` always produces `Float`.
+- `-`, `*`, and `%` accept numbers and produce `Int` when both operands are `Int`, otherwise `Float`.
+- `/` accepts numbers and always produces `Float`.
 - `//` requires two `Int` operands and produces `Int`.
 - Equality accepts values of the same type, two numbers, or two lists or maps with compatible types. Ordered comparisons accept two numbers or two strings.
 - `&&`, `||`, and `!` require `Bool`.

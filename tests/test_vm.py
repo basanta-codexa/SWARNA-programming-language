@@ -55,6 +55,16 @@ class TestVM(unittest.TestCase):
         with self.assertRaises(ZeroDivisionError):
             run_vm("let x = 1 // 0")
 
+    def test_vm_modulo(self):
+        env = run_vm("let a = 7 % 2 let b = -7 % 2 let c = 7.5 % 2.0")
+        self.assertEqual(env["a"], 1)
+        self.assertEqual(env["b"], 1)
+        self.assertEqual(env["c"], 1.5)
+
+    def test_vm_modulo_by_zero(self):
+        with self.assertRaises(ZeroDivisionError):
+            run_vm("let x = 1 % 0")
+
     def test_vm_undefined_name(self):
         with self.assertRaises(NameError):
             run_vm("let y = x + 1")
@@ -220,6 +230,9 @@ class TestVM(unittest.TestCase):
             "let x = 7 / 2 print(x)",
             "let x = 7 // 2 print(x)",
             "let x = -7 // 2 print(x)",
+            "let x = 7 % 2 print(x)",
+            "let x = -7 % 2 print(x)",
+            "let x = 7.5 % 2.0 print(x)",
             "let x = 3.5 / 2 print(x)",
             "let x = 7 // 2 / 2 print(x)",
         ]

@@ -50,6 +50,16 @@ class TestInterpreter(unittest.TestCase):
         with self.assertRaises(ZeroDivisionError):
             run("let x = 1 // 0")
 
+    def test_modulo(self):
+        env = run("let a = 7 % 2 let b = -7 % 2 let c = 7.5 % 2.0")
+        self.assertEqual(env["a"], 1)
+        self.assertEqual(env["b"], 1)
+        self.assertEqual(env["c"], 1.5)
+
+    def test_modulo_by_zero(self):
+        with self.assertRaises(ZeroDivisionError):
+            run("let x = 1 % 0")
+
     def test_string_literals_and_concatenation(self):
         program = Parser(Lexer('let s = "hello" let t = s + " world" print(t)')).parse_program()
         interpreter = Interpreter()

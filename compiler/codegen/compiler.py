@@ -292,6 +292,7 @@ class Compiler:
                 "*": Op.MUL,
                 "/": Op.DIV,
                 "//": Op.IDIV,
+                "%": Op.MOD,
                 "==": Op.EQ,
                 "!=": Op.NEQ,
                 "<": Op.LT,

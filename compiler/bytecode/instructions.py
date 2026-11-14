@@ -19,6 +19,7 @@ class Op(Enum):
     MUL = auto()
     DIV = auto()
     IDIV = auto()
+    MOD = auto()
     NEG = auto()
     NOT = auto()
     BOOL = auto()
