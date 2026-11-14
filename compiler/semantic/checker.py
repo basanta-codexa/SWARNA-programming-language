@@ -86,7 +86,7 @@ Type.BOOL = Type("Bool")
 Type.UNKNOWN = Type("Unknown")
 
 
-BUILTIN_NAMES = frozenset({"print", "len", "get", "range", "read_file", "read_csv"})
+BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "range", "read_file", "read_csv"})
 
 
 @dataclass(frozen=True)
@@ -749,6 +749,14 @@ class TypeChecker:
                             category="type-mismatch",
                         )
                 return Type.list_of(Type.INT)
+            if expr.callee.name == "input":
+                if len(expr.arguments) != 0:
+                    self._error(
+                        f"Function 'input' expects 0 arguments, got {len(expr.arguments)}",
+                        expr.span,
+                        "Call `input()` with no arguments to read a line from stdin.",
+                    )
+                return Type.STRING
             if expr.callee.name == "read_file":
                 if len(expr.arguments) != 1:
                     self._error(

@@ -15,6 +15,14 @@ def run(source: str) -> dict[str, object]:
 
 
 class TestInterpreter(unittest.TestCase):
+    def test_input_builtin(self):
+        import io
+        from unittest.mock import patch
+
+        with patch("sys.stdin", io.StringIO("Ada\n")):
+            env = run("let name = input()")
+        self.assertEqual(env["name"], "Ada")
+
     def test_let_expression(self):
         env = run("let x = 1 + 2 * 3")
         self.assertEqual(env["x"], 7)

@@ -40,6 +40,7 @@ class Op(Enum):
     MAP_GET = auto()
     LEN = auto()
     RANGE = auto()
+    INPUT = auto()
     READ_FILE = auto()
     READ_CSV = auto()
     ITER_START = auto()

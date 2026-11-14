@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import operator
+import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -492,6 +493,15 @@ class VM:
                         hint="Use a non-zero step, such as `1` or `-1`.",
                     )
                 self.stack.append(list(range(start, stop, step)))
+            elif ins.op == Op.INPUT:
+                line = sys.stdin.readline()
+                if line == "":
+                    raise SwarnaRuntimeError(
+                        "No input available",
+                        ins.span,
+                        hint="Provide input on stdin when using `input()`.",
+                    )
+                self.stack.append(line.rstrip("\r\n"))
             elif ins.op == Op.ITER_START:
                 iterable = self._pop(ins)
                 if not isinstance(iterable, (list, dict, str)):

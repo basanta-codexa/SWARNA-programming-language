@@ -255,6 +255,11 @@ class Compiler:
                     self.compile_expression(argument)
                 self.emit(Op.RANGE, arg_count, span=expr.span)
                 return
+            if expr.callee.name == "input":
+                if len(expr.arguments) != 0:
+                    raise RuntimeError("`input` expects exactly zero arguments")
+                self.emit(Op.INPUT, span=expr.span)
+                return
             if expr.callee.name == "read_file":
                 if len(expr.arguments) != 1:
                     raise RuntimeError("`read_file` expects exactly one argument")

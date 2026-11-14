@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 
 from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
@@ -334,6 +335,21 @@ class Interpreter:
                     hint="Use a non-zero step, such as `1` or `-1`.",
                 )
             return list(range(start, stop, step))
+        if expr.callee.name == "input":
+            if len(expr.arguments) != 0:
+                raise SwarnaRuntimeError(
+                    f"Function 'input' expects 0 arguments, got {len(expr.arguments)}",
+                    expr.span,
+                    hint="Call `input()` with no arguments to read a line from stdin.",
+                )
+            line = sys.stdin.readline()
+            if line == "":
+                raise SwarnaRuntimeError(
+                    "No input available",
+                    expr.span,
+                    hint="Provide input on stdin when using `input()`.",
+                )
+            return line.rstrip("\r\n")
         if expr.callee.name == "read_file":
             if len(expr.arguments) != 1:
                 raise SwarnaRuntimeError(
