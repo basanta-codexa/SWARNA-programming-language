@@ -185,7 +185,7 @@ class TestParser(unittest.TestCase):
 
     def test_parse_if_expression_requires_else(self):
         parser = Parser(Lexer("let x = if true { 1 }"))
-        with self.assertRaisesRegex(SyntaxError, "requires an else branch"):
+        with self.assertRaisesRegex(SyntaxError, "requires a final else branch"):
             parser.parse_program()
 
     def test_parse_nested_if_expression(self):

@@ -298,9 +298,9 @@ class Parser:
             else_value = self._parse_if_expression_after_keyword(elif_token)
         else:
             raise SwarnaSyntaxError(
-                "if used as an expression requires an else branch",
+                "if used as an expression requires a final else branch",
                 self.current.span,
-                hint="Add `else { ... }`, `else if ...`, or `elif ...`, or use `if` as a statement.",
+                hint="Add a final `else { ... }` so every path produces a value, or use `if` as a statement when no value is needed.",
             )
         return IfExpression(
             condition=condition,

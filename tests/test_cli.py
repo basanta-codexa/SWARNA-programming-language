@@ -244,7 +244,10 @@ class TestCLIHelpers(unittest.TestCase):
         with contextlib.redirect_stderr(stderr):
             code = main(["--run", 'let x = if true { 1 } else { "a" }'])
         self.assertEqual(code, 1)
-        self.assertIn("`if` branches have incompatible types: Int and String", stderr.getvalue())
+        self.assertIn(
+            "All branches of an if expression must produce the same type, got Int and String",
+            stderr.getvalue(),
+        )
 
     def test_run_cli_executes_block_if_expression(self):
         stdout = io.StringIO()

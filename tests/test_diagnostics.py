@@ -134,7 +134,7 @@ class TestParserDiagnostics(unittest.TestCase):
         with self.assertRaises(SwarnaSyntaxError) as raised:
             Parser(Lexer("let x = if true { 1 }")).parse_program()
         error = raised.exception
-        self.assertIn("requires an else branch", error.message)
+        self.assertIn("requires a final else branch", error.message)
         self.assertEqual(error.span.line, 1)
         self.assertIsNotNone(error.hint)
 

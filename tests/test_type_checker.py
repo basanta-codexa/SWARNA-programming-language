@@ -273,7 +273,7 @@ class TestSemanticErrors(unittest.TestCase):
         with self.assertRaises(SwarnaSemanticError) as raised:
             check('let x = if true { 1 } else { "a" }')
         self.assertEqual(raised.exception.span, SourceSpan(1, 30, 3))
-        self.assertIn("`if` branches have incompatible types", str(raised.exception))
+        self.assertIn("All branches of an if expression must produce the same type", str(raised.exception))
 
     def test_int_and_float_branches_are_not_unified(self):
         with self.assertRaises(SwarnaSemanticError):
@@ -361,7 +361,7 @@ class TestBlockExpressions(unittest.TestCase):
         with self.assertRaises(SwarnaSemanticError) as raised:
             check('let x = if true { let y = 1 y } else { "a" }')
         self.assertEqual(raised.exception.span, SourceSpan(1, 40, 3))
-        self.assertIn("`if` branches have incompatible types", str(raised.exception))
+        self.assertIn("All branches of an if expression must produce the same type", str(raised.exception))
 
     def test_block_branch_string_value_type(self):
         checker = check('let x = if true { let y = 1 "a" } else { "b" }')

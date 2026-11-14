@@ -1137,7 +1137,7 @@ class TypeChecker:
             self._error(
                 f"{context} must be Bool, got {condition_type.label}",
                 expr.span,
-                "Use a comparison or a boolean value.",
+                "Conditions must evaluate to `true` or `false`. Use a comparison (for example `x == 0`) or a boolean expression.",
             )
 
     def _common_type(self, then_type: Type, else_type: Type, expr: IfExpression) -> Type:
@@ -1170,9 +1170,9 @@ class TypeChecker:
             )
             return Type.map_of(key_type, value_type)
         self._error(
-            f"`if` branches have incompatible types: {then_type.label} and {else_type.label}",
+            f"All branches of an if expression must produce the same type, got {then_type.label} and {else_type.label}",
             expr.else_value.span if expr.else_value.span is not None else expr.span,
-            "Both branches must produce the same type.",
+            "Make every `if`, `elif`, and `else` branch return the same type (or add an explicit conversion).",
             category="type-mismatch",
         )
 
