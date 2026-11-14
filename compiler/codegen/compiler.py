@@ -25,6 +25,8 @@ from compiler.ast.nodes import (
     PrintStatement,
     Program,
     ReturnStatement,
+    ThrowStatement,
+    TryCatchStatement,
     ExpressionStatement,
     Statement,
     StringLiteral,
@@ -89,7 +91,7 @@ class Compiler:
 
     def patch(self, index: int, target: int) -> None:
         ins = self.instructions[index]
-        if ins.op not in (Op.JUMP, Op.JUMP_IF_FALSE, Op.ITER_NEXT):
+        if ins.op not in (Op.JUMP, Op.JUMP_IF_FALSE, Op.ITER_NEXT, Op.SETUP_TRY):
             raise RuntimeError(f"Cannot patch non-jump instruction at {index}: {ins!r}")
         self.instructions[index] = Instruction(ins.op, target, span=ins.span)
 
@@ -125,6 +127,20 @@ class Compiler:
         if isinstance(stmt, ReturnStatement):
             self.compile_expression(stmt.value)
             self.emit(Op.RETURN, span=stmt.span)
+            return
+        if isinstance(stmt, ThrowStatement):
+            self.compile_expression(stmt.value)
+            self.emit(Op.THROW, span=stmt.span)
+            return
+        if isinstance(stmt, TryCatchStatement):
+            handler_index = self.emit(Op.SETUP_TRY, None, stmt.span)
+            self.compile_block(stmt.try_block)
+            self.emit(Op.POP_TRY, span=stmt.span)
+            end_jump = self.emit(Op.JUMP, None, stmt.span)
+            self.patch(handler_index, len(self.instructions))
+            self.emit(Op.DECLARE_NAME, stmt.catch_name.name, stmt.catch_name.span)
+            self.compile_block(stmt.catch_block)
+            self.patch(end_jump, len(self.instructions))
             return
         if isinstance(stmt, ExpressionStatement):
             self.compile_expression(stmt.expression)

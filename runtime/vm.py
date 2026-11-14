@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import math
 import operator
@@ -24,6 +24,15 @@ class ForFrame:
     previous_constant: bool
 
 
+@dataclass
+class TryHandler:
+    target: int
+    stack_depth: int
+    iterator_depth: int
+    env: dict[str, Value]
+    constant: set[str]
+
+
 class VM:
     def __init__(self) -> None:
         self.stack: list[Value] = []
@@ -34,6 +43,7 @@ class VM:
         self.global_constant: set[str] = self.constant
         self.functions: dict[str, FunctionInfo] = {}
         self.iterators: list[ForFrame] = []
+        self.handlers: list[TryHandler] = []
         self.call_depth = 0
         self.max_call_depth = 200
 
@@ -84,233 +94,326 @@ class VM:
         self.stack = []
         self.functions = program.functions
         self.iterators = []
+        self.handlers = []
         self.call_depth = 0
         try:
             self._execute(program.instructions, allow_return=False)
         finally:
             self._cleanup_iterators(0)
+            self.handlers = []
         return dict(self.env)
+
+    def _unwind_to_handler(self, message: str) -> int:
+        handler = self.handlers.pop()
+        self.stack = self.stack[: handler.stack_depth]
+        self._cleanup_iterators(handler.iterator_depth)
+        self.env = handler.env
+        self.constant = handler.constant
+        self.stack.append(message)
+        return handler.target
 
     def _execute(self, instructions: tuple[Instruction, ...], *, allow_return: bool) -> Value | None:
         ip = 0
         while ip < len(instructions):
             ins = instructions[ip]
             ip += 1
-            if ins.op == Op.CONST:
-                self.stack.append(ins.arg)
-            elif ins.op == Op.LOAD_NAME:
-                name = ins.arg
-                if name not in self.env:
-                    if name in self.functions:
+            try:
+                if ins.op == Op.CONST:
+                    self.stack.append(ins.arg)
+                elif ins.op == Op.LOAD_NAME:
+                    name = ins.arg
+                    if name not in self.env:
+                        if name in self.functions:
+                            raise SwarnaNameError(
+                                f"Function '{name}' must be called",
+                                ins.span,
+                                hint="Add parentheses and arguments, or bind the result to a name.",
+                            )
                         raise SwarnaNameError(
-                            f"Function '{name}' must be called",
+                            f"Undefined name '{name}'",
                             ins.span,
-                            hint="Add parentheses and arguments, or bind the result to a name.",
+                            hint="Declare it first with `let name = value` or `const name = value`.",
+                            category="undefined-name",
                         )
-                    raise SwarnaNameError(
-                        f"Undefined name '{name}'",
-                        ins.span,
-                        hint="Declare it first with `let name = value` or `const name = value`.",
-                        category="undefined-name",
-                    )
-                self.stack.append(self.env[name])
-            elif ins.op == Op.STORE_NAME:
-                value = self._pop(ins)
-                name = ins.arg
-                if name not in self.env:
+                    self.stack.append(self.env[name])
+                elif ins.op == Op.STORE_NAME:
+                    value = self._pop(ins)
+                    name = ins.arg
+                    if name not in self.env:
+                        if name in self.functions:
+                            raise SwarnaNameError(
+                                f"Cannot assign to function '{name}'",
+                                ins.span,
+                                hint="Call the function and assign its result to a variable.",
+                            )
+                        raise SwarnaNameError(
+                            f"Undefined name '{name}'",
+                            ins.span,
+                            hint="Declare it first with `let name = value` or `const name = value`.",
+                            category="undefined-name",
+                        )
+                    if name in self.constant:
+                        raise SwarnaRuntimeError(
+                            f"Cannot assign to const binding '{name}'",
+                            ins.span,
+                            hint="Change the binding to `let` if it needs to be reassigned.",
+                        )
+                    self.env[name] = value
+                elif ins.op == Op.DECLARE_NAME:
+                    self.env[ins.arg] = self._pop(ins)
+                    self.constant.discard(ins.arg)
+                elif ins.op == Op.STORE_CONST:
+                    self.env[ins.arg] = self._pop(ins)
+                    self.constant.add(ins.arg)
+                elif ins.op == Op.DUP:
+                    if not self.stack:
+                        raise SwarnaRuntimeError(
+                            "Stack underflow on DUP",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid stack operation.",
+                        )
+                    self.stack.append(self.stack[-1])
+                elif ins.op == Op.ADD:
+                    self._binary(ins, operator.add)
+                elif ins.op == Op.SUB:
+                    self._binary(ins, operator.sub)
+                elif ins.op == Op.MUL:
+                    self._binary(ins, operator.mul)
+                elif ins.op == Op.DIV:
+                    b = self._pop(ins)
+                    a = self._pop(ins)
+                    if b == 0:
+                        raise SwarnaZeroDivisionError(
+                            "division by zero",
+                            ins.span,
+                            hint="The divisor must be non-zero.",
+                        )
+                    try:
+                        self.stack.append(a / b)
+                    except TypeError as e:
+                        raise SwarnaTypeError(
+                            str(e),
+                            ins.span,
+                            hint="The operands have incompatible types.",
+                            category="type-mismatch",
+                        ) from e
+                elif ins.op == Op.IDIV:
+                    b = self._pop(ins)
+                    a = self._pop(ins)
+                    if type(a) is not int or type(b) is not int:
+                        raise SwarnaTypeError(
+                            "'//' requires Int operands",
+                            ins.span,
+                            hint="Use `/` for true division or convert the operands to Int.",
+                            category="type-mismatch",
+                        )
+                    if b == 0:
+                        raise SwarnaZeroDivisionError(
+                            "integer division by zero",
+                            ins.span,
+                            hint="The divisor must be non-zero.",
+                        )
+                    self.stack.append(a // b)
+                elif ins.op == Op.MOD:
+                    b = self._pop(ins)
+                    a = self._pop(ins)
+                    if b == 0:
+                        raise SwarnaZeroDivisionError(
+                            "modulo by zero",
+                            ins.span,
+                            hint="The divisor must be non-zero.",
+                        )
+                    try:
+                        self.stack.append(a % b)
+                    except TypeError as e:
+                        raise SwarnaTypeError(
+                            str(e),
+                            ins.span,
+                            hint="The operands have incompatible types.",
+                            category="type-mismatch",
+                        ) from e
+                elif ins.op == Op.NEG:
+                    value = self._pop(ins)
+                    try:
+                        self.stack.append(-value)
+                    except TypeError as e:
+                        raise SwarnaTypeError(
+                            str(e),
+                            ins.span,
+                            hint="Unary `-` requires a number.",
+                        ) from e
+                elif ins.op == Op.NOT:
+                    self.stack.append(not bool(self._pop(ins)))
+                elif ins.op == Op.BOOL:
+                    if not self.stack:
+                        raise SwarnaRuntimeError(
+                            "Stack underflow on BOOL",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid stack operation.",
+                        )
+                    self.stack[-1] = bool(self.stack[-1])
+                elif ins.op == Op.EQ:
+                    self._binary(ins, operator.eq)
+                elif ins.op == Op.NEQ:
+                    self._binary(ins, operator.ne)
+                elif ins.op == Op.LT:
+                    self._binary(ins, operator.lt)
+                elif ins.op == Op.LTE:
+                    self._binary(ins, operator.le)
+                elif ins.op == Op.GT:
+                    self._binary(ins, operator.gt)
+                elif ins.op == Op.GTE:
+                    self._binary(ins, operator.ge)
+                elif ins.op == Op.PRINT:
+                    self.output.append(self._pop(ins))
+                elif ins.op == Op.JUMP:
+                    ip = self._jump_target(ins, len(instructions))
+                elif ins.op == Op.JUMP_IF_FALSE:
+                    condition = self._pop(ins)
+                    if not bool(condition):
+                        ip = self._jump_target(ins, len(instructions))
+                elif ins.op == Op.POP:
+                    self._pop(ins)
+                elif ins.op == Op.BUILD_LIST:
+                    count = ins.arg
+                    if not isinstance(count, int) or count < 0:
+                        raise SwarnaRuntimeError(
+                            "Invalid BUILD_LIST count",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid list instruction.",
+                        )
+                    if len(self.stack) < count:
+                        raise SwarnaRuntimeError(
+                            "Stack underflow on BUILD_LIST",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid stack operation.",
+                        )
+                    elements = [self._pop(ins) for _ in range(count)]
+                    elements.reverse()
+                    self.stack.append(elements)
+                elif ins.op == Op.BUILD_MAP:
+                    count = ins.arg
+                    if not isinstance(count, int) or count < 0:
+                        raise SwarnaRuntimeError(
+                            "Invalid BUILD_MAP count",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid map instruction.",
+                        )
+                    if len(self.stack) < count * 2:
+                        raise SwarnaRuntimeError(
+                            "Stack underflow on BUILD_MAP",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid stack operation.",
+                        )
+                    items = [self._pop(ins) for _ in range(count * 2)]
+                    items.reverse()
+                    result: dict[Value, Value] = {}
+                    for offset in range(0, count * 2, 2):
+                        key, value = items[offset], items[offset + 1]
+                        try:
+                            hash(key)
+                        except TypeError:
+                            raise SwarnaTypeError(
+                                f"Map keys must be Int, Float, String, or Bool, "
+                                f"got {value_type_name(key)}",
+                                ins.span,
+                                hint="Use a scalar key.",
+                            ) from None
+                        result[key] = value
+                    self.stack.append(result)
+                elif ins.op == Op.INDEX:
+                    index = self._pop(ins)
+                    collection = self._pop(ins)
+                    if isinstance(collection, dict):
+                        try:
+                            self.stack.append(collection[index])
+                        except KeyError:
+                            raise SwarnaRuntimeError(
+                                f"Key {format_literal(index)} is not in the map",
+                                ins.span,
+                                hint="Check the key, or use a key that exists.",
+                            ) from None
+                        except TypeError:
+                            raise SwarnaTypeError(
+                                f"Map keys must be Int, Float, String, or Bool, "
+                                f"got {value_type_name(index)}",
+                                ins.span,
+                                hint="Use a scalar key.",
+                            ) from None
+                    elif isinstance(collection, str):
+                        if type(index) is not int:
+                            raise SwarnaTypeError(
+                                "String index must be Int",
+                                ins.span,
+                                hint="Use an integer index, such as `text[0]`.",
+                            )
+                        try:
+                            self.stack.append(collection[index])
+                        except IndexError:
+                            raise SwarnaRuntimeError(
+                                f"Index {index} is out of range for a string of length {len(collection)}",
+                                ins.span,
+                                hint="Use an index from 0 to len(text) - 1, or a negative index from -len(text) to -1.",
+                            ) from None
+                    elif isinstance(collection, list):
+                        if type(index) is not int:
+                            raise SwarnaTypeError(
+                                "List index must be Int",
+                                ins.span,
+                                hint="Use an integer index, such as `values[0]`.",
+                            )
+                        try:
+                            self.stack.append(collection[index])
+                        except IndexError:
+                            raise SwarnaRuntimeError(
+                                f"Index {index} is out of range for a list of length {len(collection)}",
+                                ins.span,
+                                hint="Use an index from 0 to len(list) - 1, or a negative index from -len(list) to -1.",
+                            ) from None
+                    else:
+                        raise SwarnaTypeError(
+                            f"Cannot index {value_type_name(collection)}",
+                            ins.span,
+                            hint="Only lists, maps, and strings can be indexed.",
+                        )
+                elif ins.op == Op.STORE_INDEX:
+                    value = self._pop(ins)
+                    index = self._pop(ins)
+                    collection = self._pop(ins)
+                    name = ins.arg
                     if name in self.functions:
                         raise SwarnaNameError(
                             f"Cannot assign to function '{name}'",
                             ins.span,
                             hint="Call the function and assign its result to a variable.",
                         )
-                    raise SwarnaNameError(
-                        f"Undefined name '{name}'",
-                        ins.span,
-                        hint="Declare it first with `let name = value` or `const name = value`.",
-                        category="undefined-name",
-                    )
-                if name in self.constant:
-                    raise SwarnaRuntimeError(
-                        f"Cannot assign to const binding '{name}'",
-                        ins.span,
-                        hint="Change the binding to `let` if it needs to be reassigned.",
-                    )
-                self.env[name] = value
-            elif ins.op == Op.DECLARE_NAME:
-                self.env[ins.arg] = self._pop(ins)
-                self.constant.discard(ins.arg)
-            elif ins.op == Op.STORE_CONST:
-                self.env[ins.arg] = self._pop(ins)
-                self.constant.add(ins.arg)
-            elif ins.op == Op.DUP:
-                if not self.stack:
-                    raise SwarnaRuntimeError(
-                        "Stack underflow on DUP",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid stack operation.",
-                    )
-                self.stack.append(self.stack[-1])
-            elif ins.op == Op.ADD:
-                self._binary(ins, operator.add)
-            elif ins.op == Op.SUB:
-                self._binary(ins, operator.sub)
-            elif ins.op == Op.MUL:
-                self._binary(ins, operator.mul)
-            elif ins.op == Op.DIV:
-                b = self._pop(ins)
-                a = self._pop(ins)
-                if b == 0:
-                    raise SwarnaZeroDivisionError(
-                        "division by zero",
-                        ins.span,
-                        hint="The divisor must be non-zero.",
-                    )
-                try:
-                    self.stack.append(a / b)
-                except TypeError as e:
-                    raise SwarnaTypeError(
-                        str(e),
-                        ins.span,
-                        hint="The operands have incompatible types.",
-                        category="type-mismatch",
-                    ) from e
-            elif ins.op == Op.IDIV:
-                b = self._pop(ins)
-                a = self._pop(ins)
-                if type(a) is not int or type(b) is not int:
-                    raise SwarnaTypeError(
-                        "'//' requires Int operands",
-                        ins.span,
-                        hint="Use `/` for true division or convert the operands to Int.",
-                        category="type-mismatch",
-                    )
-                if b == 0:
-                    raise SwarnaZeroDivisionError(
-                        "integer division by zero",
-                        ins.span,
-                        hint="The divisor must be non-zero.",
-                    )
-                self.stack.append(a // b)
-            elif ins.op == Op.MOD:
-                b = self._pop(ins)
-                a = self._pop(ins)
-                if b == 0:
-                    raise SwarnaZeroDivisionError(
-                        "modulo by zero",
-                        ins.span,
-                        hint="The divisor must be non-zero.",
-                    )
-                try:
-                    self.stack.append(a % b)
-                except TypeError as e:
-                    raise SwarnaTypeError(
-                        str(e),
-                        ins.span,
-                        hint="The operands have incompatible types.",
-                        category="type-mismatch",
-                    ) from e
-            elif ins.op == Op.NEG:
-                value = self._pop(ins)
-                try:
-                    self.stack.append(-value)
-                except TypeError as e:
-                    raise SwarnaTypeError(
-                        str(e),
-                        ins.span,
-                        hint="Unary `-` requires a number.",
-                    ) from e
-            elif ins.op == Op.NOT:
-                self.stack.append(not bool(self._pop(ins)))
-            elif ins.op == Op.BOOL:
-                if not self.stack:
-                    raise SwarnaRuntimeError(
-                        "Stack underflow on BOOL",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid stack operation.",
-                    )
-                self.stack[-1] = bool(self.stack[-1])
-            elif ins.op == Op.EQ:
-                self._binary(ins, operator.eq)
-            elif ins.op == Op.NEQ:
-                self._binary(ins, operator.ne)
-            elif ins.op == Op.LT:
-                self._binary(ins, operator.lt)
-            elif ins.op == Op.LTE:
-                self._binary(ins, operator.le)
-            elif ins.op == Op.GT:
-                self._binary(ins, operator.gt)
-            elif ins.op == Op.GTE:
-                self._binary(ins, operator.ge)
-            elif ins.op == Op.PRINT:
-                self.output.append(self._pop(ins))
-            elif ins.op == Op.JUMP:
-                ip = self._jump_target(ins, len(instructions))
-            elif ins.op == Op.JUMP_IF_FALSE:
-                condition = self._pop(ins)
-                if not bool(condition):
-                    ip = self._jump_target(ins, len(instructions))
-            elif ins.op == Op.POP:
-                self._pop(ins)
-            elif ins.op == Op.BUILD_LIST:
-                count = ins.arg
-                if not isinstance(count, int) or count < 0:
-                    raise SwarnaRuntimeError(
-                        "Invalid BUILD_LIST count",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid list instruction.",
-                    )
-                if len(self.stack) < count:
-                    raise SwarnaRuntimeError(
-                        "Stack underflow on BUILD_LIST",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid stack operation.",
-                    )
-                elements = [self._pop(ins) for _ in range(count)]
-                elements.reverse()
-                self.stack.append(elements)
-            elif ins.op == Op.BUILD_MAP:
-                count = ins.arg
-                if not isinstance(count, int) or count < 0:
-                    raise SwarnaRuntimeError(
-                        "Invalid BUILD_MAP count",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid map instruction.",
-                    )
-                if len(self.stack) < count * 2:
-                    raise SwarnaRuntimeError(
-                        "Stack underflow on BUILD_MAP",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid stack operation.",
-                    )
-                items = [self._pop(ins) for _ in range(count * 2)]
-                items.reverse()
-                result: dict[Value, Value] = {}
-                for offset in range(0, count * 2, 2):
-                    key, value = items[offset], items[offset + 1]
-                    try:
-                        hash(key)
-                    except TypeError:
-                        raise SwarnaTypeError(
-                            f"Map keys must be Int, Float, String, or Bool, "
-                            f"got {value_type_name(key)}",
+                    if name not in self.env:
+                        raise SwarnaNameError(
+                            f"Undefined name '{name}'",
                             ins.span,
-                            hint="Use a scalar key.",
-                        ) from None
-                    result[key] = value
-                self.stack.append(result)
-            elif ins.op == Op.INDEX:
-                index = self._pop(ins)
-                collection = self._pop(ins)
-                if isinstance(collection, dict):
-                    try:
-                        self.stack.append(collection[index])
-                    except KeyError:
+                            hint="Declare it first with `let name = value` or `const name = value`.",
+                            category="undefined-name",
+                        )
+                    if name in self.constant:
                         raise SwarnaRuntimeError(
-                            f"Key {format_literal(index)} is not in the map",
+                            f"Cannot assign to const binding '{name}'",
                             ins.span,
-                            hint="Check the key, or use a key that exists.",
-                        ) from None
+                            hint="Change the binding to `let` if it needs to be reassigned.",
+                        )
+                    if isinstance(collection, list):
+                        raise SwarnaTypeError(
+                            "Lists are immutable; cannot assign to an index",
+                            ins.span,
+                            hint="Build a new list with `+` instead.",
+                        )
+                    if not isinstance(collection, dict):
+                        raise SwarnaTypeError(
+                            f"Cannot assign to {value_type_name(collection)}",
+                            ins.span,
+                            hint="Only maps support index assignment.",
+                        )
+                    try:
+                        collection[index] = value
                     except TypeError:
                         raise SwarnaTypeError(
                             f"Map keys must be Int, Float, String, or Bool, "
@@ -318,334 +421,281 @@ class VM:
                             ins.span,
                             hint="Use a scalar key.",
                         ) from None
-                elif isinstance(collection, str):
-                    if type(index) is not int:
+                elif ins.op == Op.MAP_GET:
+                    default = self._pop(ins)
+                    key = self._pop(ins)
+                    collection = self._pop(ins)
+                    if not isinstance(collection, dict):
                         raise SwarnaTypeError(
-                            "String index must be Int",
+                            f"`get` expects a Map, got {value_type_name(collection)}",
                             ins.span,
-                            hint="Use an integer index, such as `text[0]`.",
+                            hint="Pass a map as the first argument.",
                         )
                     try:
-                        self.stack.append(collection[index])
-                    except IndexError:
-                        raise SwarnaRuntimeError(
-                            f"Index {index} is out of range for a string of length {len(collection)}",
-                            ins.span,
-                            hint="Use an index from 0 to len(text) - 1, or a negative index from -len(text) to -1.",
-                        ) from None
-                elif isinstance(collection, list):
-                    if type(index) is not int:
+                        if key in collection:
+                            self.stack.append(collection[key])
+                        else:
+                            self.stack.append(default)
+                    except TypeError:
                         raise SwarnaTypeError(
-                            "List index must be Int",
+                            f"Map keys must be Int, Float, String, or Bool, "
+                            f"got {value_type_name(key)}",
                             ins.span,
-                            hint="Use an integer index, such as `values[0]`.",
-                        )
-                    try:
-                        self.stack.append(collection[index])
-                    except IndexError:
-                        raise SwarnaRuntimeError(
-                            f"Index {index} is out of range for a list of length {len(collection)}",
-                            ins.span,
-                            hint="Use an index from 0 to len(list) - 1, or a negative index from -len(list) to -1.",
+                            hint="Use a scalar key.",
                         ) from None
-                else:
-                    raise SwarnaTypeError(
-                        f"Cannot index {value_type_name(collection)}",
-                        ins.span,
-                        hint="Only lists, maps, and strings can be indexed.",
-                    )
-            elif ins.op == Op.STORE_INDEX:
-                value = self._pop(ins)
-                index = self._pop(ins)
-                collection = self._pop(ins)
-                name = ins.arg
-                if name in self.functions:
-                    raise SwarnaNameError(
-                        f"Cannot assign to function '{name}'",
-                        ins.span,
-                        hint="Call the function and assign its result to a variable.",
-                    )
-                if name not in self.env:
-                    raise SwarnaNameError(
-                        f"Undefined name '{name}'",
-                        ins.span,
-                        hint="Declare it first with `let name = value` or `const name = value`.",
-                        category="undefined-name",
-                    )
-                if name in self.constant:
-                    raise SwarnaRuntimeError(
-                        f"Cannot assign to const binding '{name}'",
-                        ins.span,
-                        hint="Change the binding to `let` if it needs to be reassigned.",
-                    )
-                if isinstance(collection, list):
-                    raise SwarnaTypeError(
-                        "Lists are immutable; cannot assign to an index",
-                        ins.span,
-                        hint="Build a new list with `+` instead.",
-                    )
-                if not isinstance(collection, dict):
-                    raise SwarnaTypeError(
-                        f"Cannot assign to {value_type_name(collection)}",
-                        ins.span,
-                        hint="Only maps support index assignment.",
-                    )
-                try:
-                    collection[index] = value
-                except TypeError:
-                    raise SwarnaTypeError(
-                        f"Map keys must be Int, Float, String, or Bool, "
-                        f"got {value_type_name(index)}",
-                        ins.span,
-                        hint="Use a scalar key.",
-                    ) from None
-            elif ins.op == Op.MAP_GET:
-                default = self._pop(ins)
-                key = self._pop(ins)
-                collection = self._pop(ins)
-                if not isinstance(collection, dict):
-                    raise SwarnaTypeError(
-                        f"`get` expects a Map, got {value_type_name(collection)}",
-                        ins.span,
-                        hint="Pass a map as the first argument.",
-                    )
-                try:
-                    if key in collection:
-                        self.stack.append(collection[key])
+                elif ins.op == Op.LEN:
+                    value = self._pop(ins)
+                    if isinstance(value, (list, dict, str)):
+                        self.stack.append(len(value))
                     else:
-                        self.stack.append(default)
-                except TypeError:
-                    raise SwarnaTypeError(
-                        f"Map keys must be Int, Float, String, or Bool, "
-                        f"got {value_type_name(key)}",
-                        ins.span,
-                        hint="Use a scalar key.",
-                    ) from None
-            elif ins.op == Op.LEN:
-                value = self._pop(ins)
-                if isinstance(value, (list, dict, str)):
-                    self.stack.append(len(value))
-                else:
-                    raise SwarnaTypeError(
-                        f"`len` expects a List, Map, or String, got {value_type_name(value)}",
-                        ins.span,
-                        hint="Pass a list, map, or string to `len`.",
-                    )
-            elif ins.op == Op.READ_FILE:
-                path = self._pop(ins)
-                if type(path) is not str:
-                    raise SwarnaTypeError(
-                        f"`read_file` expects a String path, got {value_type_name(path)}",
-                        ins.span,
-                        hint='Pass a file path as a string, such as `read_file("notes.txt")`.',
-                    )
-                self.stack.append(read_text_file(path, ins.span))
-            elif ins.op == Op.READ_CSV:
-                path = self._pop(ins)
-                if type(path) is not str:
-                    raise SwarnaTypeError(
-                        f"`read_csv` expects a String path, got {value_type_name(path)}",
-                        ins.span,
-                        hint='Pass a file path as a string, such as `read_csv("scores.csv", ...)`.',
-                    )
-                schema = ins.arg
-                if not isinstance(schema, tuple):
-                    raise SwarnaRuntimeError(
-                        "Invalid READ_CSV schema",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid CSV instruction.",
-                    )
-                text = read_text_file(path, ins.span)
-                self.stack.append(read_csv_data(text, path, schema))
-            elif ins.op == Op.RANGE:
-                arg_count = ins.arg
-                if arg_count not in (1, 2, 3):
-                    raise SwarnaRuntimeError(
-                        "Invalid RANGE argument count",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid range instruction.",
-                    )
-                if len(self.stack) < arg_count:
-                    raise SwarnaRuntimeError(
-                        "Stack underflow on RANGE",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid stack operation.",
-                    )
-                values = [self._pop(ins) for _ in range(arg_count)]
-                values.reverse()
-                for value in values:
-                    if type(value) is not int:
                         raise SwarnaTypeError(
-                            f"`range` arguments must be Int, got {value_type_name(value)}",
+                            f"`len` expects a List, Map, or String, got {value_type_name(value)}",
                             ins.span,
-                            hint="Use Int values for range bounds and step.",
+                            hint="Pass a list, map, or string to `len`.",
+                        )
+                elif ins.op == Op.READ_FILE:
+                    path = self._pop(ins)
+                    if type(path) is not str:
+                        raise SwarnaTypeError(
+                            f"`read_file` expects a String path, got {value_type_name(path)}",
+                            ins.span,
+                            hint='Pass a file path as a string, such as `read_file("notes.txt")`.',
+                        )
+                    self.stack.append(read_text_file(path, ins.span))
+                elif ins.op == Op.READ_CSV:
+                    path = self._pop(ins)
+                    if type(path) is not str:
+                        raise SwarnaTypeError(
+                            f"`read_csv` expects a String path, got {value_type_name(path)}",
+                            ins.span,
+                            hint='Pass a file path as a string, such as `read_csv("scores.csv", ...)`.',
+                        )
+                    schema = ins.arg
+                    if not isinstance(schema, tuple):
+                        raise SwarnaRuntimeError(
+                            "Invalid READ_CSV schema",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid CSV instruction.",
+                        )
+                    text = read_text_file(path, ins.span)
+                    self.stack.append(read_csv_data(text, path, schema))
+                elif ins.op == Op.RANGE:
+                    arg_count = ins.arg
+                    if arg_count not in (1, 2, 3):
+                        raise SwarnaRuntimeError(
+                            "Invalid RANGE argument count",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid range instruction.",
+                        )
+                    if len(self.stack) < arg_count:
+                        raise SwarnaRuntimeError(
+                            "Stack underflow on RANGE",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid stack operation.",
+                        )
+                    values = [self._pop(ins) for _ in range(arg_count)]
+                    values.reverse()
+                    for value in values:
+                        if type(value) is not int:
+                            raise SwarnaTypeError(
+                                f"`range` arguments must be Int, got {value_type_name(value)}",
+                                ins.span,
+                                hint="Use Int values for range bounds and step.",
+                                category="type-mismatch",
+                            )
+                    if arg_count == 1:
+                        start, stop, step = 0, values[0], 1
+                    elif arg_count == 2:
+                        start, stop, step = values[0], values[1], 1
+                    else:
+                        start, stop, step = values[0], values[1], values[2]
+                    if step == 0:
+                        raise SwarnaRuntimeError(
+                            "`range` step must not be 0",
+                            ins.span,
+                            hint="Use a non-zero step, such as `1` or `-1`.",
+                        )
+                    self.stack.append(list(range(start, stop, step)))
+                elif ins.op == Op.INPUT:
+                    line = sys.stdin.readline()
+                    if line == "":
+                        raise SwarnaRuntimeError(
+                            "No input available",
+                            ins.span,
+                            hint="Provide input on stdin when using `input()`.",
+                        )
+                    self.stack.append(line.rstrip("\r\n"))
+                elif ins.op == Op.TO_INT:
+                    value = self._pop(ins)
+                    if type(value) is bool:
+                        self.stack.append(1 if value else 0)
+                    elif type(value) is int:
+                        self.stack.append(value)
+                    elif type(value) is float:
+                        if not math.isfinite(value):
+                            raise SwarnaRuntimeError(
+                                f"Cannot convert non-finite Float {format_literal(value)} to Int",
+                                ins.span,
+                                hint="Convert only finite Float values to Int.",
+                                category="type-mismatch",
+                            )
+                        self.stack.append(int(value))
+                    elif type(value) is str:
+                        text = value.strip()
+                        try:
+                            self.stack.append(int(text))
+                        except ValueError:
+                            raise SwarnaRuntimeError(
+                                f"Cannot convert String {format_literal(value)} to Int",
+                                ins.span,
+                                hint='Use an explicit whole-number string such as "42" (decimal integer form).',
+                                category="type-mismatch",
+                            ) from None
+                    else:
+                        raise SwarnaTypeError(
+                            f"Cannot convert {value_type_name(value)} to Int",
+                            ins.span,
+                            hint="Use `int(...)` with an Int, Float, Bool, or whole-number String.",
                             category="type-mismatch",
                         )
-                if arg_count == 1:
-                    start, stop, step = 0, values[0], 1
-                elif arg_count == 2:
-                    start, stop, step = values[0], values[1], 1
-                else:
-                    start, stop, step = values[0], values[1], values[2]
-                if step == 0:
-                    raise SwarnaRuntimeError(
-                        "`range` step must not be 0",
-                        ins.span,
-                        hint="Use a non-zero step, such as `1` or `-1`.",
-                    )
-                self.stack.append(list(range(start, stop, step)))
-            elif ins.op == Op.INPUT:
-                line = sys.stdin.readline()
-                if line == "":
-                    raise SwarnaRuntimeError(
-                        "No input available",
-                        ins.span,
-                        hint="Provide input on stdin when using `input()`.",
-                    )
-                self.stack.append(line.rstrip("\r\n"))
-            elif ins.op == Op.TO_INT:
-                value = self._pop(ins)
-                if type(value) is bool:
-                    self.stack.append(1 if value else 0)
-                elif type(value) is int:
-                    self.stack.append(value)
-                elif type(value) is float:
-                    if not math.isfinite(value):
-                        raise SwarnaRuntimeError(
-                            f"Cannot convert non-finite Float {format_literal(value)} to Int",
+                elif ins.op == Op.TO_FLOAT:
+                    value = self._pop(ins)
+                    if type(value) is bool:
+                        result = 1.0 if value else 0.0
+                    elif type(value) is int:
+                        result = float(value)
+                    elif type(value) is float:
+                        result = value
+                    elif type(value) is str:
+                        text = value.strip()
+                        try:
+                            result = float(text)
+                        except ValueError:
+                            raise SwarnaRuntimeError(
+                                f"Cannot convert String {format_literal(value)} to Float",
+                                ins.span,
+                                hint='Use a finite numeric string such as "3.14" or "1e3", or convert explicitly with the appropriate form.',
+                                category="type-mismatch",
+                            ) from None
+                    else:
+                        raise SwarnaTypeError(
+                            f"Cannot convert {value_type_name(value)} to Float",
                             ins.span,
-                            hint="Convert only finite Float values to Int.",
+                            hint="Use `float(...)` with an Int, Float, Bool, or numeric String.",
                             category="type-mismatch",
                         )
-                    self.stack.append(int(value))
-                elif type(value) is str:
-                    text = value.strip()
-                    try:
-                        self.stack.append(int(text))
-                    except ValueError:
+                    if not math.isfinite(result):
                         raise SwarnaRuntimeError(
-                            f"Cannot convert String {format_literal(value)} to Int",
+                            f"Cannot convert {value_type_name(value)} {format_literal(value)} to a finite Float",
                             ins.span,
-                            hint='Use an explicit whole-number string such as "42" (decimal integer form).',
+                            hint="SWARNA `Float` values must be finite. Use a finite numeric value.",
                             category="type-mismatch",
-                        ) from None
-                else:
-                    raise SwarnaTypeError(
-                        f"Cannot convert {value_type_name(value)} to Int",
-                        ins.span,
-                        hint="Use `int(...)` with an Int, Float, Bool, or whole-number String.",
-                        category="type-mismatch",
-                    )
-            elif ins.op == Op.TO_FLOAT:
-                value = self._pop(ins)
-                if type(value) is bool:
-                    result = 1.0 if value else 0.0
-                elif type(value) is int:
-                    result = float(value)
-                elif type(value) is float:
-                    result = value
-                elif type(value) is str:
-                    text = value.strip()
-                    try:
-                        result = float(text)
-                    except ValueError:
+                        )
+                    self.stack.append(result)
+                elif ins.op == Op.TO_STR:
+                    value = self._pop(ins)
+                    self.stack.append(format_value(value))
+                elif ins.op == Op.ITER_START:
+                    iterable = self._pop(ins)
+                    if not isinstance(iterable, (list, dict, str)):
+                        raise SwarnaTypeError(
+                            f"`for` expects a List, Map, or String, got {value_type_name(iterable)}",
+                            ins.span,
+                            hint="Use a list, map, or string after `in`.",
+                        )
+                    name = ins.arg
+                    if not isinstance(name, str):
                         raise SwarnaRuntimeError(
-                            f"Cannot convert String {format_literal(value)} to Float",
+                            "Invalid ITER_START name",
                             ins.span,
-                            hint='Use a finite numeric string such as "3.14" or "1e3", or convert explicitly with the appropriate form.',
-                            category="type-mismatch",
-                        ) from None
+                            hint="The bytecode compiler produced an invalid for loop.",
+                        )
+                    self.iterators.append(
+                        ForFrame(
+                            name=name,
+                            iterator=iter(iterable),
+                            had_previous=name in self.env,
+                            previous_value=self.env.get(name),
+                            previous_constant=name in self.constant,
+                        )
+                    )
+                elif ins.op == Op.ITER_NEXT:
+                    if not self.iterators:
+                        raise SwarnaRuntimeError(
+                            "ITER_NEXT without ITER_START",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid for loop.",
+                        )
+                    frame = self.iterators[-1]
+                    try:
+                        item = next(frame.iterator)
+                    except StopIteration:
+                        self.iterators.pop()
+                        self._restore_for_frame(frame)
+                        ip = self._jump_target(ins, len(instructions))
+                    else:
+                        self.env[frame.name] = item
+                        self.constant.discard(frame.name)
+                elif ins.op == Op.ITER_END:
+                    if not self.iterators:
+                        raise SwarnaRuntimeError(
+                            "ITER_END without ITER_START",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid for loop.",
+                        )
+                    self._restore_for_frame(self.iterators.pop())
+                elif ins.op == Op.THROW:
+                    value = self._pop(ins)
+                    if type(value) is not str:
+                        raise SwarnaTypeError(
+                            f"`throw` expects a String message, got {value_type_name(value)}",
+                            ins.span,
+                            hint='Throw a string message, for example `throw "something went wrong"`.',
+                        )
+                    raise SwarnaRuntimeError(value, ins.span)
+                elif ins.op == Op.SETUP_TRY:
+                    target = self._jump_target(ins, len(instructions))
+                    self.handlers.append(
+                        TryHandler(
+                            target=target,
+                            stack_depth=len(self.stack),
+                            iterator_depth=len(self.iterators),
+                            env=dict(self.env),
+                            constant=set(self.constant),
+                        )
+                    )
+                elif ins.op == Op.POP_TRY:
+                    if self.handlers:
+                        self.handlers.pop()
+                elif ins.op == Op.CALL:
+                    self._call(ins)
+                elif ins.op == Op.RETURN:
+                    if not allow_return:
+                        raise SwarnaRuntimeError(
+                            "RETURN outside a function",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid return.",
+                        )
+                    return self._pop(ins)
+                elif ins.op == Op.HALT:
+                    if allow_return:
+                        raise SwarnaRuntimeError(
+                            "Function ended without returning a value",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid function.",
+                        )
+                    return None
                 else:
-                    raise SwarnaTypeError(
-                        f"Cannot convert {value_type_name(value)} to Float",
-                        ins.span,
-                        hint="Use `float(...)` with an Int, Float, Bool, or numeric String.",
-                        category="type-mismatch",
-                    )
-                if not math.isfinite(result):
                     raise SwarnaRuntimeError(
-                        f"Cannot convert {value_type_name(value)} {format_literal(value)} to a finite Float",
+                        f"Unsupported opcode: {ins.op}",
                         ins.span,
-                        hint="SWARNA `Float` values must be finite. Use a finite numeric value.",
-                        category="type-mismatch",
+                        hint="The bytecode compiler produced an unsupported instruction.",
                     )
-                self.stack.append(result)
-            elif ins.op == Op.TO_STR:
-                value = self._pop(ins)
-                self.stack.append(format_value(value))
-            elif ins.op == Op.ITER_START:
-                iterable = self._pop(ins)
-                if not isinstance(iterable, (list, dict, str)):
-                    raise SwarnaTypeError(
-                        f"`for` expects a List, Map, or String, got {value_type_name(iterable)}",
-                        ins.span,
-                        hint="Use a list, map, or string after `in`.",
-                    )
-                name = ins.arg
-                if not isinstance(name, str):
-                    raise SwarnaRuntimeError(
-                        "Invalid ITER_START name",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid for loop.",
-                    )
-                self.iterators.append(
-                    ForFrame(
-                        name=name,
-                        iterator=iter(iterable),
-                        had_previous=name in self.env,
-                        previous_value=self.env.get(name),
-                        previous_constant=name in self.constant,
-                    )
-                )
-            elif ins.op == Op.ITER_NEXT:
-                if not self.iterators:
-                    raise SwarnaRuntimeError(
-                        "ITER_NEXT without ITER_START",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid for loop.",
-                    )
-                frame = self.iterators[-1]
-                try:
-                    item = next(frame.iterator)
-                except StopIteration:
-                    self.iterators.pop()
-                    self._restore_for_frame(frame)
-                    ip = self._jump_target(ins, len(instructions))
+            except SwarnaRuntimeError as error:
+                if self.handlers:
+                    ip = self._unwind_to_handler(error.message)
                 else:
-                    self.env[frame.name] = item
-                    self.constant.discard(frame.name)
-            elif ins.op == Op.ITER_END:
-                if not self.iterators:
-                    raise SwarnaRuntimeError(
-                        "ITER_END without ITER_START",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid for loop.",
-                    )
-                self._restore_for_frame(self.iterators.pop())
-            elif ins.op == Op.CALL:
-                self._call(ins)
-            elif ins.op == Op.RETURN:
-                if not allow_return:
-                    raise SwarnaRuntimeError(
-                        "RETURN outside a function",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid return.",
-                    )
-                return self._pop(ins)
-            elif ins.op == Op.HALT:
-                if allow_return:
-                    raise SwarnaRuntimeError(
-                        "Function ended without returning a value",
-                        ins.span,
-                        hint="The bytecode compiler produced an invalid function.",
-                    )
-                return None
-            else:
-                raise SwarnaRuntimeError(
-                    f"Unsupported opcode: {ins.op}",
-                    ins.span,
-                    hint="The bytecode compiler produced an unsupported instruction.",
-                )
+                    raise
         if allow_return:
             raise SwarnaRuntimeError(
                 "Function ended without returning a value",
@@ -721,9 +771,11 @@ class VM:
             local_env[parameter] = value
             local_constant.discard(parameter)
         iterator_depth = len(self.iterators)
+        saved_handlers = self.handlers
         self.stack = []
         self.env = local_env
         self.constant = local_constant
+        self.handlers = []
         self.call_depth += 1
         try:
             result = self._execute(function.instructions, allow_return=True)
@@ -739,6 +791,7 @@ class VM:
             return result
         finally:
             self._cleanup_iterators(iterator_depth)
+            self.handlers = saved_handlers
             self.call_depth -= 1
             self.stack = saved_stack
             self.env = saved_env

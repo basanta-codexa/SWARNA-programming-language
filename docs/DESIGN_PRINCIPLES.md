@@ -10,6 +10,10 @@ The target is not "no code." The target is code that a motivated non-programmer 
 
 See [VISION.md](VISION.md) for the long-term vision, differentiators, and SWARNA-native direction for upcoming areas such as error handling and data/behavior modeling.
 
+## Error handling (v1)
+
+SWARNA provides minimal, explicit error handling: `throw "message"` raises a runtime error with a `String` message, and `try { ... } catch e { ... }` catches runtime/user errors and binds the error message to `e` (a `String`) for handling. Caught execution continues after the `try/catch`. This is a SWARNA-native foundation (not a clone of other languages) intended to evolve toward structured, diagnostic-quality errors and richer recovery/propagation.
+
 ## What "easy" means
 
 Easy is not a property of syntax alone. We treat it as five layers, all of which have to hold up:

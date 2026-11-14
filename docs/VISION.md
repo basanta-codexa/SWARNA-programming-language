@@ -41,7 +41,7 @@ SWARNA should win by coherence and developer experience, not by copying feature 
 - **Propagation-friendly design:** keep error flow compatible with `return`, loops, and future `Result`/interop patterns (e.g. consider a propagation operator later, but do not require it now).
 - **Not a clone:** avoid complex checked-exception hierarchies; prefer simple, explicit, composable handling.
 
-**First implementation target:** minimal `try/catch` for runtime errors + a basic `throw/fail` for user errors, with full interpreter/VM/checker parity and diagnostics preserved.
+**First implementation target (v1, implemented):** minimal `throw` with a `String` message + `try { ... } catch name { ... }` to catch runtime/user errors and bind the error message to `name`, with interpreter/VM/checker parity. Future work: structured error objects (`kind`, source context access), `finally`, and propagation ergonomics.
 
 ## Feature direction: Object-oriented modeling (SWARNA-native)
 

@@ -28,6 +28,8 @@ from compiler.ast.nodes import (
     PrintStatement,
     Program,
     ReturnStatement,
+    ThrowStatement,
+    TryCatchStatement,
     ExpressionStatement,
     Statement,
     StringLiteral,
@@ -579,6 +581,28 @@ class TypeChecker:
 
         if isinstance(stmt, ExpressionStatement):
             self.check_expression(stmt.expression)
+            return
+
+        if isinstance(stmt, ThrowStatement):
+            value_type = self.check_expression(stmt.value)
+            if value_type is not Type.UNKNOWN and value_type is not Type.STRING:
+                self._error(
+                    f"`throw` expects a String message, got {value_type.label}",
+                    stmt.value.span if stmt.value.span is not None else stmt.span,
+                    "Throw a string message, for example `throw \"something went wrong\"`.",
+                    category="type-mismatch",
+                )
+            return
+
+        if isinstance(stmt, TryCatchStatement):
+            self.check_block(stmt.try_block)
+            saved_env = self.env
+            self.env = dict(self.env)
+            self.env[stmt.catch_name.name] = Binding(Type.STRING, constant=False, span=stmt.catch_name.span)
+            try:
+                self.check_block(stmt.catch_block)
+            finally:
+                self.env = saved_env
             return
 
         if isinstance(stmt, PrintStatement):

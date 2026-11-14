@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, TypeAnnotation, UnaryExpression, UnitLiteral, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, ThrowStatement, TryCatchStatement, TypeAnnotation, UnaryExpression, UnitLiteral, WhileStatement
 from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
@@ -67,6 +67,13 @@ class Parser:
             else:
                 value = self.parse_expression()
             return ReturnStatement(value=value, span=token.span)
+        if self.current.type == TokenType.KEYWORD_THROW:
+            token = self.current
+            self._advance()
+            value = self.parse_expression()
+            return ThrowStatement(value=value, span=token.span)
+        if self.current.type == TokenType.KEYWORD_TRY:
+            return self.parse_try_catch_statement()
         if self.current.type == TokenType.KEYWORD_FN:
             return self.parse_function_declaration()
         if self.current.type == TokenType.IDENTIFIER and self.current.value == "print":
@@ -76,7 +83,7 @@ class Parser:
         raise SwarnaSyntaxError(
             "Expected statement",
             self.current.span,
-            hint="Expected `let`, `const`, `fn`, `if`, `while`, `for`, `break`, `continue`, `return`, `print`, an assignment, or a function call.",
+            hint="Expected `let`, `const`, `fn`, `if`, `while`, `for`, `break`, `continue`, `return`, `throw`, `try`, `print`, an assignment, or a function call.",
         )
 
     def parse_assignment_or_expression_statement(
@@ -291,6 +298,17 @@ class Parser:
         body = self.parse_block()
         return ForStatement(name=name, iterable=iterable, body=body, span=for_token.span)
 
+    def parse_try_catch_statement(self) -> TryCatchStatement:
+        try_token = self.current
+        self._expect(TokenType.KEYWORD_TRY, "Expected 'try'", hint="Write `try { ... } catch e { ... }`.")
+        try_block = self.parse_block()
+        self._expect(TokenType.KEYWORD_CATCH, "Expected 'catch' after try block", hint="Add `catch name { ... }` to handle the error.")
+        name_token = self.current
+        name_value = self._expect(TokenType.IDENTIFIER, "Expected a catch variable name", hint="Name the caught error, as in `catch e { ... }`.")
+        catch_name = Identifier(name_value, span=name_token.span)
+        catch_block = self.parse_block()
+        return TryCatchStatement(try_block=try_block, catch_name=catch_name, catch_block=catch_block, span=try_token.span)
+
     def parse_if_expression(self) -> IfExpression:
         if_token = self.current
         self._expect(TokenType.KEYWORD_IF, "Expected 'if'", hint="Write `if condition { value } else { value }`.")
@@ -376,6 +394,8 @@ class Parser:
                 TokenType.KEYWORD_FOR,
                 TokenType.KEYWORD_BREAK,
                 TokenType.KEYWORD_CONTINUE,
+                TokenType.KEYWORD_THROW,
+                TokenType.KEYWORD_TRY,
                 TokenType.KEYWORD_FN,
             ):
                 statements.append(self.parse_statement())

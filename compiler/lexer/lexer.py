@@ -123,6 +123,12 @@ class Lexer:
                 return Token(TokenType.KEYWORD_CONTINUE, value, line, column)
             if value == "return":
                 return Token(TokenType.KEYWORD_RETURN, value, line, column)
+            if value == "throw":
+                return Token(TokenType.KEYWORD_THROW, value, line, column)
+            if value == "try":
+                return Token(TokenType.KEYWORD_TRY, value, line, column)
+            if value == "catch":
+                return Token(TokenType.KEYWORD_CATCH, value, line, column)
             if value == "fn":
                 return Token(TokenType.KEYWORD_FN, value, line, column)
             if value == "and":

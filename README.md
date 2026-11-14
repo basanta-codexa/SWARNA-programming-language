@@ -162,6 +162,7 @@ python -m swarna --run examples/team_averages.sw
 - `while` loops
 - `for` loops over lists, map keys, and strings, with a loop variable scoped to the loop (use `range(...)` for numeric sequences)
 - `break` and `continue` in `while` and `for` loops
+- exception handling v1: `throw "message"` and `try { ... } catch e { ... }` to catch runtime/user errors (the caught message is bound to `e` as a `String`)
 - `#` line comments
 - named `fn` declarations with optional parameter and return annotations
 - explicit types: `Int`, `Float`, `String`, `Bool`, `List[T]`, and `Map[K, V]`, including nested types such as `Map[String, List[Float]]`, on parameters, returns, and `let`/`const` bindings

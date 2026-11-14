@@ -4,7 +4,7 @@ import math
 import sys
 from dataclasses import dataclass
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, TypeAnnotation, UnaryExpression, UnitLiteral, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, ThrowStatement, TryCatchStatement, TypeAnnotation, UnaryExpression, UnitLiteral, WhileStatement
 from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.csv import read_csv_data
@@ -199,6 +199,31 @@ class Interpreter:
             raise _LoopContinue()
         if isinstance(stmt, ReturnStatement):
             raise _ReturnSignal(self.eval_expression(stmt.value))
+        if isinstance(stmt, ThrowStatement):
+            value = self.eval_expression(stmt.value)
+            if type(value) is not str:
+                raise SwarnaTypeError(
+                    f"`throw` expects a String message, got {value_type_name(value)}",
+                    stmt.value.span if stmt.value.span is not None else stmt.span,
+                    hint='Throw a string message, for example `throw "something went wrong"`.'
+                )
+            raise SwarnaRuntimeError(value, stmt.span)
+        if isinstance(stmt, TryCatchStatement):
+            try:
+                self.eval_block(stmt.try_block)
+            except SwarnaRuntimeError as error:
+                saved_env = self.env
+                saved_constant = self.constant
+                self.env = dict(self.env)
+                self.constant = dict(self.constant)
+                self.env[stmt.catch_name.name] = error.message
+                self.constant[stmt.catch_name.name] = False
+                try:
+                    self.eval_block(stmt.catch_block)
+                finally:
+                    self.env = saved_env
+                    self.constant = saved_constant
+            return
         if isinstance(stmt, ExpressionStatement):
             self.eval_expression(stmt.expression)
             return

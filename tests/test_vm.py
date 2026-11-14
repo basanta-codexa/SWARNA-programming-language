@@ -1030,6 +1030,47 @@ class TestVMCsv(unittest.TestCase):
         from runtime.values import UNIT
         self.assertIs(env["r"], UNIT)
 
+    def test_vm_try_catch_handles_throw(self):
+        program = Parser(Lexer('try { throw "oops" } catch e { print(e) } print(1)')).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, ["oops", 1])
+
+    def test_vm_try_catch_handles_runtime_error(self):
+        program = Parser(Lexer('try { let x = 1 / 0 } catch e { print(e) } print(2)')).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, ["division by zero", 2])
+
+    def test_vm_throw_without_catch_raises_runtime_error(self):
+        with self.assertRaisesRegex(SwarnaRuntimeError, "boom"):
+            run_vm('throw "boom"')
+
+    def test_vm_throw_must_be_string(self):
+        with self.assertRaisesRegex(SwarnaTypeError, r"`throw` expects a String message, got Int"):
+            run_vm("throw 1")
+
 
 if __name__ == "__main__":
     unittest.main()
+
+class TestVMExceptions(unittest.TestCase):
+    def test_vm_try_catch_handles_throw(self):
+        program = Parser(Lexer('try { throw "oops" } catch e { print(e) } print(1)')).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, ["oops", 1])
+
+    def test_vm_try_catch_handles_runtime_error(self):
+        program = Parser(Lexer('try { let x = 1 / 0 } catch e { print(e) } print(2)')).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, ["division by zero", 2])
+
+    def test_vm_throw_without_catch_raises_runtime_error(self):
+        with self.assertRaisesRegex(SwarnaRuntimeError, "boom"):
+            run_vm('throw "boom"')
+
+    def test_vm_throw_must_be_string(self):
+        with self.assertRaisesRegex(SwarnaTypeError, r"`throw` expects a String message, got Int"):
+            run_vm("throw 1")

@@ -820,6 +820,18 @@ class TestParser(unittest.TestCase):
         assert isinstance(stmt.value, IfExpression)
         assert isinstance(stmt.value.else_value, IfExpression)
 
+    def test_parse_throw_statement(self):
+        from compiler.ast.nodes import ThrowStatement
+        program = Parser(Lexer('throw "oops"')).parse_program()
+        self.assertIsInstance(program.statements[0], ThrowStatement)
+
+    def test_parse_try_catch_statement(self):
+        from compiler.ast.nodes import TryCatchStatement
+        program = Parser(Lexer('try { throw "oops" } catch e { print(e) }')).parse_program()
+        stmt = program.statements[0]
+        self.assertIsInstance(stmt, TryCatchStatement)
+        self.assertEqual(stmt.catch_name.name, "e")
+
 
 if __name__ == "__main__":
     unittest.main()

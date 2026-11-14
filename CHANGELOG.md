@@ -8,6 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- Exception handling v1: `throw` (with a `String` message) and `try { ... } catch name { ... }` to catch runtime/user errors, with the caught error message bound to `name` (lexer/parser/AST, type checking, interpreter, bytecode/VM, and tests).
 - `break` and `continue` statements for `while` and `for` loops (lexer, parser, type checker, interpreter, VM, codegen, and tests).
 - Packaging via `pyproject.toml`, editable installs, `swarna` console-script entry point, and `swarna.__version__`.
 - Continuous integration workflow to run the test suite on Python 3.10–3.12.
