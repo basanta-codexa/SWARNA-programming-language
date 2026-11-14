@@ -1,27 +1,39 @@
 # SWARNA
 
-SWARNA is a programming language implemented in Python, including a lexer, parser, AST, type checker, interpreter, bytecode compiler, and stack VM.
+SWARNA is a programming language implemented in Python. The project includes a lexer, parser, abstract syntax tree (AST), type checker, tree-walking interpreter, bytecode compiler, and stack-based virtual machine.
 
-**Status:** Early development. It can run small scripts and examples, but many language and tooling features are not yet implemented.
+This project is in an early stage of development. The current implementation supports a limited subset of the language suitable for small scripts and experimentation.
 
-- Design: [docs/DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md)
-- Roadmap: [docs/VISION.md](docs/VISION.md)
-- Target users: [docs/POSITIONING.md](docs/POSITIONING.md)
+## Documentation
+
+- [Design principles](docs/DESIGN_PRINCIPLES.md)
+- [Roadmap and vision](docs/VISION.md)
+- [Target users and positioning](docs/POSITIONING.md)
 
 ## Requirements
 
-- Python 3.10+
-- No third-party dependencies
+- Python 3.10 or later
+- No third-party runtime dependencies
+
+## Installation
+
+To install the command-line interface in editable mode:
+
+```bash
+python -m pip install -e .
+```
+
+After installation, the `swarna` command is available. You can also run the tool without installing it using `python -m swarna`.
 
 ## Usage
 
 Run a program from the command line:
 
 ```bash
-python -m swarna --run "let total = 1 + 2 * 3 print(total)"  # 7
+python -m swarna --run "let total = 1 + 2 * 3 print(total)"
 ```
 
-Run a `.sw` file (default when the argument is an existing file):
+Run a `.sw` source file:
 
 ```bash
 python -m swarna program.sw
@@ -29,20 +41,13 @@ python -m swarna program.sw
 python -m swarna --run program.sw
 ```
 
-Install the CLI locally (editable):
-
-```bash
-python -m pip install -e .
-swarna --run "print(1 + 2)"
-```
-
-Start the REPL (keeps bindings/functions between lines):
+Start the REPL (bindings and function declarations persist between lines):
 
 ```bash
 python -m swarna --run
 ```
 
-Inspect the pipeline:
+Inspect compiler and runtime stages:
 
 ```bash
 python -m swarna --version
@@ -51,11 +56,11 @@ python -m swarna --parse "let x = 1 + 2 * 3"
 python -m swarna --emit-bytecode "let x = 1 + 2"
 ```
 
-### Multi-line input
+### Multi-line programs via stdin
 
-Piping source to stdin works for multi-line programs.
+Source can be piped to stdin for multi-line programs.
 
-PowerShell (preserves quotes):
+**PowerShell**
 
 ```powershell
 @'
@@ -65,7 +70,7 @@ print(label)
 '@ | python -m swarna --run
 ```
 
-bash/zsh:
+**bash/zsh**
 
 ```bash
 printf 'let score = 42\nlet label = if score >= 50 { "pass" } else { "fail" }\nprint(label)\n' | python -m swarna --run
@@ -74,49 +79,56 @@ printf 'let score = 42\nlet label = if score >= 50 { "pass" } else { "fail" }\np
 ## Examples
 
 ```bash
-python -m swarna --run "let total = 0 let i = 1 while i <= 5 { total = total + i i = i + 1 } print(total)"  # 15
-python -m swarna --run "let scores = [72, 85, 90] let total = 0 for score in scores { total = total + score } print(total)"  # 247
-python -m swarna --run "fn add(a: Int, b: Int) -> Int { a + b } print(add(2, 3))"  # 5
+python -m swarna --run "let total = 0 let i = 1 while i <= 5 { total = total + i i = i + 1 } print(total)"
+python -m swarna --run "let scores = [72, 85, 90] let total = 0 for score in scores { total = total + score } print(total)"
+python -m swarna --run "fn add(a: Int, b: Int) -> Int { a + b } print(add(2, 3))"
 ```
 
-CSV example (`examples/team_averages.sw`):
+The repository includes a CSV example:
 
 ```bash
-python -m swarna --run examples/team_averages.sw  # {"Blue": 90.0, "Red": 82.0}
+python -m swarna --run examples/team_averages.sw
 ```
 
-## Current features
+## Language features
 
-- Values/types: `Int`, `Float`, `String`, `Bool`, `List[T]`, `Map[K, V]`, `Unit`/`()`; `let`/`const` bindings.
-- Operators: arithmetic (incl. `//`, `%`), comparisons, boolean logic (`and/or/not`, `&&/||/!`).
-- Control flow: `if`/`else if`/`elif`/`else` (statements and expressions), `while`, `for` over lists/maps/strings, `break`, `continue`.
-- Error handling (v1): `throw "message"` and `try { ... } catch e { ... }` (catches runtime/user errors; `e` is the error message string).
-- Functions: `fn` declarations, optional param/return annotations, `return`, recursion/mutual recursion, local scope.
-- Collections/strings: list/map literals, indexing, map assignment and `get`, `len`, list concat with `+`, string indexing/iteration, `range(...)`.
-- I/O and built-ins: `print`, `len`, `get`, `range`, `input`, `int`, `float`, `str`, `read_file`, `read_csv`.
-- Tooling/diagnostics: interpreter, bytecode VM, REPL, caret diagnostics with hints, `--explain` for some error categories.
-- `#` line comments.
+- **Types and bindings:** `Int`, `Float`, `String`, `Bool`, `List[T]`, `Map[K, V]`, and `Unit` (`()`); `let` and `const` bindings.
+- **Operators:** Arithmetic (`+`, `-`, `*`, `/`, `//`, `%`), comparisons, and boolean logic (`and`, `or`, `not`, `&&`, `||`, `!`).
+- **Control flow:** `if` / `else if` / `elif` / `else` (statements and expressions), `while`, `for` (lists, maps, strings), `break`, and `continue`.
+- **Error handling (v1):** `throw "message"` and `try { ... } catch e { ... }`. Caught runtime/user errors bind the error message to `e` as a `String`.
+- **Functions:** `fn` declarations, optional parameter and return annotations, `return`, recursion/mutual recursion, and local scope.
+- **Collections and strings:** List and map literals, indexing, map assignment and `get`, `len`, list concatenation with `+`, string indexing/iteration, and `range(...)`.
+- **Built-ins and I/O:** `print`, `len`, `get`, `range`, `input`, `int`, `float`, `str`, `read_file`, and `read_csv`.
+- **Tooling:** Interpreter and bytecode VM execution paths, REPL, source diagnostics with hints, and `--explain` for selected error categories.
+- **Syntax:** `#` line comments.
 
-## Current limitations
+## Known limitations
 
-- No records or user-defined types, modules/imports, generics, type aliases, string interpolation, or concurrency.
-- Lists and strings are immutable by index (no element assignment, slicing, or string methods). Maps support `m[key] = value` and `get`, but not deletion or entry iteration helpers.
-- Collections are homogeneous; map keys must be `Int`, `Float`, `String`, or `Bool`.
-- No first-class or nested functions, and no global mutation from functions. Unannotated parameter/return types may be treated as `Unknown` at some call sites (annotate return types when needed).
-- File I/O is limited to `read_file` and `read_csv` (no write APIs). No standard library beyond built-ins, and no formatter, debugger, or LSP.
+- No user-defined types/records, modules/imports, generics, type aliases, string interpolation, or concurrency.
+- Lists and strings do not support element assignment, slicing, or string methods. Maps support assignment and `get`, but not deletion or entry iteration helpers.
+- Collections are homogeneous. Map keys must be `Int`, `Float`, `String`, or `Bool`.
+- No first-class or nested functions, and no mutation of global bindings from within functions. Unannotated parameter or return types may be treated as `Unknown` at some call sites; annotate return types where call-site precision is required.
+- File I/O is limited to `read_file` and `read_csv`. There is no standard library beyond the built-ins listed above, and no formatter, debugger, or language server.
 
-## Tests
+## Development
+
+Run the test suite:
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-## Project layout
+## Project structure
 
-- `compiler/` — lexer, parser, AST, semantic checker, bytecode, codegen
-- `runtime/` — interpreter, VM
-- `swarna/` — CLI and REPL
-- `tests/` — unit tests
-- `docs/` — design and positioning docs
+- `compiler/` — lexer, parser, AST, semantic checker, bytecode, and code generation
+- `runtime/` — interpreter and virtual machine
+- `swarna/` — command-line interface and REPL
+- `tests/` — test suite
+- `docs/` — design and project documentation
+- `examples/` — sample programs
 
-See also: [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md), [LICENSE](LICENSE).
+## Additional information
+
+- [Contributing](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)
+- [License](LICENSE)
