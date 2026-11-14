@@ -656,6 +656,19 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(stdout.getvalue(), "5\n")
 
+    def test_run_cli_executes_source_file_by_default(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "program.sw"
+            path.write_text("print(7)\n", encoding="utf-8")
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                code = main([str(path)])
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.getvalue(), "7\n")
+
     def test_run_cli_reports_error_with_source_file_name(self):
         import tempfile
         from pathlib import Path

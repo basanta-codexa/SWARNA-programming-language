@@ -108,11 +108,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "source",
         nargs="?",
-        help="Inline source, or a path to a .sw source file; if omitted, reads stdin or starts REPL",
+        help="Inline source, or a path to a source file (runs by default if the file exists); if omitted, reads stdin or starts REPL",
     )
     args = parser.parse_args(argv)
 
     source_name: str | None = None
+    mode_explicit = bool(args.run or args.parse or args.emit_bytecode or args.lex)
 
     def render(source: str) -> str:
         if args.run:
@@ -126,9 +127,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.source is not None:
         source = args.source
         candidate = Path(args.source)
-        if candidate.is_file():
+        is_file = candidate.is_file()
+        if is_file:
             try:
-                source = candidate.read_text(encoding="utf-8")
+                source = candidate.read_text(encoding="utf-8-sig")
             except UnicodeDecodeError:
                 print(
                     f"error: Could not read '{args.source}' as UTF-8 text",
@@ -139,8 +141,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"error: Could not read '{args.source}': {e}", file=sys.stderr)
                 return 1
             source_name = str(candidate)
+
+        run_file = is_file and not mode_explicit
         try:
-            output = render(source)
+            output = run_source(source) if run_file else render(source)
         except DiagnosticError as e:
             if source_name and e.source is None and e.source_name is None:
                 e.source_name = source_name

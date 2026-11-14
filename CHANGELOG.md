@@ -20,3 +20,4 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Changed
 - Documentation (`README.md`, `docs/DESIGN_PRINCIPLES.md`) updated to reflect `break`/`continue` support and direct file execution.
+- Passing an existing source file now runs it by default; source files are read as UTF-8 with optional BOM.

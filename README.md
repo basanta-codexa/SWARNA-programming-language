@@ -24,9 +24,11 @@ swarna --run "let total = 1 + 2 * 3 print(total)"
 Run a `.sw` source file:
 
 ```bash
+python -m swarna program.sw
+# or explicitly:
 python -m swarna --run program.sw
 # or, if installed:
-swarna --run program.sw
+swarna program.sw
 ```
 
 Prints `7`.
