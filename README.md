@@ -1,11 +1,11 @@
 # SWARNA
 
-A small programming language implemented in Python (lexer, parser, AST, type checker, interpreter, bytecode compiler, and stack VM).
+SWARNA is a programming language implemented in Python, including a lexer, parser, AST, type checker, interpreter, bytecode compiler, and stack VM.
 
-Status: early. It runs small scripts and examples, but many language and tooling features are still missing.
+**Status:** Early development. It can run small scripts and examples, but many language and tooling features are not yet implemented.
 
-- Design notes: [docs/DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md)
-- Direction/roadmap: [docs/VISION.md](docs/VISION.md)
+- Design: [docs/DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md)
+- Roadmap: [docs/VISION.md](docs/VISION.md)
 - Target users: [docs/POSITIONING.md](docs/POSITIONING.md)
 
 ## Requirements
@@ -13,9 +13,9 @@ Status: early. It runs small scripts and examples, but many language and tooling
 - Python 3.10+
 - No third-party dependencies
 
-## Run
+## Usage
 
-Run an expression/program from the command line:
+Run a program from the command line:
 
 ```bash
 python -m swarna --run "let total = 1 + 2 * 3 print(total)"  # 7
@@ -97,13 +97,13 @@ python -m swarna --run examples/team_averages.sw  # {"Blue": 90.0, "Red": 82.0}
 - Tooling/diagnostics: interpreter, bytecode VM, REPL, caret diagnostics with hints, `--explain` for some error categories.
 - `#` line comments.
 
-## Limitations
+## Current limitations
 
-- No records/user-defined types, modules/imports, generics, type aliases, string interpolation, or concurrency.
-- Lists and strings are immutable by index (no element assignment/slicing/string methods). Maps support `m[key] = value` and `get`, but no delete/entry iteration helpers.
+- No records or user-defined types, modules/imports, generics, type aliases, string interpolation, or concurrency.
+- Lists and strings are immutable by index (no element assignment, slicing, or string methods). Maps support `m[key] = value` and `get`, but not deletion or entry iteration helpers.
 - Collections are homogeneous; map keys must be `Int`, `Float`, `String`, or `Bool`.
-- No first-class/nested functions and no global mutation from functions. Unannotated parameter/return types may be treated as `Unknown` at some call sites (annotate return types when needed).
-- `read_file`/`read_csv` only (no write APIs). No standard library beyond built-ins, no formatter/debugger/LSP.
+- No first-class or nested functions, and no global mutation from functions. Unannotated parameter/return types may be treated as `Unknown` at some call sites (annotate return types when needed).
+- File I/O is limited to `read_file` and `read_csv` (no write APIs). No standard library beyond built-ins, and no formatter, debugger, or LSP.
 
 ## Tests
 
