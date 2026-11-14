@@ -195,6 +195,7 @@ Prints `{"Blue": 90.0, "Red": 82.0}`. If a score cell is not a number, `read_csv
 ## Inspect the pipeline
 
 ```
+python -m swarna --version
 python -m swarna --lex "let x = 42"
 python -m swarna --parse "let x = 1 + 2 * 3"
 python -m swarna --emit-bytecode "let x = 1 + 2"

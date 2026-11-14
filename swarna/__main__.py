@@ -8,6 +8,7 @@ from compiler.parser.parser import Parser
 from compiler.semantic.checker import Binding, FunctionSignature, Type, TypeChecker, type_from_annotation, type_of_value
 from runtime.interpreter import Interpreter
 from runtime.values import format_value
+from swarna import __version__
 
 
 def lex_source(source: str) -> str:
@@ -88,6 +89,11 @@ def run_source(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="swarna", description="SWARNA language tools (minimal)")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+    )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--lex", action="store_true", help="Print tokens for the input")
     mode.add_argument("--parse", action="store_true", help="Print AST for the input")
