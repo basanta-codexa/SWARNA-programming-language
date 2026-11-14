@@ -268,7 +268,7 @@ class TestCLIHelpers(unittest.TestCase):
         with contextlib.redirect_stderr(stderr):
             code = main(["--run", "let x = if true { let y = 1 } else { 0 }"])
         self.assertEqual(code, 1)
-        self.assertIn("Block value needs a final expression", stderr.getvalue())
+        self.assertIn("All branches of an if expression must produce the same type", stderr.getvalue())
 
     def test_emit_bytecode_rejects_type_error(self):
         stderr = io.StringIO()

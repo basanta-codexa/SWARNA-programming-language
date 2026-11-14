@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 
-Value = int | float | bool | str | list["Value"] | dict["Value", "Value"]
+class _UnitValue:
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        return "UNIT"
+
+
+UNIT = _UnitValue()
+
+Value = int | float | bool | str | list["Value"] | dict["Value", "Value"] | _UnitValue
 
 
 def value_type_name(value: Value) -> str:
     """Return the user-facing name of a runtime value's type."""
 
+    if value is UNIT:
+        return "Unit"
     if type(value) is bool:
         return "Bool"
     if type(value) is int:
@@ -25,6 +36,8 @@ def value_type_name(value: Value) -> str:
 def format_value(value: Value) -> str:
     """Format a value for print output."""
 
+    if value is UNIT:
+        return "()"
     if type(value) is bool:
         return "true" if value else "false"
     if isinstance(value, list):

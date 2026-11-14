@@ -43,6 +43,11 @@ class BoolLiteral:
 
 
 @dataclass(frozen=True)
+class UnitLiteral:
+    span: SourceSpan | None = field(default=None, compare=False, repr=False)
+
+
+@dataclass(frozen=True)
 class UnaryExpression:
     operator: str
     operand: "Expression"
@@ -98,7 +103,7 @@ class MapLiteral:
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
 
 
-Expression = IntegerLiteral | FloatLiteral | StringLiteral | BoolLiteral | BinaryExpression | IfExpression | BlockExpression | CallExpression | ListLiteral | IndexExpression | MapLiteral | Identifier | UnaryExpression
+Expression = IntegerLiteral | FloatLiteral | StringLiteral | BoolLiteral | UnitLiteral | BinaryExpression | IfExpression | BlockExpression | CallExpression | ListLiteral | IndexExpression | MapLiteral | Identifier | UnaryExpression
 
 
 @dataclass(frozen=True)

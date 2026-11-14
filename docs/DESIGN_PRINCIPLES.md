@@ -110,13 +110,13 @@ fn add(a: Int, b: Int) -> Int {
 print(add(2, 3))
 ```
 
-A function body is a block value: its statements run, and its final expression is the return value. `return expr` can be used for early exit from a function. Functions are declared at the top level and called by name. They are hoisted, so a call can appear before the declaration.
+A function body is a block value: its statements run, and its final expression is the return value. If a block has no final expression, it yields `()` (`Unit`). `return expr` or `return` can be used for early exit from a function. Functions are declared at the top level and called by name. They are hoisted, so a call can appear before the declaration.
 
 Parameter and return type annotations are optional. An unannotated parameter is `Unknown`; annotating parameters gives precise checking. An unannotated return type is inferred from the body after top-level statements are checked, so a top-level call to that function is checked as `Unknown`; annotate the return type when the call site needs precision. The REPL reuses the inferred signature on later lines. Function-local bindings do not leak. A function reads top-level bindings, and assignment inside a function changes a local copy rather than the global. Recursion and mutual recursion work.
 
 Reason: functions are the next foundational feature. Named declarations are the smallest useful form; expression bodies reuse the block-value rule, and `return` enables early exits when needed. Optional annotations keep scripts short while letting interfaces be checked.
 
-Status: implemented in the interpreter, VM, and REPL. Supports `return expr` for early exit and expression statements (including function calls) for side effects. No first-class functions, nested declarations, or global mutation yet. A function body must still end with a value or `return`, so true procedures/`Unit` returns are not supported.
+Status: implemented in the interpreter, VM, and REPL. Supports `return expr`/`return`, expression statements (including function calls), `Unit` (`()`), and procedure-style functions (e.g. `fn log(x:Int)->Unit { print(x) }`). No first-class functions, nested declarations, or global mutation yet.
 
 ### 9. Lists are built in and statically typed
 
@@ -277,7 +277,7 @@ The checker runs before execution in `--run` and before code generation in `--em
 
 Division by zero remains a runtime error; the checker does not evaluate expressions.
 
-Known gaps: no user-defined generics or type aliases, no list mutation, no iteration over ranges or strings, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies. Statement-form `if` (including early `return` without `else`) is supported inside block values before the final expression; a trailing `if` used as the block's final value is still parsed as an `if` expression. Expression statements (including function calls) are supported for side effects. `return` exits functions (not arbitrary blocks). Function bodies must end with a value or `return`; true procedures/`Unit` returns are unsupported. `#` starts a line comment; block comments are not supported. The interpreter and VM keep their runtime checks so they can still be tested independently.
+Known gaps: no user-defined generics or type aliases, no list mutation, no iteration over ranges or strings, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies. Statement-form `if` (including early `return` without `else`) is supported inside block values before the final expression; a trailing `if` used as the block's final value is still parsed as an `if` expression. Expression statements (including function calls) are supported for side effects. `return` exits functions (not arbitrary blocks). Blocks without an explicit final expression yield `Unit` (`()`). `#` starts a line comment; block comments are not supported. The interpreter and VM keep their runtime checks so they can still be tested independently.
 
 Status: implemented as a separate pass for the current subset.
 

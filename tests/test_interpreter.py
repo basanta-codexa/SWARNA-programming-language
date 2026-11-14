@@ -845,6 +845,14 @@ class TestInterpreterCsv(unittest.TestCase):
         interpreter.eval(program)
         self.assertEqual(interpreter.output, [7, 8])
 
+    def test_unit_procedure(self):
+        program = Parser(Lexer("fn log(x: Int) -> Unit { print(x) } let r = log(5)")).parse_program()
+        interpreter = Interpreter()
+        env = interpreter.eval(program)
+        self.assertEqual(interpreter.output, [5])
+        from runtime.values import UNIT
+        self.assertIs(env["r"], UNIT)
+
 
 if __name__ == "__main__":
     unittest.main()

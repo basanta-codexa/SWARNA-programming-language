@@ -33,10 +33,12 @@ from compiler.ast.nodes import (
     StringLiteral,
     TypeAnnotation,
     UnaryExpression,
+    UnitLiteral,
     WhileStatement,
 )
 from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan, SwarnaSemanticError
+from runtime.values import UNIT
 
 
 @dataclass(frozen=True)
@@ -85,6 +87,7 @@ Type.INT = Type("Int")
 Type.FLOAT = Type("Float")
 Type.STRING = Type("String")
 Type.BOOL = Type("Bool")
+Type.UNIT = Type("Unit")
 Type.UNKNOWN = Type("Unknown")
 
 
@@ -146,6 +149,7 @@ def type_from_annotation(annotation: TypeAnnotation) -> Type:
         "Float": Type.FLOAT,
         "String": Type.STRING,
         "Bool": Type.BOOL,
+        "Unit": Type.UNIT,
     }
     scalar = scalars.get(annotation.name)
     if scalar is not None:
@@ -163,6 +167,8 @@ def type_from_annotation(annotation: TypeAnnotation) -> Type:
 def type_of_value(value: object) -> Type:
     """Infer the static type of a value already held by the interpreter."""
 
+    if value is UNIT:
+        return Type.UNIT
     if type(value) is bool:
         return Type.BOOL
     if type(value) is int:
@@ -350,6 +356,7 @@ class TypeChecker:
             "Float": Type.FLOAT,
             "String": Type.STRING,
             "Bool": Type.BOOL,
+            "Unit": Type.UNIT,
         }
         scalar = scalars.get(type_name.name)
         if scalar is not None:
@@ -357,7 +364,7 @@ class TypeChecker:
                 self._error(
                     f"Type '{type_name.name}' does not take type arguments",
                     type_name.span,
-                    "Use a scalar type such as `Int`.",
+                    "Use a scalar type such as `Int` or `Unit`.",
                 )
             return scalar
         if type_name.name == "List":
@@ -387,7 +394,7 @@ class TypeChecker:
         self._error(
             f"Unknown type '{type_name.name}'",
             type_name.span,
-            "Use `Int`, `Float`, `String`, `Bool`, `List[T]`, or `Map[K, V]`.",
+            "Use `Int`, `Float`, `String`, `Bool`, `Unit`, `List[T]`, or `Map[K, V]`.",
         )
 
     def check_statement(self, stmt: Statement) -> None:
@@ -659,6 +666,8 @@ class TypeChecker:
             return Type.STRING
         if isinstance(expr, BoolLiteral):
             return Type.BOOL
+        if isinstance(expr, UnitLiteral):
+            return Type.UNIT
 
         if isinstance(expr, ListLiteral):
             element_type = Type.UNKNOWN

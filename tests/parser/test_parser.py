@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, StringLiteral, TypeAnnotation, UnaryExpression, UnitLiteral, WhileStatement
 from compiler.diagnostics import SourceSpan
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
@@ -280,15 +280,21 @@ class TestParser(unittest.TestCase):
             BinaryExpression(left=Identifier("y"), operator="+", right=IntegerLiteral(2)),
         )
 
-    def test_parse_if_expression_block_requires_final_value(self):
-        parser = Parser(Lexer("let x = if true { let y = 1 } else { 0 }"))
-        with self.assertRaisesRegex(SyntaxError, "Block value needs a final expression"):
-            parser.parse_program()
+    def test_parse_if_expression_block_without_final_expression_yields_unit(self):
+        program = Parser(Lexer("let x = if true { let y = 1 } else { 0 }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, IfExpression)
+        assert isinstance(stmt.value.then_value, BlockExpression)
+        self.assertIsInstance(stmt.value.then_value.value, UnitLiteral)
 
-    def test_parse_if_expression_block_rejects_statement_after_value(self):
-        parser = Parser(Lexer("let x = if true { 1 let y = 2 } else { 0 }"))
-        with self.assertRaisesRegex(SyntaxError, "Block value needs a final expression"):
-            parser.parse_program()
+    def test_parse_block_with_trailing_statement_yields_unit(self):
+        program = Parser(Lexer("let x = if true { 1 let y = 2 } else { 0 }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, IfExpression)
+        assert isinstance(stmt.value.then_value, BlockExpression)
+        self.assertIsInstance(stmt.value.then_value.value, UnitLiteral)
 
     def test_parse_if_expression_block_rejects_invalid_assignment_target(self):
         parser = Parser(Lexer("let x = if true { y + 1 = 2 0 } else { 0 }"))
@@ -533,10 +539,11 @@ class TestParser(unittest.TestCase):
             CallExpression(callee=Identifier("add"), arguments=[IntegerLiteral(1), IntegerLiteral(2)]),
         )
 
-    def test_parse_function_requires_body_value(self):
-        parser = Parser(Lexer("fn f() { }"))
-        with self.assertRaisesRegex(SyntaxError, "Block value needs a final expression"):
-            parser.parse_program()
+    def test_parse_function_with_empty_body_yields_unit(self):
+        program = Parser(Lexer("fn f() { }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, FunctionDeclaration)
+        self.assertIsInstance(stmt.body, UnitLiteral)
 
     def test_parse_function_requires_return_type_after_arrow(self):
         parser = Parser(Lexer("fn f() -> { 1 }"))

@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, TypeAnnotation, UnaryExpression, UnitLiteral, WhileStatement
 from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
@@ -62,7 +62,10 @@ class Parser:
         if self.current.type == TokenType.KEYWORD_RETURN:
             token = self.current
             self._advance()
-            value = self.parse_expression()
+            if self.current.type in (TokenType.SEMICOLON, TokenType.RBRACE, TokenType.EOF):
+                value = UnitLiteral(span=token.span)
+            else:
+                value = self.parse_expression()
             return ReturnStatement(value=value, span=token.span)
         if self.current.type == TokenType.KEYWORD_FN:
             return self.parse_function_declaration()
@@ -336,10 +339,14 @@ class Parser:
 
         while True:
             if self.current.type == TokenType.RBRACE:
-                raise SwarnaSyntaxError(
-                    "Block value needs a final expression",
-                    self.current.span,
-                    hint="End the block with a value, for example `{ let x = 1 x + 1 }`.",
+                self._advance()  # '}'
+                value = UnitLiteral(span=lbrace_token.span)
+                if not statements:
+                    return value
+                return BlockExpression(
+                    statements=statements,
+                    value=value,
+                    span=lbrace_token.span,
                 )
 
             if self.current.type == TokenType.KEYWORD_RETURN:
@@ -605,7 +612,11 @@ class Parser:
                 return self.parse_call(callee)
             return callee
         if self.current.type == TokenType.LPAREN:
+            lparen = self.current
             self._advance()
+            if self.current.type == TokenType.RPAREN:
+                self._advance()
+                return UnitLiteral(span=lparen.span)
             node = self.parse_expression()
             self._expect(TokenType.RPAREN, "Expected ')'", hint="Add a closing `)`.")
             return node

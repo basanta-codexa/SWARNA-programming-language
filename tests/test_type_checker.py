@@ -1036,6 +1036,11 @@ class TestInitialBindings(unittest.TestCase):
         checker = check("let x = if false { 1 } else if true { 2 } else { 3 }")
         self.assertIs(checker.env["x"].type, Type.INT)
 
+    def test_unit_procedure(self):
+        checker = check("fn log(x: Int) -> Unit { print(x) } let r = log(1)")
+        self.assertIs(checker.functions["log"].return_type, Type.UNIT)
+        self.assertIs(checker.env["r"].type, Type.UNIT)
+
 
 if __name__ == "__main__":
     unittest.main()

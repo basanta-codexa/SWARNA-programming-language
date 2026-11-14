@@ -29,12 +29,14 @@ from compiler.ast.nodes import (
     Statement,
     StringLiteral,
     UnaryExpression,
+    UnitLiteral,
     WhileStatement,
 )
 from compiler.bytecode.instructions import Instruction, Op
 from compiler.bytecode.program import CompiledProgram, FunctionInfo
 from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan
+from runtime.values import UNIT
 
 
 class Compiler:
@@ -209,6 +211,9 @@ class Compiler:
             return
         if isinstance(expr, BoolLiteral):
             self.emit(Op.CONST, expr.value, expr.span)
+            return
+        if isinstance(expr, UnitLiteral):
+            self.emit(Op.CONST, UNIT, expr.span)
             return
         if isinstance(expr, BlockExpression):
             for stmt in expr.statements:
