@@ -10,8 +10,15 @@ Design decisions and the reasoning behind them are in [docs/DESIGN_PRINCIPLES.md
 
 Requires Python 3.10+ and no third-party packages.
 
-```
+```bash
 python -m swarna --run "let total = 1 + 2 * 3 print(total)"
+```
+
+To install the CLI locally (editable):
+
+```bash
+python -m pip install -e .
+swarna --run "let total = 1 + 2 * 3 print(total)"
 ```
 
 Prints `7`.
