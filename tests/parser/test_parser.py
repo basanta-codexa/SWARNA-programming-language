@@ -787,6 +787,14 @@ class TestParser(unittest.TestCase):
         self.assertEqual(declaration.return_type.span, SourceSpan(1, 19, 3))
         self.assertEqual(binding.value.span, SourceSpan(1, 37, 3))
 
+    def test_parse_return_statement(self):
+        from compiler.ast.nodes import ReturnStatement
+        program = Parser(Lexer("fn f() { return 1 }")).parse_program()
+        fn = program.statements[0]
+        assert isinstance(fn, FunctionDeclaration)
+        assert isinstance(fn.body, BlockExpression)
+        self.assertIsInstance(fn.body.statements[0], ReturnStatement)
+
 
 if __name__ == "__main__":
     unittest.main()

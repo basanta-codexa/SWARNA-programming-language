@@ -27,6 +27,7 @@ from compiler.ast.nodes import (
     MapLiteral,
     PrintStatement,
     Program,
+    ReturnStatement,
     Statement,
     StringLiteral,
     TypeAnnotation,
@@ -206,11 +207,17 @@ class TypeChecker:
         self.env: dict[str, Binding] = dict(initial_bindings or {})
         self.functions: dict[str, FunctionSignature] = dict(initial_functions or {})
         self.loop_depth = 0
+        self.function_depth = 0
+        self.current_return_type: Type | None = None
+        self.return_types: list[Type] = []
 
     def check(self, program: Program) -> None:
         saved_env = dict(self.env)
         saved_functions = dict(self.functions)
         self.loop_depth = 0
+        self.function_depth = 0
+        self.current_return_type = None
+        self.return_types = []
         try:
             self._declare_functions(program)
             for stmt in program.statements:
@@ -273,7 +280,13 @@ class TypeChecker:
     def check_function(self, stmt: FunctionDeclaration) -> None:
         signature = self.functions[stmt.name.name]
         saved_env = self.env
+        saved_function_depth = self.function_depth
+        saved_current_return = self.current_return_type
+        saved_return_types = self.return_types
         self.env = dict(self.env)
+        self.function_depth += 1
+        self.current_return_type = signature.return_type
+        self.return_types = []
         try:
             for parameter, parameter_type in zip(stmt.parameters, signature.parameters):
                 if parameter.name.name in self.functions:
@@ -294,23 +307,39 @@ class TypeChecker:
                     span=parameter.name.span,
                 )
             body_type = self.check_expression(stmt.body)
+            inferred_return = body_type
             if signature.return_type is None:
+                for return_type in self.return_types:
+                    unified = common_element_type(inferred_return, return_type)
+                    if unified is None:
+                        self._error(
+                            f"Function '{stmt.name.name}' has incompatible return types: "
+                            f"{inferred_return.label} and {return_type.label}",
+                            stmt.body.span if stmt.body.span is not None else stmt.span,
+                            "Make all return values and the final expression use the same type.",
+                            category="type-mismatch",
+                        )
+                    inferred_return = unified
                 self.functions[stmt.name.name] = FunctionSignature(
                     name=signature.name,
                     parameters=signature.parameters,
-                    return_type=body_type,
+                    return_type=inferred_return,
                     span=signature.span,
                 )
-            elif not self._is_assignable(signature.return_type, body_type):
-                self._error(
-                    f"Function '{stmt.name.name}' declares {signature.return_type.label} "
-                    f"but its body produces {body_type.label}",
-                    stmt.body.span if stmt.body.span is not None else stmt.span,
-                    "Make the final expression match the declared return type.",
-                    category="type-mismatch",
-                )
+            else:
+                if not self._is_assignable(signature.return_type, body_type):
+                    self._error(
+                        f"Function '{stmt.name.name}' declares {signature.return_type.label} "
+                        f"but its body produces {body_type.label}",
+                        stmt.body.span if stmt.body.span is not None else stmt.span,
+                        "Make the final expression match the declared return type.",
+                        category="type-mismatch",
+                    )
         finally:
             self.env = saved_env
+            self.function_depth = saved_function_depth
+            self.current_return_type = saved_current_return
+            self.return_types = saved_return_types
 
     def _resolve_type(self, type_name: TypeAnnotation | None, default: Type | None) -> Type | None:
         if type_name is None:
@@ -515,6 +544,27 @@ class TypeChecker:
                     stmt.span,
                     "Move it into a `while` or `for` body.",
                 )
+            return
+
+        if isinstance(stmt, ReturnStatement):
+            if self.function_depth == 0:
+                self._error(
+                    "`return` is only allowed inside a function",
+                    stmt.span,
+                    "Move it into a function body, or use the final expression as the result.",
+                )
+            value_type = self.check_expression(stmt.value)
+            if self.current_return_type is not None:
+                if not self._is_assignable(self.current_return_type, value_type):
+                    self._error(
+                        f"Cannot return {value_type.label} from a function returning "
+                        f"{self.current_return_type.label}",
+                        stmt.value.span if stmt.value.span is not None else stmt.span,
+                        "Return a value that matches the function's return type.",
+                        category="type-mismatch",
+                    )
+            else:
+                self.return_types.append(value_type)
             return
 
         if isinstance(stmt, PrintStatement):

@@ -141,6 +141,12 @@ class ContinueStatement:
 
 
 @dataclass(frozen=True)
+class ReturnStatement:
+    value: Expression
+    span: SourceSpan | None = field(default=None, compare=False, repr=False)
+
+
+@dataclass(frozen=True)
 class BlockStatement:
     statements: list["Statement"]
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
@@ -184,7 +190,7 @@ class FunctionDeclaration:
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
 
 
-Statement = LetStatement | AssignmentStatement | IndexAssignmentStatement | PrintStatement | BreakStatement | ContinueStatement | IfStatement | WhileStatement | ForStatement | BlockStatement | FunctionDeclaration
+Statement = LetStatement | AssignmentStatement | IndexAssignmentStatement | PrintStatement | BreakStatement | ContinueStatement | ReturnStatement | IfStatement | WhileStatement | ForStatement | BlockStatement | FunctionDeclaration
 
 
 @dataclass(frozen=True)

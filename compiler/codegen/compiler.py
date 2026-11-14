@@ -24,6 +24,7 @@ from compiler.ast.nodes import (
     MapLiteral,
     PrintStatement,
     Program,
+    ReturnStatement,
     Statement,
     StringLiteral,
     UnaryExpression,
@@ -115,6 +116,10 @@ class Compiler:
             if not self.loop_stack:
                 raise RuntimeError("`continue` outside a loop reached codegen")
             self.emit(Op.JUMP, self.loop_stack[-1][1], stmt.span)
+            return
+        if isinstance(stmt, ReturnStatement):
+            self.compile_expression(stmt.value)
+            self.emit(Op.RETURN, span=stmt.span)
             return
         if isinstance(stmt, PrintStatement):
             self.compile_expression(stmt.value)

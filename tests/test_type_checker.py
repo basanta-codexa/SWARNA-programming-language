@@ -1020,6 +1020,18 @@ class TestInitialBindings(unittest.TestCase):
         )
         self.assertIs(checker.env["x"].type, Type.INT)
 
+    def test_return_outside_function(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "`return` is only allowed inside a function"):
+            check("return 1")
+
+    def test_return_type_mismatch_statement(self):
+        with self.assertRaisesRegex(SwarnaSemanticError, "Cannot return String from a function returning Int"):
+            check('fn bad() -> Int { return "x" }')
+
+    def test_return_allows_early_exit(self):
+        checker = check("fn f(x: Int) -> Int { if x == 0 { return 0 } else { x } }")
+        self.assertIs(checker.functions["f"].return_type, Type.INT)
+
 
 if __name__ == "__main__":
     unittest.main()

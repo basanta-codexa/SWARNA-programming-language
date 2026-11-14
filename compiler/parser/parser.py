@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
 from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
@@ -47,6 +47,11 @@ class Parser:
             token = self.current
             self._advance()
             return ContinueStatement(span=token.span)
+        if self.current.type == TokenType.KEYWORD_RETURN:
+            token = self.current
+            self._advance()
+            value = self.parse_expression()
+            return ReturnStatement(value=value, span=token.span)
         if self.current.type == TokenType.KEYWORD_FN:
             return self.parse_function_declaration()
         if self.current.type == TokenType.IDENTIFIER and self.current.value == "print":
@@ -56,7 +61,7 @@ class Parser:
         raise SwarnaSyntaxError(
             "Expected statement",
             self.current.span,
-            hint="Expected `let`, `const`, `fn`, `if`, `while`, `for`, `break`, `continue`, `print`, or an assignment.",
+            hint="Expected `let`, `const`, `fn`, `if`, `while`, `for`, `break`, `continue`, `return`, `print`, or an assignment.",
         )
 
     def parse_assignment_statement(self) -> AssignmentStatement | IndexAssignmentStatement:
@@ -267,6 +272,12 @@ class Parser:
                     hint="End the block with a value, for example `{ let x = 1 x + 1 }`.",
                 )
 
+            if self.current.type == TokenType.KEYWORD_RETURN:
+                return_stmt = self.parse_statement()
+                statements.append(return_stmt)
+                value = return_stmt.value
+                break
+
             if self.current.type in (
                 TokenType.KEYWORD_LET,
                 TokenType.KEYWORD_CONST,
@@ -317,7 +328,7 @@ class Parser:
             raise SwarnaSyntaxError(
                 "Expected '}' after block value",
                 self.current.span,
-                hint="Only the last item in a block value can be an expression; use `let` to name intermediate values.",
+                hint="Only the last item in a block value can be an expression; use `let` to name intermediate values or `return` to exit early.",
             )
         self._advance()  # '}'
         if not statements:

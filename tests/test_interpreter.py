@@ -803,6 +803,18 @@ class TestInterpreterCsv(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "`read_csv` expects a String path, got Int"):
             run("let rows = read_csv(1, { name: String })")
 
+    def test_return_early_exit(self):
+        env = run(
+            "fn early(x: Int) -> Int { if x == 0 { return 0 } else { x + 1 } } "
+            "let a = early(0) let b = early(5)"
+        )
+        self.assertEqual(env["a"], 0)
+        self.assertEqual(env["b"], 6)
+
+    def test_return_as_function_body_tail(self):
+        env = run("fn f() -> Int { return 42 } let x = f()")
+        self.assertEqual(env["x"], 42)
+
 
 if __name__ == "__main__":
     unittest.main()

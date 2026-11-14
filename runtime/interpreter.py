@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
 from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.csv import read_csv_data
@@ -25,6 +25,12 @@ class _LoopBreak(_LoopSignal):
 
 class _LoopContinue(_LoopSignal):
     pass
+
+
+class _ReturnSignal(BaseException):
+    def __init__(self, value: Value):
+        self.value = value
+        super().__init__("return")
 
 
 @dataclass(frozen=True)
@@ -187,6 +193,8 @@ class Interpreter:
             raise _LoopBreak()
         if isinstance(stmt, ContinueStatement):
             raise _LoopContinue()
+        if isinstance(stmt, ReturnStatement):
+            raise _ReturnSignal(self.eval_expression(stmt.value))
         if isinstance(stmt, PrintStatement):
             self.output.append(self.eval_expression(stmt.value))
             return
@@ -492,7 +500,10 @@ class Interpreter:
         self.constant = local_constant
         self.call_depth += 1
         try:
-            return self.eval_expression(function.body)
+            try:
+                return self.eval_expression(function.body)
+            except _ReturnSignal as signal:
+                return signal.value
         finally:
             self.call_depth -= 1
             self.env = saved_env

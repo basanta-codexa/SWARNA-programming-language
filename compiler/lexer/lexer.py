@@ -119,6 +119,8 @@ class Lexer:
                 return Token(TokenType.KEYWORD_BREAK, value, line, column)
             if value == "continue":
                 return Token(TokenType.KEYWORD_CONTINUE, value, line, column)
+            if value == "return":
+                return Token(TokenType.KEYWORD_RETURN, value, line, column)
             if value == "fn":
                 return Token(TokenType.KEYWORD_FN, value, line, column)
             if value == "and":
