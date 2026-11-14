@@ -88,7 +88,7 @@ print(totals)
 
 Prints `{"red": 5, "blue": 3}`.
 
-For multi-line programs, pipe the source through stdin. On PowerShell:
+For multi-line programs, pipe the source through stdin. In PowerShell (recommended there, to preserve double quotes):
 
 ```
 @'
@@ -98,9 +98,13 @@ print(label)
 '@ | python -m swarna --run
 ```
 
-Prints `fail`.
+In bash/zsh:
 
-PowerShell strips embedded double quotes when passing a source string to a native command. The here-string above avoids that.
+```bash
+printf 'let score = 42\nlet label = if score >= 50 { "pass" } else { "fail" }\nprint(label)\n' | python -m swarna --run
+```
+
+Both print `fail`. PowerShell can strip embedded double quotes when passing a source string to a native command; the here-string avoids that.
 
 `--run` uses the tree-walking interpreter. The REPL also executes lines by default when started with `--run`, and bindings and function declarations persist between lines:
 
@@ -133,8 +137,12 @@ print(averages)
 
 From the repository root:
 
-```
+```bash
+# PowerShell
 Get-Content examples/team_averages.sw -Raw | python -m swarna --run
+
+# bash/zsh
+python -m swarna --run < examples/team_averages.sw
 ```
 
 Prints `{"Blue": 90.0, "Red": 82.0}`. If a score cell is not a number, `read_csv` reports the file, row, column, and bad value before arithmetic runs.
@@ -166,9 +174,23 @@ Prints `{"Blue": 90.0, "Red": 82.0}`. If a score cell is not a number, `read_csv
 
 ## What does not work yet
 
-Records, modules, file writing, and the standard library are still missing. `read_file` and `read_csv` are the file operations; there is no CSV writing. CSV rows are maps, and their column values are statically `Unknown` until schema-aware row types land. There are no grouping or aggregation helpers yet; use `for` loops, map assignment, `get`, and variables. `for` loops iterate over lists and map keys; there are no ranges or string iteration yet. `break` and `continue` work in `while` and `for` loops. Lists cannot be mutated; build a new list with `+`. Maps support `map[key] = value` for existing and new keys, but there is no insert or delete helper. Lists are homogeneous: `[1, 2.5]` is rejected, so write `[1.0, 2.5]` when you want a list of floats. Maps are homogeneous in both positions, and keys must be `Int`, `Float`, `String`, or `Bool`; a list key is rejected. List and map type annotations such as `List[Int]` and `Map[String, Int]` are supported, including nested types; user-defined generic types and type aliases are not, and an unannotated collection parameter is `Unknown`. Function limitations: no first-class functions, no `return` keyword, no nested declarations, no expression statements, and no global mutation. A function body must end with a value, so procedures are not supported. User-defined generics, type aliases, comments, string interpolation, concurrency, and tooling (debugger, formatter, LSP) are also missing.
+**Language and data**
+- No records/user-defined types, modules/imports, generics, type aliases, comments, string interpolation, or concurrency.
+- `for` loops iterate over lists and map keys; there are no ranges or string iteration yet.
+- Lists are immutable (no index assignment/append/delete); build a new list with `+`.
+- Maps support `map[key] = value` for existing and new keys and `get`; there is no delete helper or map iteration over values/entries.
+- Lists are homogeneous (`[1, 2.5]` is rejected; use `[1.0, 2.5]` for floats). Maps are homogeneous in keys and values, and keys must be `Int`, `Float`, `String`, or `Bool`.
 
-Unannotated parameter types are `Unknown`. An unannotated return type is inferred from the body after top-level statements are checked, so a top-level call to that function is checked as `Unknown`; annotate the return type when the call site needs precision. The REPL reuses the inferred signature on later lines.
+**Functions and types**
+- No first-class functions, `return` keyword, nested declarations, expression statements, or global mutation from functions. Function bodies must end with a value (no procedures).
+- `List[T]` and `Map[K, V]` annotations are supported (including nested types); user-defined generic types are not.
+- Unannotated parameter types are `Unknown`. An unannotated return type is inferred after top-level statements are checked, so a top-level call to that function is checked as `Unknown`; annotate the return type when the call site needs precision. The REPL reuses inferred signatures on later lines.
+- CSV rows are maps with column values typed as `Unknown` until schema-aware row types land.
+
+**I/O, libraries, and tooling**
+- File operations are `read_file` and `read_csv` only (no file/CSV writing).
+- No grouping/aggregation helpers yet (use `for` loops, map assignment, `get`, and variables).
+- No standard library beyond the built-ins shown above, and no debugger, formatter, or LSP.
 
 ## Inspect the pipeline
 
@@ -193,3 +215,5 @@ swarna/     CLI and REPL
 tests/      unit tests
 docs/       positioning and design decisions
 ```
+
+See also: [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md), and [LICENSE](LICENSE).
