@@ -118,6 +118,8 @@ def common_element_type(left: Type, right: Type) -> Type | None:
         return left
     if left == right:
         return left
+    if {left, right} <= {Type.INT, Type.FLOAT}:
+        return Type.FLOAT
     if left.is_list and right.is_list:
         element_type = common_element_type(left.element_type, right.element_type)
         if element_type is None:
@@ -1161,6 +1163,8 @@ class TypeChecker:
             return then_type
         if then_type == else_type:
             return then_type
+        if {then_type, else_type} <= {Type.INT, Type.FLOAT}:
+            return Type.FLOAT
         if then_type.is_list and else_type.is_list:
             element_type = self._require_common_element_type(
                 then_type.element_type,
@@ -1226,6 +1230,8 @@ class TypeChecker:
         if target is Type.UNKNOWN or value is Type.UNKNOWN:
             return True
         if target == value:
+            return True
+        if target is Type.FLOAT and value is Type.INT:
             return True
         if target.is_list and value.is_list:
             return TypeChecker._is_assignable(target.element_type, value.element_type)

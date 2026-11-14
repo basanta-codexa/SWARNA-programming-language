@@ -275,9 +275,9 @@ class TestSemanticErrors(unittest.TestCase):
         self.assertEqual(raised.exception.span, SourceSpan(1, 30, 3))
         self.assertIn("All branches of an if expression must produce the same type", str(raised.exception))
 
-    def test_int_and_float_branches_are_not_unified(self):
-        with self.assertRaises(SwarnaSemanticError):
-            check("let x = if true { 1 } else { 2.0 }")
+    def test_int_and_float_branches_unify_to_float(self):
+        checker = check("let x = if true { 1 } else { 2.0 }")
+        self.assertIs(checker.env["x"].type, Type.FLOAT)
 
     def test_for_loop_requires_iterable(self):
         with self.assertRaisesRegex(SwarnaSemanticError, "`for` expects a List, Map, or String, got Int"):
@@ -644,19 +644,13 @@ class TestFunctions(unittest.TestCase):
         ):
             check('let xs = [1, "a"]')
 
-    def test_mixed_numeric_list_requires_explicit_float(self):
-        with self.assertRaisesRegex(
-            SwarnaSemanticError,
-            "List elements must have the same type, got Int and Float",
-        ):
-            check("let xs = [1, 2.5]")
+    def test_mixed_numeric_list_widens_to_float(self):
+        checker = check("let xs = [1, 2.5]")
+        self.assertEqual(checker.env["xs"].type, Type.list_of(Type.FLOAT))
 
-    def test_list_concatenation_requires_exact_element_types(self):
-        with self.assertRaisesRegex(
-            SwarnaSemanticError,
-            "List concatenation cannot combine element types Int and Float",
-        ):
-            check("let xs = [1] + [2.5]")
+    def test_list_concatenation_widens_element_types(self):
+        checker = check("let xs = [1] + [2.5]")
+        self.assertEqual(checker.env["xs"].type, Type.list_of(Type.FLOAT))
 
     def test_list_index_must_be_int(self):
         with self.assertRaisesRegex(SwarnaSemanticError, "List index must be Int, got String"):
@@ -1010,7 +1004,7 @@ class TestInitialBindings(unittest.TestCase):
         self.assertEqual(type_of_value([True]), Type.list_of(Type.BOOL))
         self.assertEqual(type_of_value([[1], [2]]), Type.list_of(Type.list_of(Type.INT)))
         self.assertEqual(type_of_value([]), Type.list_of(Type.UNKNOWN))
-        self.assertEqual(type_of_value([1, 2.5]), Type.list_of(Type.UNKNOWN))
+        self.assertEqual(type_of_value([1, 2.5]), Type.list_of(Type.FLOAT))
         self.assertEqual(type_of_value([1, "a"]), Type.list_of(Type.UNKNOWN))
 
     def test_existing_list_binding_is_visible(self):
