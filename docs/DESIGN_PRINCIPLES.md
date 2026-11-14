@@ -249,7 +249,7 @@ The rules for the current subset:
 - Equality accepts values of the same type, two numbers, or two lists or maps with compatible types. Ordered comparisons accept two numbers or two strings.
 - `&&`, `||`, and `!` require `Bool`.
 - `if` and `while` conditions require `Bool`.
-- A `for` loop requires a `List[T]` or `Unknown`; a map is rejected. The loop variable has type `T` (or `Unknown`), is mutable, and is scoped to the loop. An outer binding with the same name is restored afterward. Body declarations leak, matching `while` and `if`.
+- A `for` loop requires a `List[T]`, a `Map[K, V]`, or `Unknown`. The loop variable takes the element type `T` for a list, the key type `K` for a map (in insertion order), or `Unknown`. It is mutable and scoped to the loop. An outer binding with the same name is restored afterward. Body declarations leak, matching `while` and `if`. `break` and `continue` are only allowed inside a loop.
 - Loop variables cannot conflict with functions or built-in names.
 - Both branches of an `if` expression must produce the same type. `Int` and `Float` branches are not unified yet.
 - An `if` expression branch may be a block value. Its statements run in the current scope, and its final expression determines the branch type.
