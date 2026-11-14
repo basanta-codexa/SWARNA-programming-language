@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
 from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.csv import read_csv_data
@@ -195,6 +195,9 @@ class Interpreter:
             raise _LoopContinue()
         if isinstance(stmt, ReturnStatement):
             raise _ReturnSignal(self.eval_expression(stmt.value))
+        if isinstance(stmt, ExpressionStatement):
+            self.eval_expression(stmt.expression)
+            return
         if isinstance(stmt, PrintStatement):
             self.output.append(self.eval_expression(stmt.value))
             return

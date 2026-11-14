@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
 from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
@@ -69,41 +69,55 @@ class Parser:
         if self.current.type == TokenType.IDENTIFIER and self.current.value == "print":
             return self.parse_print_statement()
         if self.current.type == TokenType.IDENTIFIER:
-            return self.parse_assignment_statement()
+            return self.parse_assignment_or_expression_statement()
         raise SwarnaSyntaxError(
             "Expected statement",
             self.current.span,
-            hint="Expected `let`, `const`, `fn`, `if`, `while`, `for`, `break`, `continue`, `return`, `print`, or an assignment.",
+            hint="Expected `let`, `const`, `fn`, `if`, `while`, `for`, `break`, `continue`, `return`, `print`, an assignment, or a function call.",
         )
 
-    def parse_assignment_statement(self) -> AssignmentStatement | IndexAssignmentStatement:
+    def parse_assignment_or_expression_statement(
+        self,
+    ) -> AssignmentStatement | IndexAssignmentStatement | ExpressionStatement:
         name_token = self.current
         name = Identifier(name_token.value, span=name_token.span)
         self._advance()
+        expr: Expression = name
         if self.current.type == TokenType.LPAREN:
-            raise SwarnaSyntaxError(
-                "Function calls cannot be used as statements yet",
-                self.current.span,
-                hint="Use the call in a `let` binding or inside `print(...)`.",
-            )
+            expr = self.parse_call(name)
+            if self.current.type == TokenType.EQUAL:
+                raise SwarnaSyntaxError(
+                    "Invalid assignment target",
+                    expr.span,
+                    hint="Assignments must target a name or index, as in `name = value` or `values[i] = value`.",
+                )
+            return ExpressionStatement(expression=expr, span=expr.span)
         if self.current.type == TokenType.LBRACKET:
             target = self.parse_index(name)
             while self.current.type == TokenType.LBRACKET:
                 target = self.parse_index(target)
+            if self.current.type == TokenType.EQUAL:
+                self._expect(
+                    TokenType.EQUAL,
+                    "Expected '=' in index assignment",
+                    hint="Assign an element as `values[index] = value`.",
+                )
+                value = self.parse_expression()
+                return IndexAssignmentStatement(target=target, value=value, span=name_token.span)
+            return ExpressionStatement(expression=target, span=target.span)
+        if self.current.type == TokenType.EQUAL:
             self._expect(
                 TokenType.EQUAL,
-                "Expected '=' in index assignment",
-                hint="Assign an element as `values[index] = value`.",
+                "Expected '=' in assignment",
+                hint="Assignments use `name = value`.",
             )
             value = self.parse_expression()
-            return IndexAssignmentStatement(target=target, value=value, span=name_token.span)
-        self._expect(
-            TokenType.EQUAL,
-            "Expected '=' in assignment",
-            hint="Assignments use `name = value`.",
+            return AssignmentStatement(name=name, value=value, span=name_token.span)
+        raise SwarnaSyntaxError(
+            "Expected statement",
+            self.current.span,
+            hint="Expected an assignment, a function call, or another statement.",
         )
-        value = self.parse_expression()
-        return AssignmentStatement(name=name, value=value, span=name_token.span)
 
     def parse_function_declaration(self) -> FunctionDeclaration:
         fn_token = self.current
@@ -386,8 +400,19 @@ class Parser:
                         AssignmentStatement(name=expr, value=value, span=expr.span)
                     )
                 else:
-                    value = expr
-                    break
+                    if self.current.type == TokenType.RBRACE:
+                        value = expr
+                        break
+                    if self.current.type == TokenType.SEMICOLON:
+                        while self.current.type == TokenType.SEMICOLON:
+                            self._advance()
+                        if self.current.type == TokenType.RBRACE:
+                            value = expr
+                            break
+                        statements.append(ExpressionStatement(expression=expr, span=expr.span))
+                        continue
+                    statements.append(ExpressionStatement(expression=expr, span=expr.span))
+                    continue
 
             while self.current.type == TokenType.SEMICOLON:
                 self._advance()

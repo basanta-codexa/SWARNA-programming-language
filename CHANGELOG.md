@@ -26,6 +26,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Statement-form `if` blocks inside block expressions/function bodies, enabling natural early-return control flow before a final expression.
 - `else if` chaining for `if` expressions.
 - `elif` keyword alias for `else if` in `if` statements and expressions.
+- Expression statements, including function call statements, in statement contexts and block expressions (for side effects).
 
 ### Changed
 - Improved conditional diagnostics: clearer hints for non-`Bool` conditions, clearer errors when `if` expressions are missing a final `else`, and clearer branch-type mismatch messages for `if`/`elif` expression chains.

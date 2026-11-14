@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
 from compiler.diagnostics import SourceSpan
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
@@ -287,10 +287,8 @@ class TestParser(unittest.TestCase):
 
     def test_parse_if_expression_block_rejects_statement_after_value(self):
         parser = Parser(Lexer("let x = if true { 1 let y = 2 } else { 0 }"))
-        with self.assertRaises(SyntaxError) as raised:
+        with self.assertRaisesRegex(SyntaxError, "Block value needs a final expression"):
             parser.parse_program()
-        self.assertEqual(raised.exception.message, "Expected '}' after block value")
-        self.assertIn("Only the last item", raised.exception.hint)
 
     def test_parse_if_expression_block_rejects_invalid_assignment_target(self):
         parser = Parser(Lexer("let x = if true { y + 1 = 2 0 } else { 0 }"))
@@ -526,10 +524,14 @@ class TestParser(unittest.TestCase):
             CallExpression(callee=Identifier("add"), arguments=[IntegerLiteral(1), IntegerLiteral(2)]),
         )
 
-    def test_parse_bare_call_statement_rejected(self):
-        parser = Parser(Lexer("add(1, 2)"))
-        with self.assertRaisesRegex(SyntaxError, "Function calls cannot be used as statements yet"):
-            parser.parse_program()
+    def test_parse_bare_call_statement(self):
+        program = Parser(Lexer("add(1, 2)")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, ExpressionStatement)
+        self.assertEqual(
+            stmt.expression,
+            CallExpression(callee=Identifier("add"), arguments=[IntegerLiteral(1), IntegerLiteral(2)]),
+        )
 
     def test_parse_function_requires_body_value(self):
         parser = Parser(Lexer("fn f() { }"))

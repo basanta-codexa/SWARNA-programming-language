@@ -28,6 +28,7 @@ from compiler.ast.nodes import (
     PrintStatement,
     Program,
     ReturnStatement,
+    ExpressionStatement,
     Statement,
     StringLiteral,
     TypeAnnotation,
@@ -565,6 +566,10 @@ class TypeChecker:
                     )
             else:
                 self.return_types.append(value_type)
+            return
+
+        if isinstance(stmt, ExpressionStatement):
+            self.check_expression(stmt.expression)
             return
 
         if isinstance(stmt, PrintStatement):

@@ -25,6 +25,7 @@ from compiler.ast.nodes import (
     PrintStatement,
     Program,
     ReturnStatement,
+    ExpressionStatement,
     Statement,
     StringLiteral,
     UnaryExpression,
@@ -120,6 +121,10 @@ class Compiler:
         if isinstance(stmt, ReturnStatement):
             self.compile_expression(stmt.value)
             self.emit(Op.RETURN, span=stmt.span)
+            return
+        if isinstance(stmt, ExpressionStatement):
+            self.compile_expression(stmt.expression)
+            self.emit(Op.POP, span=stmt.span)
             return
         if isinstance(stmt, PrintStatement):
             self.compile_expression(stmt.value)

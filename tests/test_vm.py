@@ -1016,6 +1016,12 @@ class TestVMCsv(unittest.TestCase):
         self.assertEqual(env["a"], 2)
         self.assertEqual(env["b"], 3)
 
+    def test_vm_call_expression_statement(self):
+        program = Parser(Lexer("fn log(x: Int) -> Int { print(x) x } log(7) log(8)")).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, [7, 8])
+
 
 if __name__ == "__main__":
     unittest.main()

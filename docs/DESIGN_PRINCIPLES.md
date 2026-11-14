@@ -116,7 +116,7 @@ Parameter and return type annotations are optional. An unannotated parameter is 
 
 Reason: functions are the next foundational feature. Named declarations are the smallest useful form; expression bodies reuse the block-value rule, and `return` enables early exits when needed. Optional annotations keep scripts short while letting interfaces be checked.
 
-Status: implemented in the interpreter, VM, and REPL. Supports `return expr` for early exit. No first-class functions, nested declarations, expression statements, or global mutation yet. A function body must end with a value or `return`, so procedures are not supported.
+Status: implemented in the interpreter, VM, and REPL. Supports `return expr` for early exit and expression statements (including function calls) for side effects. No first-class functions, nested declarations, or global mutation yet. A function body must still end with a value or `return`, so true procedures/`Unit` returns are not supported.
 
 ### 9. Lists are built in and statically typed
 
@@ -277,7 +277,7 @@ The checker runs before execution in `--run` and before code generation in `--em
 
 Division by zero remains a runtime error; the checker does not evaluate expressions.
 
-Known gaps: no user-defined generics or type aliases, no list mutation, no iteration over ranges or strings, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies. Statement-form `if` (including early `return` without `else`) is supported inside block values before the final expression; a trailing `if` used as the block's final value is still parsed as an `if` expression. `return` exits functions (not arbitrary blocks). Function bodies must end with a value or `return`; procedures are unsupported. `#` starts a line comment; block comments are not supported. The interpreter and VM keep their runtime checks so they can still be tested independently.
+Known gaps: no user-defined generics or type aliases, no list mutation, no iteration over ranges or strings, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies. Statement-form `if` (including early `return` without `else`) is supported inside block values before the final expression; a trailing `if` used as the block's final value is still parsed as an `if` expression. Expression statements (including function calls) are supported for side effects. `return` exits functions (not arbitrary blocks). Function bodies must end with a value or `return`; true procedures/`Unit` returns are unsupported. `#` starts a line comment; block comments are not supported. The interpreter and VM keep their runtime checks so they can still be tested independently.
 
 Status: implemented as a separate pass for the current subset.
 

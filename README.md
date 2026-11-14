@@ -191,7 +191,7 @@ python -m swarna --run examples/team_averages.sw
 - Lists are homogeneous (`[1, 2.5]` is rejected; use `[1.0, 2.5]` for floats). Maps are homogeneous in keys and values, and keys must be `Int`, `Float`, `String`, or `Bool`.
 
 **Functions and types**
-- No first-class functions, nested declarations, expression statements, or global mutation from functions. `return expr` is supported for early exit from functions; function bodies are still block values and must end with a value or `return`.
+- No first-class functions, nested declarations, or global mutation from functions. Expression statements (including function calls) are supported for side effects. `return expr` is supported for early exit from functions; function bodies are still block values and must end with a value or `return` (no procedure/`Unit` return type yet).
 - `List[T]` and `Map[K, V]` annotations are supported (including nested types); user-defined generic types are not.
 - Unannotated parameter types are `Unknown`. An unannotated return type is inferred after top-level statements are checked, so a top-level call to that function is checked as `Unknown`; annotate the return type when the call site needs precision. The REPL reuses inferred signatures on later lines.
 - CSV rows are maps with column values typed as `Unknown` until schema-aware row types land.

@@ -839,6 +839,12 @@ class TestInterpreterCsv(unittest.TestCase):
         self.assertEqual(env["a"], 2)
         self.assertEqual(env["c"], 9)
 
+    def test_call_expression_statement(self):
+        program = Parser(Lexer("fn log(x: Int) -> Int { print(x) x } log(7) log(8)")).parse_program()
+        interpreter = Interpreter()
+        interpreter.eval(program)
+        self.assertEqual(interpreter.output, [7, 8])
+
 
 if __name__ == "__main__":
     unittest.main()
