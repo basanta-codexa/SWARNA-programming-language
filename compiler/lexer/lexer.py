@@ -22,9 +22,16 @@ class Lexer:
         else:
             self.current_char = None
 
-    def _skip_whitespace(self) -> None:
-        while self.current_char is not None and self.current_char.isspace():
-            self.advance()
+    def _skip_whitespace_and_comments(self) -> None:
+        while self.current_char is not None:
+            if self.current_char.isspace():
+                self.advance()
+                continue
+            if self.current_char == "#":
+                while self.current_char is not None and self.current_char != "\n":
+                    self.advance()
+                continue
+            break
 
     def _read_identifier(self) -> str:
         start = self.position
@@ -80,7 +87,7 @@ class Lexer:
         return None
 
     def next_token(self) -> Token:
-        self._skip_whitespace()
+        self._skip_whitespace_and_comments()
 
         if self.current_char is None:
             return Token(TokenType.EOF, "", self.line, self.column)

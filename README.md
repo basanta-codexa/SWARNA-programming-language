@@ -160,6 +160,7 @@ python -m swarna --run examples/team_averages.sw
 - `while` loops
 - `for` loops over lists and map keys, with a loop variable scoped to the loop
 - `break` and `continue` in `while` and `for` loops
+- `#` line comments
 - named `fn` declarations with optional parameter and return annotations
 - explicit types: `Int`, `Float`, `String`, `Bool`, `List[T]`, and `Map[K, V]`, including nested types such as `Map[String, List[Float]]`, on parameters, returns, and `let`/`const` bindings
 - recursion, mutual recursion, hoisted calls, and function-local scopes
@@ -179,7 +180,7 @@ python -m swarna --run examples/team_averages.sw
 ## What does not work yet
 
 **Language and data**
-- No records/user-defined types, modules/imports, generics, type aliases, comments, string interpolation, or concurrency.
+- No records/user-defined types, modules/imports, generics, type aliases, string interpolation, or concurrency.
 - `for` loops iterate over lists and map keys; there are no ranges or string iteration yet.
 - Lists are immutable (no index assignment/append/delete); build a new list with `+`.
 - Maps support `map[key] = value` for existing and new keys and `get`; there is no delete helper or map iteration over values/entries.

@@ -255,6 +255,35 @@ class TestLexer(unittest.TestCase):
         tokens = Lexer("f(1, 2)").tokenize()
         self.assertIn(TokenType.COMMA, [t.type for t in tokens])
 
+    def test_line_comment_is_ignored(self):
+        tokens = Lexer("let x = 1 # set x\nprint(x)").tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens],
+            [
+                (TokenType.KEYWORD_LET, "let"),
+                (TokenType.IDENTIFIER, "x"),
+                (TokenType.EQUAL, "="),
+                (TokenType.INTEGER, "1"),
+                (TokenType.IDENTIFIER, "print"),
+                (TokenType.LPAREN, "("),
+                (TokenType.IDENTIFIER, "x"),
+                (TokenType.RPAREN, ")"),
+                (TokenType.EOF, ""),
+            ],
+        )
+
+    def test_comment_only_line(self):
+        tokens = Lexer("# just a comment\nlet x = 1").tokenize()
+        self.assertEqual(
+            [(t.type, t.value) for t in tokens[:-1]],
+            [
+                (TokenType.KEYWORD_LET, "let"),
+                (TokenType.IDENTIFIER, "x"),
+                (TokenType.EQUAL, "="),
+                (TokenType.INTEGER, "1"),
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
