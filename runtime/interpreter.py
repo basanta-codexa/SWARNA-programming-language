@@ -8,7 +8,7 @@ from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.csv import read_csv_data
 from runtime.files import read_text_file
-from runtime.values import Value, format_literal, value_type_name
+from runtime.values import Value, format_literal, format_value, value_type_name
 
 
 class _LoopSignal(BaseException):
@@ -350,6 +350,77 @@ class Interpreter:
                     hint="Provide input on stdin when using `input()`.",
                 )
             return line.rstrip("\r\n")
+        if expr.callee.name == "int":
+            if len(expr.arguments) != 1:
+                raise SwarnaRuntimeError(
+                    f"Function 'int' expects 1 argument, got {len(expr.arguments)}",
+                    expr.span,
+                    hint="Pass one value to convert to Int.",
+                )
+            value = self.eval_expression(expr.arguments[0])
+            if type(value) is bool:
+                return 1 if value else 0
+            if type(value) is int:
+                return value
+            if type(value) is float:
+                return int(value)
+            if type(value) is str:
+                text = value.strip()
+                try:
+                    return int(text)
+                except ValueError:
+                    raise SwarnaRuntimeError(
+                        f"Cannot convert String {format_literal(value)} to Int",
+                        expr.arguments[0].span,
+                        hint='Use a whole-number string such as "42".',
+                        category="type-mismatch",
+                    ) from None
+            raise SwarnaTypeError(
+                f"Cannot convert {value_type_name(value)} to Int",
+                expr.arguments[0].span,
+                hint="Pass an Int, Float, Bool, or numeric String.",
+                category="type-mismatch",
+            )
+        if expr.callee.name == "float":
+            if len(expr.arguments) != 1:
+                raise SwarnaRuntimeError(
+                    f"Function 'float' expects 1 argument, got {len(expr.arguments)}",
+                    expr.span,
+                    hint="Pass one value to convert to Float.",
+                )
+            value = self.eval_expression(expr.arguments[0])
+            if type(value) is bool:
+                return 1.0 if value else 0.0
+            if type(value) is int:
+                return float(value)
+            if type(value) is float:
+                return value
+            if type(value) is str:
+                text = value.strip()
+                try:
+                    return float(text)
+                except ValueError:
+                    raise SwarnaRuntimeError(
+                        f"Cannot convert String {format_literal(value)} to Float",
+                        expr.arguments[0].span,
+                        hint='Use a numeric string such as "3.14".',
+                        category="type-mismatch",
+                    ) from None
+            raise SwarnaTypeError(
+                f"Cannot convert {value_type_name(value)} to Float",
+                expr.arguments[0].span,
+                hint="Pass an Int, Float, Bool, or numeric String.",
+                category="type-mismatch",
+            )
+        if expr.callee.name == "str":
+            if len(expr.arguments) != 1:
+                raise SwarnaRuntimeError(
+                    f"Function 'str' expects 1 argument, got {len(expr.arguments)}",
+                    expr.span,
+                    hint="Pass one value to convert to String.",
+                )
+            value = self.eval_expression(expr.arguments[0])
+            return format_value(value)
         if expr.callee.name == "read_file":
             if len(expr.arguments) != 1:
                 raise SwarnaRuntimeError(

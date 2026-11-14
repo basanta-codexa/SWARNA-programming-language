@@ -260,6 +260,24 @@ class Compiler:
                     raise RuntimeError("`input` expects exactly zero arguments")
                 self.emit(Op.INPUT, span=expr.span)
                 return
+            if expr.callee.name == "int":
+                if len(expr.arguments) != 1:
+                    raise RuntimeError("`int` expects exactly one argument")
+                self.compile_expression(expr.arguments[0])
+                self.emit(Op.TO_INT, span=expr.span)
+                return
+            if expr.callee.name == "float":
+                if len(expr.arguments) != 1:
+                    raise RuntimeError("`float` expects exactly one argument")
+                self.compile_expression(expr.arguments[0])
+                self.emit(Op.TO_FLOAT, span=expr.span)
+                return
+            if expr.callee.name == "str":
+                if len(expr.arguments) != 1:
+                    raise RuntimeError("`str` expects exactly one argument")
+                self.compile_expression(expr.arguments[0])
+                self.emit(Op.TO_STR, span=expr.span)
+                return
             if expr.callee.name == "read_file":
                 if len(expr.arguments) != 1:
                     raise RuntimeError("`read_file` expects exactly one argument")

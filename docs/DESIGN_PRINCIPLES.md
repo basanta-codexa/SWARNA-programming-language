@@ -240,6 +240,9 @@ The rules for the current subset:
 - `len` accepts a list, a map, or a string and produces `Int`.
 - `range` requires 1 to 3 `Int` arguments and produces `List[Int]`.
 - `input` requires 0 arguments and produces a `String` read from stdin (without the trailing newline).
+- `int` requires 1 argument and produces an `Int`. It accepts `Int`, `Bool`, `Float` (truncated toward zero), or a whole-number `String`.
+- `float` requires 1 argument and produces a `Float`. It accepts `Float`, `Int`, `Bool`, or a numeric `String`.
+- `str` requires 1 argument and produces a `String` representation of the value.
 - `read_file` requires a `String` path and produces the file's text as `String`.
 - `read_csv` requires a `String` path and a schema literal such as `{ name: String, score: Float }`. It returns `List[Map[String, Unknown]]`. The schema is checked against the file header and every cell at runtime; a bad cell points at its file, row, column, and value.
 - `+` accepts two numbers, two strings, or two lists with the same element type. Mixed `Int`/`Float` arithmetic produces `Float`, but list element types must match exactly.

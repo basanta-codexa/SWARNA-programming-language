@@ -86,7 +86,7 @@ Type.BOOL = Type("Bool")
 Type.UNKNOWN = Type("Unknown")
 
 
-BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "range", "read_file", "read_csv"})
+BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "int", "float", "str", "range", "read_file", "read_csv"})
 
 
 @dataclass(frozen=True)
@@ -756,6 +756,33 @@ class TypeChecker:
                         expr.span,
                         "Call `input()` with no arguments to read a line from stdin.",
                     )
+                return Type.STRING
+            if expr.callee.name == "int":
+                if len(expr.arguments) != 1:
+                    self._error(
+                        f"Function 'int' expects 1 argument, got {len(expr.arguments)}",
+                        expr.span,
+                        "Pass one value to convert to Int.",
+                    )
+                self.check_expression(expr.arguments[0])
+                return Type.INT
+            if expr.callee.name == "float":
+                if len(expr.arguments) != 1:
+                    self._error(
+                        f"Function 'float' expects 1 argument, got {len(expr.arguments)}",
+                        expr.span,
+                        "Pass one value to convert to Float.",
+                    )
+                self.check_expression(expr.arguments[0])
+                return Type.FLOAT
+            if expr.callee.name == "str":
+                if len(expr.arguments) != 1:
+                    self._error(
+                        f"Function 'str' expects 1 argument, got {len(expr.arguments)}",
+                        expr.span,
+                        "Pass one value to convert to String.",
+                    )
+                self.check_expression(expr.arguments[0])
                 return Type.STRING
             if expr.callee.name == "read_file":
                 if len(expr.arguments) != 1:

@@ -11,7 +11,7 @@ from compiler.bytecode.program import CompiledProgram, FunctionInfo
 from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.csv import read_csv_data
 from runtime.files import read_text_file
-from runtime.values import Value, format_literal, value_type_name
+from runtime.values import Value, format_literal, format_value, value_type_name
 
 
 @dataclass
@@ -502,6 +502,61 @@ class VM:
                         hint="Provide input on stdin when using `input()`.",
                     )
                 self.stack.append(line.rstrip("\r\n"))
+            elif ins.op == Op.TO_INT:
+                value = self._pop(ins)
+                if type(value) is bool:
+                    self.stack.append(1 if value else 0)
+                elif type(value) is int:
+                    self.stack.append(value)
+                elif type(value) is float:
+                    self.stack.append(int(value))
+                elif type(value) is str:
+                    text = value.strip()
+                    try:
+                        self.stack.append(int(text))
+                    except ValueError:
+                        raise SwarnaRuntimeError(
+                            f"Cannot convert String {format_literal(value)} to Int",
+                            ins.span,
+                            hint='Use a whole-number string such as "42".',
+                            category="type-mismatch",
+                        ) from None
+                else:
+                    raise SwarnaTypeError(
+                        f"Cannot convert {value_type_name(value)} to Int",
+                        ins.span,
+                        hint="Pass an Int, Float, Bool, or numeric String.",
+                        category="type-mismatch",
+                    )
+            elif ins.op == Op.TO_FLOAT:
+                value = self._pop(ins)
+                if type(value) is bool:
+                    self.stack.append(1.0 if value else 0.0)
+                elif type(value) is int:
+                    self.stack.append(float(value))
+                elif type(value) is float:
+                    self.stack.append(value)
+                elif type(value) is str:
+                    text = value.strip()
+                    try:
+                        self.stack.append(float(text))
+                    except ValueError:
+                        raise SwarnaRuntimeError(
+                            f"Cannot convert String {format_literal(value)} to Float",
+                            ins.span,
+                            hint='Use a numeric string such as "3.14".',
+                            category="type-mismatch",
+                        ) from None
+                else:
+                    raise SwarnaTypeError(
+                        f"Cannot convert {value_type_name(value)} to Float",
+                        ins.span,
+                        hint="Pass an Int, Float, Bool, or numeric String.",
+                        category="type-mismatch",
+                    )
+            elif ins.op == Op.TO_STR:
+                value = self._pop(ins)
+                self.stack.append(format_value(value))
             elif ins.op == Op.ITER_START:
                 iterable = self._pop(ins)
                 if not isinstance(iterable, (list, dict, str)):

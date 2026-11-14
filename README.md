@@ -173,7 +173,7 @@ python -m swarna --run examples/team_averages.sw
 - map literals such as `{ "Ada": 36 }`, indexing with `map[key]`, `map[key] = value`, `get(map, key, default)`, `len(...)`, map equality, and inferred key and value types
 - `read_file(path)`, which returns a UTF-8 text file's contents with diagnostics for missing files, directories, and invalid text
 - `read_csv(path, { name: String, score: Float })`, which validates the header and each cell against the schema and returns rows as maps; a bad cell names the file, row, column, and value
-- built-ins: `print`, `len`, `get`, `range`, `input`, `read_file`, `read_csv` (e.g. `range(5)`, `range(2, 7, 2)` produce lists of integers; `input()` reads a line from stdin)
+- built-ins: `print`, `len`, `get`, `range`, `input`, `int`, `float`, `str`, `read_file`, `read_csv` (e.g. `range(5)`, `range(2, 7, 2)` produce lists of integers; `input()` reads a line from stdin as a `String`; use `int(...)`, `float(...)`, or `str(...)` to convert values)
 - readable list and map output such as `["Ada", "Grace"]` and `{"Ada": 36}`
 - inferred static types for the current expressions and bindings
 - a REPL that keeps bindings and functions between lines

@@ -23,6 +23,21 @@ class TestInterpreter(unittest.TestCase):
             env = run("let name = input()")
         self.assertEqual(env["name"], "Ada")
 
+    def test_type_conversion_builtins(self):
+        env = run(
+            'let a = int("42") let b = int(3.9) let c = int(true) '
+            'let d = float("3.5") let e = float(2) let f = float(false) '
+            'let g = str(123) let h = str(true)'
+        )
+        self.assertEqual(env["a"], 42)
+        self.assertEqual(env["b"], 3)
+        self.assertEqual(env["c"], 1)
+        self.assertEqual(env["d"], 3.5)
+        self.assertEqual(env["e"], 2.0)
+        self.assertEqual(env["f"], 0.0)
+        self.assertEqual(env["g"], "123")
+        self.assertEqual(env["h"], "true")
+
     def test_let_expression(self):
         env = run("let x = 1 + 2 * 3")
         self.assertEqual(env["x"], 7)

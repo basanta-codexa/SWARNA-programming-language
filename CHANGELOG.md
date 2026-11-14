@@ -21,6 +21,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `range(...)` built-in for integer sequences (usable with `for` loops).
 - String indexing (`text[i]`, including negative indices) and `for` iteration over strings.
 - `input()` built-in to read a line from stdin.
+- `int(...)`, `float(...)`, and `str(...)` conversion built-ins.
 
 ### Changed
 - Documentation (`README.md`, `docs/DESIGN_PRINCIPLES.md`) updated to reflect `break`/`continue` support and direct file execution.
