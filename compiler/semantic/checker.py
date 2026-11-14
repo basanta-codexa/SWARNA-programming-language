@@ -1084,10 +1084,15 @@ class TypeChecker:
                 return Type.STRING
             if self._is_numeric(left_type) and self._is_numeric(right_type):
                 return self._numeric_result(left_type, right_type)
+            hint = "Use two numbers, two strings, or two lists."
+            if left_type is Type.STRING and right_type is not Type.STRING:
+                hint = "Convert the right operand with `str(...)`, or use two numbers/two lists."
+            elif right_type is Type.STRING and left_type is not Type.STRING:
+                hint = "Convert the left operand with `str(...)`, or use two numbers/two lists."
             self._error(
                 f"`+` cannot combine {left_type.label} and {right_type.label}",
                 expr.span,
-                "Use two numbers, two strings, or two lists.",
+                hint,
                 category="type-mismatch",
             )
 

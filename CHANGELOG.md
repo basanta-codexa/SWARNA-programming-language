@@ -28,7 +28,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `elif` keyword alias for `else if` in `if` statements and expressions.
 - Expression statements, including function call statements, in statement contexts and block expressions (for side effects).
 - `Unit` type and `()` literal, `return` without a value, and implicit `Unit`-valued blocks for simple procedure-style functions.
-- `Int`-to-`Float` widening in type checking (assignments, arguments/returns, `if` branch unification, and collection element/value unification).
+- `Int`-to-`Float` widening in type checking and key runtime coercions (annotated `let` bindings and function arguments/returns in interpreter/VM).
+
+### Changed
+- Hardened explicit conversions: `float(...)` requires finite numeric values (rejects `inf`/`nan`) and `int(...)` rejects non-finite `Float` inputs; improved conversion diagnostics and `+` string-combination hints.
+- Documented explicit/implicit conversion rules (numeric widening only; no implicit `Bool↔Int`, `String↔number`, or value→`String` conversions).
 
 ### Changed
 - Improved conditional diagnostics: clearer hints for non-`Bool` conditions, clearer errors when `if` expressions are missing a final `else`, and clearer branch-type mismatch messages for `if`/`elif` expression chains.

@@ -243,15 +243,15 @@ The rules for the current subset:
 - `len` accepts a list, a map, or a string and produces `Int`.
 - `range` requires 1 to 3 `Int` arguments and produces `List[Int]`.
 - `input` requires 0 arguments and produces a `String` read from stdin (without the trailing newline).
-- `int` requires 1 argument and produces an `Int`. It accepts `Int`, `Bool`, `Float` (truncated toward zero), or a whole-number `String`.
-- `float` requires 1 argument and produces a `Float`. It accepts `Float`, `Int`, `Bool`, or a numeric `String`.
-- `str` requires 1 argument and produces a `String` representation of the value.
+- `int` requires 1 argument and produces an `Int`. It accepts `Int`, `Bool`, `Float` (truncated toward zero; non-finite `Float` values are rejected), or an explicit whole-number decimal `String` (e.g. `"42"`).
+- `float` requires 1 argument and produces a finite `Float`. It accepts `Float` (finite), `Int`, `Bool`, or a finite numeric `String` (e.g. `"3.14"`, `"1e3"`). Non-finite values such as `inf`/`nan` are rejected.
+- `str` requires 1 argument and produces a `String` representation of the value (no implicit string coercion in operators like `+`).
 - `read_file` requires a `String` path and produces the file's text as `String`.
 - `read_csv` requires a `String` path and a schema literal such as `{ name: String, score: Float }`. It returns `List[Map[String, Unknown]]`. The schema is checked against the file header and every cell at runtime; a bad cell points at its file, row, column, and value.
-- `+` accepts two numbers, two strings, or two lists with the same element type. Mixed `Int`/`Float` arithmetic produces `Float`, but list element types must match exactly.
+- `+` accepts two numbers, two strings, or two lists with compatible element types. Mixed `Int`/`Float` arithmetic produces `Float`. `Int` widens to `Float` where needed; there is no implicit conversion to `String` (use `str(...)`). List concatenation requires compatible element types (with numeric widening).
 - `print` accepts any type, including lists and maps.
 - List and map annotations use `List[T]` and `Map[K, V]`, including nested types such as `Map[String, List[Float]]`. A scalar type rejects type arguments; `List` needs one argument; `Map` needs two and its key must be a scalar type.
-- A `let`/`const` annotation sets the binding's type and must accept the value. A function parameter or return annotation is checked against arguments and the body.
+- A `let`/`const` annotation sets the binding's type and must accept the value. A function parameter or return annotation is checked against arguments and the body. `Int` widens to `Float` in these contexts (the type checker allows it; the runtime coerces in key annotated contexts such as annotated `let` bindings and function arguments/returns). No implicit `Bool↔Int`, `String↔number`, or value→`String` conversions are performed.
 - `-`, `*`, and `%` accept numbers and produce `Int` when both operands are `Int`, otherwise `Float`.
 - `/` accepts numbers and always produces `Float`.
 - `//` requires two `Int` operands and produces `Int`.
@@ -277,7 +277,7 @@ The checker runs before execution in `--run` and before code generation in `--em
 
 Division by zero remains a runtime error; the checker does not evaluate expressions.
 
-Known gaps: no user-defined generics or type aliases, no list mutation, no iteration over ranges or strings, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging/narrowing of branch bindings, and only the first semantic error is reported. `Int` widens to `Float` in type checking (assignments, arguments/returns, `if` branches, and collection element/value unification), but runtime values are not implicitly coerced. Block values are currently available only as `if` expression branches and function bodies. Statement-form `if` (including early `return` without `else`) is supported inside block values before the final expression; a trailing `if` used as the block's final value is still parsed as an `if` expression. Expression statements (including function calls) are supported for side effects. `return` exits functions (not arbitrary blocks). Blocks without an explicit final expression yield `Unit` (`()`). `#` starts a line comment; block comments are not supported. The interpreter and VM keep their runtime checks so they can still be tested independently.
+Known gaps: no user-defined generics or type aliases, no list mutation, no iteration over ranges or strings, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging/narrowing of branch bindings, and only the first semantic error is reported. `Int` widens to `Float` (type checking and key runtime coercion points such as annotated `let` bindings and function arguments/returns), but not every runtime storage context is coerced yet. Block values are currently available only as `if` expression branches and function bodies. Statement-form `if` (including early `return` without `else`) is supported inside block values before the final expression; a trailing `if` used as the block's final value is still parsed as an `if` expression. Expression statements (including function calls) are supported for side effects. `return` exits functions (not arbitrary blocks). Blocks without an explicit final expression yield `Unit` (`()`). `#` starts a line comment; block comments are not supported. The interpreter and VM keep their runtime checks so they can still be tested independently.
 
 Status: implemented as a separate pass for the current subset.
 

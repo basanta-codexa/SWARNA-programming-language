@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
+from compiler.ast.nodes import TypeAnnotation
 from compiler.bytecode.instructions import Instruction
 from compiler.diagnostics import SourceSpan
 
@@ -13,6 +14,8 @@ class FunctionInfo:
     parameters: tuple[str, ...]
     instructions: tuple[Instruction, ...]
     span: SourceSpan | None = None
+    parameter_annotations: tuple[TypeAnnotation | None, ...] = ()
+    return_annotation: TypeAnnotation | None = None
 
 
 @dataclass(frozen=True)

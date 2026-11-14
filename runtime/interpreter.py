@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import sys
 from dataclasses import dataclass
 
@@ -108,7 +109,10 @@ class Interpreter:
             )
         if isinstance(stmt, LetStatement):
             name = stmt.name.name
-            self.env[name] = self.eval_expression(stmt.value)
+            value = self.eval_expression(stmt.value)
+            if stmt.type_name is not None and stmt.type_name.name == "Float" and type(value) is int and not stmt.type_name.arguments:
+                value = float(value)
+            self.env[name] = value
             self.constant[name] = stmt.constant
             return
         if isinstance(stmt, AssignmentStatement):
@@ -366,7 +370,7 @@ class Interpreter:
                 raise SwarnaRuntimeError(
                     f"Function 'int' expects 1 argument, got {len(expr.arguments)}",
                     expr.span,
-                    hint="Pass one value to convert to Int.",
+                    hint="Pass one value to convert to Int, for example `int(\"42\")` or `int(3.9)`.",
                 )
             value = self.eval_expression(expr.arguments[0])
             if type(value) is bool:
@@ -374,6 +378,13 @@ class Interpreter:
             if type(value) is int:
                 return value
             if type(value) is float:
+                if not math.isfinite(value):
+                    raise SwarnaRuntimeError(
+                        f"Cannot convert non-finite Float {format_literal(value)} to Int",
+                        expr.arguments[0].span,
+                        hint="Convert only finite Float values to Int.",
+                        category="type-mismatch",
+                    )
                 return int(value)
             if type(value) is str:
                 text = value.strip()
@@ -383,13 +394,13 @@ class Interpreter:
                     raise SwarnaRuntimeError(
                         f"Cannot convert String {format_literal(value)} to Int",
                         expr.arguments[0].span,
-                        hint='Use a whole-number string such as "42".',
+                        hint='Use an explicit whole-number string such as "42" (decimal integer form).',
                         category="type-mismatch",
                     ) from None
             raise SwarnaTypeError(
                 f"Cannot convert {value_type_name(value)} to Int",
                 expr.arguments[0].span,
-                hint="Pass an Int, Float, Bool, or numeric String.",
+                hint="Use `int(...)` with an Int, Float, Bool, or whole-number String.",
                 category="type-mismatch",
             )
         if expr.callee.name == "float":
@@ -397,32 +408,41 @@ class Interpreter:
                 raise SwarnaRuntimeError(
                     f"Function 'float' expects 1 argument, got {len(expr.arguments)}",
                     expr.span,
-                    hint="Pass one value to convert to Float.",
+                    hint="Pass one value to convert to Float, for example `float(\"3.14\")` or `float(1)`.",
                 )
             value = self.eval_expression(expr.arguments[0])
             if type(value) is bool:
                 return 1.0 if value else 0.0
             if type(value) is int:
-                return float(value)
-            if type(value) is float:
-                return value
-            if type(value) is str:
+                result = float(value)
+            elif type(value) is float:
+                result = value
+            elif type(value) is str:
                 text = value.strip()
                 try:
-                    return float(text)
+                    result = float(text)
                 except ValueError:
                     raise SwarnaRuntimeError(
                         f"Cannot convert String {format_literal(value)} to Float",
                         expr.arguments[0].span,
-                        hint='Use a numeric string such as "3.14".',
+                        hint='Use a finite numeric string such as "3.14" or "1e3", or convert explicitly with the appropriate form.',
                         category="type-mismatch",
                     ) from None
-            raise SwarnaTypeError(
-                f"Cannot convert {value_type_name(value)} to Float",
-                expr.arguments[0].span,
-                hint="Pass an Int, Float, Bool, or numeric String.",
-                category="type-mismatch",
-            )
+            else:
+                raise SwarnaTypeError(
+                    f"Cannot convert {value_type_name(value)} to Float",
+                    expr.arguments[0].span,
+                    hint="Use `float(...)` with an Int, Float, Bool, or numeric String.",
+                    category="type-mismatch",
+                )
+            if not math.isfinite(result):
+                raise SwarnaRuntimeError(
+                    f"Cannot convert {value_type_name(value)} {format_literal(value)} to a finite Float",
+                    expr.arguments[0].span,
+                    hint="SWARNA `Float` values must be finite. Use a finite numeric value.",
+                    category="type-mismatch",
+                )
+            return result
         if expr.callee.name == "str":
             if len(expr.arguments) != 1:
                 raise SwarnaRuntimeError(
@@ -486,6 +506,13 @@ class Interpreter:
                 hint="Pass the number of arguments in the function declaration.",
             )
         arguments = [self.eval_expression(argument) for argument in expr.arguments]
+        coerced_arguments = []
+        for index, (arg, param_ann) in enumerate(zip(arguments, function.parameter_annotations), start=1):
+            if param_ann is not None and param_ann.name == "Float" and not param_ann.arguments and type(arg) is int:
+                coerced_arguments.append(float(arg))
+            else:
+                coerced_arguments.append(arg)
+        arguments = coerced_arguments
         if self.call_depth >= self.max_call_depth:
             raise SwarnaRuntimeError(
                 f"Maximum call depth of {self.max_call_depth} exceeded",
@@ -504,9 +531,13 @@ class Interpreter:
         self.call_depth += 1
         try:
             try:
-                return self.eval_expression(function.body)
+                result = self.eval_expression(function.body)
             except _ReturnSignal as signal:
-                return signal.value
+                result = signal.value
+            ret_ann = function.return_annotation
+            if ret_ann is not None and ret_ann.name == "Float" and not ret_ann.arguments and type(result) is int:
+                result = float(result)
+            return result
         finally:
             self.call_depth -= 1
             self.env = saved_env

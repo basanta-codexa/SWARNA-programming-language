@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import operator
 import sys
 from collections.abc import Iterator
@@ -509,6 +510,13 @@ class VM:
                 elif type(value) is int:
                     self.stack.append(value)
                 elif type(value) is float:
+                    if not math.isfinite(value):
+                        raise SwarnaRuntimeError(
+                            f"Cannot convert non-finite Float {format_literal(value)} to Int",
+                            ins.span,
+                            hint="Convert only finite Float values to Int.",
+                            category="type-mismatch",
+                        )
                     self.stack.append(int(value))
                 elif type(value) is str:
                     text = value.strip()
@@ -518,42 +526,50 @@ class VM:
                         raise SwarnaRuntimeError(
                             f"Cannot convert String {format_literal(value)} to Int",
                             ins.span,
-                            hint='Use a whole-number string such as "42".',
+                            hint='Use an explicit whole-number string such as "42" (decimal integer form).',
                             category="type-mismatch",
                         ) from None
                 else:
                     raise SwarnaTypeError(
                         f"Cannot convert {value_type_name(value)} to Int",
                         ins.span,
-                        hint="Pass an Int, Float, Bool, or numeric String.",
+                        hint="Use `int(...)` with an Int, Float, Bool, or whole-number String.",
                         category="type-mismatch",
                     )
             elif ins.op == Op.TO_FLOAT:
                 value = self._pop(ins)
                 if type(value) is bool:
-                    self.stack.append(1.0 if value else 0.0)
+                    result = 1.0 if value else 0.0
                 elif type(value) is int:
-                    self.stack.append(float(value))
+                    result = float(value)
                 elif type(value) is float:
-                    self.stack.append(value)
+                    result = value
                 elif type(value) is str:
                     text = value.strip()
                     try:
-                        self.stack.append(float(text))
+                        result = float(text)
                     except ValueError:
                         raise SwarnaRuntimeError(
                             f"Cannot convert String {format_literal(value)} to Float",
                             ins.span,
-                            hint='Use a numeric string such as "3.14".',
+                            hint='Use a finite numeric string such as "3.14" or "1e3", or convert explicitly with the appropriate form.',
                             category="type-mismatch",
                         ) from None
                 else:
                     raise SwarnaTypeError(
                         f"Cannot convert {value_type_name(value)} to Float",
                         ins.span,
-                        hint="Pass an Int, Float, Bool, or numeric String.",
+                        hint="Use `float(...)` with an Int, Float, Bool, or numeric String.",
                         category="type-mismatch",
                     )
+                if not math.isfinite(result):
+                    raise SwarnaRuntimeError(
+                        f"Cannot convert {value_type_name(value)} {format_literal(value)} to a finite Float",
+                        ins.span,
+                        hint="SWARNA `Float` values must be finite. Use a finite numeric value.",
+                        category="type-mismatch",
+                    )
+                self.stack.append(result)
             elif ins.op == Op.TO_STR:
                 value = self._pop(ins)
                 self.stack.append(format_value(value))
@@ -674,7 +690,15 @@ class VM:
             )
         arguments = [self._pop(ins) for _ in range(argument_count)]
         arguments.reverse()
-        self.stack.append(self._call_function(function, arguments, ins))
+        param_anns = getattr(function, "parameter_annotations", ())
+        coerced = []
+        for index, value in enumerate(arguments):
+            ann = param_anns[index] if index < len(param_anns) else None
+            if ann is not None and ann.name == "Float" and not ann.arguments and type(value) is int:
+                coerced.append(float(value))
+            else:
+                coerced.append(value)
+        self.stack.append(self._call_function(function, coerced, ins))
 
     def _call_function(
         self,
@@ -703,6 +727,9 @@ class VM:
         self.call_depth += 1
         try:
             result = self._execute(function.instructions, allow_return=True)
+            ret_ann = getattr(function, "return_annotation", None)
+            if ret_ann is not None and ret_ann.name == "Float" and not ret_ann.arguments and type(result) is int:
+                result = float(result)
             if result is None:
                 raise SwarnaRuntimeError(
                     f"Function '{function.name}' did not return a value",

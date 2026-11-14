@@ -79,6 +79,8 @@ class Compiler:
             parameters=tuple(parameter.name.name for parameter in stmt.parameters),
             instructions=instructions,
             span=stmt.name.span,
+            parameter_annotations=tuple(parameter.type_name for parameter in stmt.parameters),
+            return_annotation=stmt.return_type,
         )
 
     def emit(self, op: Op, arg=None, span: SourceSpan | None = None) -> int:

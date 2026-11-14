@@ -38,6 +38,10 @@ class TestInterpreter(unittest.TestCase):
         self.assertEqual(env["g"], "123")
         self.assertEqual(env["h"], "true")
 
+    def test_float_conversion_rejects_non_finite(self):
+        with self.assertRaisesRegex(SwarnaRuntimeError, "finite Float"):
+            run('let x = float("inf")')
+
     def test_let_expression(self):
         env = run("let x = 1 + 2 * 3")
         self.assertEqual(env["x"], 7)
