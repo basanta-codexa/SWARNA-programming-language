@@ -304,6 +304,36 @@ class Interpreter:
                     hint="Use a scalar key.",
                 ) from None
             return default
+        if expr.callee.name == "range":
+            arg_count = len(expr.arguments)
+            if arg_count < 1 or arg_count > 3:
+                raise SwarnaRuntimeError(
+                    f"Function 'range' expects 1 to 3 arguments, got {arg_count}",
+                    expr.span,
+                    hint="Use `range(stop)`, `range(start, stop)`, or `range(start, stop, step)`.",
+                )
+            values = [self.eval_expression(argument) for argument in expr.arguments]
+            for index, value in enumerate(values):
+                if type(value) is not int:
+                    raise SwarnaTypeError(
+                        f"`range` arguments must be Int, got {value_type_name(value)}",
+                        expr.arguments[index].span,
+                        hint="Use Int values for range bounds and step.",
+                        category="type-mismatch",
+                    )
+            if arg_count == 1:
+                start, stop, step = 0, values[0], 1
+            elif arg_count == 2:
+                start, stop, step = values[0], values[1], 1
+            else:
+                start, stop, step = values[0], values[1], values[2]
+            if step == 0:
+                raise SwarnaRuntimeError(
+                    "`range` step must not be 0",
+                    expr.arguments[2].span if arg_count == 3 else expr.span,
+                    hint="Use a non-zero step, such as `1` or `-1`.",
+                )
+            return list(range(start, stop, step))
         if expr.callee.name == "read_file":
             if len(expr.arguments) != 1:
                 raise SwarnaRuntimeError(

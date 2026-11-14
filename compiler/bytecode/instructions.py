@@ -39,6 +39,7 @@ class Op(Enum):
     STORE_INDEX = auto()
     MAP_GET = auto()
     LEN = auto()
+    RANGE = auto()
     READ_FILE = auto()
     READ_CSV = auto()
     ITER_START = auto()

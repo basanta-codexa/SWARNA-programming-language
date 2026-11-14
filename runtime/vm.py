@@ -440,6 +440,43 @@ class VM:
                     )
                 text = read_text_file(path, ins.span)
                 self.stack.append(read_csv_data(text, path, schema))
+            elif ins.op == Op.RANGE:
+                arg_count = ins.arg
+                if arg_count not in (1, 2, 3):
+                    raise SwarnaRuntimeError(
+                        "Invalid RANGE argument count",
+                        ins.span,
+                        hint="The bytecode compiler produced an invalid range instruction.",
+                    )
+                if len(self.stack) < arg_count:
+                    raise SwarnaRuntimeError(
+                        "Stack underflow on RANGE",
+                        ins.span,
+                        hint="The bytecode compiler produced an invalid stack operation.",
+                    )
+                values = [self._pop(ins) for _ in range(arg_count)]
+                values.reverse()
+                for value in values:
+                    if type(value) is not int:
+                        raise SwarnaTypeError(
+                            f"`range` arguments must be Int, got {value_type_name(value)}",
+                            ins.span,
+                            hint="Use Int values for range bounds and step.",
+                            category="type-mismatch",
+                        )
+                if arg_count == 1:
+                    start, stop, step = 0, values[0], 1
+                elif arg_count == 2:
+                    start, stop, step = values[0], values[1], 1
+                else:
+                    start, stop, step = values[0], values[1], values[2]
+                if step == 0:
+                    raise SwarnaRuntimeError(
+                        "`range` step must not be 0",
+                        ins.span,
+                        hint="Use a non-zero step, such as `1` or `-1`.",
+                    )
+                self.stack.append(list(range(start, stop, step)))
             elif ins.op == Op.ITER_START:
                 iterable = self._pop(ins)
                 if not isinstance(iterable, (list, dict)):

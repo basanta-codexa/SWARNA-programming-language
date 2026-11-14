@@ -238,6 +238,7 @@ The rules for the current subset:
 - Index assignment `map[key] = value` requires a mutable `let` map binding. The key must be assignable to `K` and the value to `V`. Assigning through a `const` binding is rejected, and a list index assignment is rejected because lists are immutable.
 - `get(map, key, default)` requires a map, a key assignable to `K`, and a default assignable to `V`; it returns `V`. When `V` is `Unknown` (as in an empty map), the default's type becomes the result type.
 - `len` accepts a list, a map, or a string and produces `Int`.
+- `range` requires 1 to 3 `Int` arguments and produces `List[Int]`.
 - `read_file` requires a `String` path and produces the file's text as `String`.
 - `read_csv` requires a `String` path and a schema literal such as `{ name: String, score: Float }`. It returns `List[Map[String, Unknown]]`. The schema is checked against the file header and every cell at runtime; a bad cell points at its file, row, column, and value.
 - `+` accepts two numbers, two strings, or two lists with the same element type. Mixed `Int`/`Float` arithmetic produces `Float`, but list element types must match exactly.

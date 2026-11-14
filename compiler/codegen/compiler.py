@@ -247,6 +247,14 @@ class Compiler:
                     self.compile_expression(argument)
                 self.emit(Op.MAP_GET, span=expr.span)
                 return
+            if expr.callee.name == "range":
+                arg_count = len(expr.arguments)
+                if arg_count < 1 or arg_count > 3:
+                    raise RuntimeError("`range` expects 1 to 3 arguments")
+                for argument in expr.arguments:
+                    self.compile_expression(argument)
+                self.emit(Op.RANGE, arg_count, span=expr.span)
+                return
             if expr.callee.name == "read_file":
                 if len(expr.arguments) != 1:
                     raise RuntimeError("`read_file` expects exactly one argument")

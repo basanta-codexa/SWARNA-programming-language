@@ -86,7 +86,7 @@ Type.BOOL = Type("Bool")
 Type.UNKNOWN = Type("Unknown")
 
 
-BUILTIN_NAMES = frozenset({"print", "len", "get", "read_file", "read_csv"})
+BUILTIN_NAMES = frozenset({"print", "len", "get", "range", "read_file", "read_csv"})
 
 
 @dataclass(frozen=True)
@@ -723,6 +723,24 @@ class TypeChecker:
                         category="type-mismatch",
                     )
                 return map_type.value_type
+            if expr.callee.name == "range":
+                arg_count = len(expr.arguments)
+                if arg_count < 1 or arg_count > 3:
+                    self._error(
+                        f"Function 'range' expects 1 to 3 arguments, got {arg_count}",
+                        expr.span,
+                        "Use `range(stop)`, `range(start, stop)`, or `range(start, stop, step)`.",
+                    )
+                for index, argument in enumerate(expr.arguments, start=1):
+                    argument_type = self.check_expression(argument)
+                    if argument_type is not Type.UNKNOWN and argument_type is not Type.INT:
+                        self._error(
+                            f"Argument {index} of 'range' must be Int, got {argument_type.label}",
+                            argument.span,
+                            "Use Int values for range bounds and step.",
+                            category="type-mismatch",
+                        )
+                return Type.list_of(Type.INT)
             if expr.callee.name == "read_file":
                 if len(expr.arguments) != 1:
                     self._error(

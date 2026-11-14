@@ -385,6 +385,18 @@ class TestVMForLoops(unittest.TestCase):
         env = run_vm("let total = 0 for x in [1, 2, 3] { total = total + x }")
         self.assertEqual(env["total"], 6)
 
+    def test_vm_range_builtin(self):
+        env = run_vm(
+            "let a = range(5) "
+            "let b = range(2, 6) "
+            "let c = range(5, 0, -2) "
+            "let total = 0 for i in range(4) { total = total + i }"
+        )
+        self.assertEqual(env["a"], [0, 1, 2, 3, 4])
+        self.assertEqual(env["b"], [2, 3, 4, 5])
+        self.assertEqual(env["c"], [5, 3, 1])
+        self.assertEqual(env["total"], 6)
+
     def test_vm_for_loop_prints_each_item(self):
         program = Parser(Lexer("for x in [1, 2, 3] { print(x) }")).parse_program()
         vm = VM()

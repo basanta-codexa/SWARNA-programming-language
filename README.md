@@ -160,7 +160,7 @@ python -m swarna --run examples/team_averages.sw
 - arithmetic, comparisons, `and`/`or`/`not`, `&&`/`||`/`!`
 - `if`/`else` statements and `if` expressions with single-expression or block branches
 - `while` loops
-- `for` loops over lists and map keys, with a loop variable scoped to the loop
+- `for` loops over lists and map keys, with a loop variable scoped to the loop (use `range(...)` for numeric sequences)
 - `break` and `continue` in `while` and `for` loops
 - `#` line comments
 - named `fn` declarations with optional parameter and return annotations
@@ -172,7 +172,8 @@ python -m swarna --run examples/team_averages.sw
 - map literals such as `{ "Ada": 36 }`, indexing with `map[key]`, `map[key] = value`, `get(map, key, default)`, `len(...)`, map equality, and inferred key and value types
 - `read_file(path)`, which returns a UTF-8 text file's contents with diagnostics for missing files, directories, and invalid text
 - `read_csv(path, { name: String, score: Float })`, which validates the header and each cell against the schema and returns rows as maps; a bad cell names the file, row, column, and value
-- `print`, with readable list and map output such as `["Ada", "Grace"]` and `{"Ada": 36}`
+- built-ins: `print`, `len`, `get`, `range`, `read_file`, `read_csv` (e.g. `range(5)`, `range(2, 7, 2)` produce lists of integers)
+- readable list and map output such as `["Ada", "Grace"]` and `{"Ada": 36}`
 - inferred static types for the current expressions and bindings
 - a REPL that keeps bindings and functions between lines
 - caret diagnostics with hints for lexer, parser, semantic, and runtime errors

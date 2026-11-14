@@ -142,6 +142,11 @@ class TestTypeInference(unittest.TestCase):
         self.assertIs(checker.env["y"].type, Type.INT)
         self.assertNotIn("x", checker.env)
 
+    def test_range_returns_list_of_int(self):
+        checker = check("let xs = range(3) let ys = range(1, 4, 2)")
+        self.assertEqual(checker.env["xs"].type, Type.list_of(Type.INT))
+        self.assertEqual(checker.env["ys"].type, Type.list_of(Type.INT))
+
     def test_for_loop_variable_does_not_leak(self):
         checker = check("for x in [1, 2] { print(x) }")
         self.assertNotIn("x", checker.env)
