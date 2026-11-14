@@ -30,6 +30,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ### Changed
 - Improved conditional diagnostics: clearer hints for non-`Bool` conditions, clearer errors when `if` expressions are missing a final `else`, and clearer branch-type mismatch messages for `if`/`elif` expression chains.
 
+### Documentation
+- Documented conditional/block-expression consistency rules (statement-form `if` before a final expression, trailing `if` as an expression value, and where block values are supported).
+
 ### Changed
 - Documentation (`README.md`, `docs/DESIGN_PRINCIPLES.md`, `CHANGELOG.md`) updated to reflect new language features and behavior.
 - Passing an existing source file now runs it by default; source files are read as UTF-8 with optional BOM.

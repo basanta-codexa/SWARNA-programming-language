@@ -64,6 +64,8 @@ let total = if true {
 
 All branches must produce the same type. `else if` chains (and `elif`) are supported in `if` expressions. An `if` without `else` is only valid as a statement.
 
+**Conditional consistency (current):** statement-form `if` is available in statement contexts and inside block values before the final expression (including `if` without `else`, useful for early `return`). A trailing `if` at the end of a block value is treated as an `if` expression, so it must include a final `else` and produce a value. Block values are currently used in function bodies and `if` expression branches; `{ ... }` in general expression position is parsed as a map literal, not a block expression.
+
 Reason: conditional values are common in real work: labels, defaults, formatting. Statement-only `if` forces a mutable temporary and more lines.
 
 Status: implemented for the current language. `if` expressions with single-expression or block branches work in both the interpreter and the VM, including `else if`/`elif` chains, and a final `else` branch is required in expression position. The type checker enforces compatible branch types. Statement-form `if` (including `else if`/`elif` and no `else`) is also supported.
