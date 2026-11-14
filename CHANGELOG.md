@@ -14,6 +14,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - MIT `LICENSE`.
 - `CONTRIBUTING.md` with development and contribution guidelines.
 - This changelog.
+- `--version` CLI flag.
+- Running source files directly from the CLI (pass a `.sw` file path as the `source` argument).
 
 ### Changed
-- Documentation (`README.md`, `docs/DESIGN_PRINCIPLES.md`) updated to reflect `break`/`continue` support.
+- Documentation (`README.md`, `docs/DESIGN_PRINCIPLES.md`) updated to reflect `break`/`continue` support and direct file execution.

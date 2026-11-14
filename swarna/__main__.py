@@ -1,5 +1,6 @@
 import argparse
 import sys
+from pathlib import Path
 
 from compiler.codegen.compiler import Compiler
 from compiler.diagnostics import DiagnosticError, render_diagnostic
@@ -104,8 +105,14 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Expand errors with a plain-language explanation",
     )
-    parser.add_argument("source", nargs="?", help="Source line; if omitted, reads stdin or starts REPL")
+    parser.add_argument(
+        "source",
+        nargs="?",
+        help="Inline source, or a path to a .sw source file; if omitted, reads stdin or starts REPL",
+    )
     args = parser.parse_args(argv)
+
+    source_name: str | None = None
 
     def render(source: str) -> str:
         if args.run:
@@ -117,16 +124,35 @@ def main(argv: list[str] | None = None) -> int:
         return lex_source(source)
 
     if args.source is not None:
+        source = args.source
+        candidate = Path(args.source)
+        if candidate.is_file():
+            try:
+                source = candidate.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                print(
+                    f"error: Could not read '{args.source}' as UTF-8 text",
+                    file=sys.stderr,
+                )
+                return 1
+            except OSError as e:
+                print(f"error: Could not read '{args.source}': {e}", file=sys.stderr)
+                return 1
+            source_name = str(candidate)
         try:
-            output = render(args.source)
+            output = render(source)
         except DiagnosticError as e:
-            print(render_diagnostic(args.source, e, explain=args.explain), file=sys.stderr)
+            if source_name and e.source is None and e.source_name is None:
+                e.source_name = source_name
+            print(render_diagnostic(source, e, explain=args.explain), file=sys.stderr)
             return 1
         except SyntaxError as e:
-            print(f"error: {e}", file=sys.stderr)
+            prefix = f"{source_name}: " if source_name else ""
+            print(f"error: {prefix}{e}", file=sys.stderr)
             return 1
         except (NameError, TypeError, ZeroDivisionError, RuntimeError) as e:
-            print(f"error: {e}", file=sys.stderr)
+            prefix = f"{source_name}: " if source_name else ""
+            print(f"error: {prefix}{e}", file=sys.stderr)
             return 1
         except KeyboardInterrupt:
             print("interrupted", file=sys.stderr)

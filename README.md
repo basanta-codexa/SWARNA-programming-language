@@ -21,6 +21,14 @@ python -m pip install -e .
 swarna --run "let total = 1 + 2 * 3 print(total)"
 ```
 
+Run a `.sw` source file:
+
+```bash
+python -m swarna --run program.sw
+# or, if installed:
+swarna --run program.sw
+```
+
 Prints `7`.
 
 A `while` loop:
@@ -138,14 +146,10 @@ print(averages)
 From the repository root:
 
 ```bash
-# PowerShell
-Get-Content examples/team_averages.sw -Raw | python -m swarna --run
-
-# bash/zsh
-python -m swarna --run < examples/team_averages.sw
+python -m swarna --run examples/team_averages.sw
 ```
 
-Prints `{"Blue": 90.0, "Red": 82.0}`. If a score cell is not a number, `read_csv` reports the file, row, column, and bad value before arithmetic runs.
+(Prints `{"Blue": 90.0, "Red": 82.0}`. You can also pipe the file contents to stdin if you prefer.) If a score cell is not a number, `read_csv` reports the file, row, column, and bad value before arithmetic runs.
 
 ## What works
 

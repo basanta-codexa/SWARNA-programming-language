@@ -643,6 +643,34 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("Cannot assign String to Int binding 'x'", stderr.getvalue())
 
+    def test_run_cli_executes_source_file(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "program.sw"
+            path.write_text("let x = 2\nprint(x + 3)\n", encoding="utf-8")
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                code = main(["--run", str(path)])
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.getvalue(), "5\n")
+
+    def test_run_cli_reports_error_with_source_file_name(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad.sw"
+            path.write_text("print(missing)\n", encoding="utf-8")
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                code = main(["--run", str(path)])
+        self.assertEqual(code, 1)
+        output = stderr.getvalue()
+        self.assertIn("Undefined name 'missing'", output)
+        self.assertIn(str(path), output)
+
 
 if __name__ == "__main__":
     unittest.main()
