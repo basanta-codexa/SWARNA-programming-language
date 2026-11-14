@@ -1032,6 +1032,10 @@ class TestInitialBindings(unittest.TestCase):
         checker = check("fn f(x: Int) -> Int { if x == 0 { return 0 } else { x } }")
         self.assertIs(checker.functions["f"].return_type, Type.INT)
 
+    def test_if_expression_else_if_chain(self):
+        checker = check("let x = if false { 1 } else if true { 2 } else { 3 }")
+        self.assertIs(checker.env["x"].type, Type.INT)
+
 
 if __name__ == "__main__":
     unittest.main()

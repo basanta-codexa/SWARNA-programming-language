@@ -48,6 +48,7 @@ Status: implemented. `let` is mutable, `const` is immutable, and `mut` was remov
 
 ```
 let label = if score >= 50 { "pass" } else { "fail" }
+let grade = if n >= 90 { "A" } else if n >= 80 { "B" } else { "C" }
 ```
 
 Branches can be single expressions or block values. A block value runs its statements and uses its final expression as the branch value:
@@ -61,11 +62,11 @@ let total = if true {
 }
 ```
 
-Both branches must produce the same type. An `if` without `else` is only valid as a statement.
+All branches must produce the same type. `else if` chains are supported in `if` expressions. An `if` without `else` is only valid as a statement.
 
 Reason: conditional values are common in real work: labels, defaults, formatting. Statement-only `if` forces a mutable temporary and more lines.
 
-Status: implemented for the current language. `if` expressions with single-expression or block branches work in both the interpreter and the VM, and an `else` branch is required in expression position. The type checker enforces compatible branch types. A nested `if` statement before the final value of a block-valued branch is not supported yet; use a nested `if` expression as the final value.
+Status: implemented for the current language. `if` expressions with single-expression or block branches work in both the interpreter and the VM, including `else if` chains, and a final `else` branch is required in expression position. The type checker enforces compatible branch types. Statement-form `if` (including `else if` and no `else`) is also supported.
 
 ### 4. Exceptions by default, `Result` by choice
 

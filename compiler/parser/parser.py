@@ -260,9 +260,12 @@ class Parser:
         self._expect(
             TokenType.KEYWORD_ELSE,
             "if used as an expression requires an else branch",
-            hint="Add `else { ... }`, or use `if` as a statement.",
+            hint="Add `else { ... }` or `else if ...`, or use `if` as a statement.",
         )
-        else_value = self.parse_block_expression()
+        if self.current.type == TokenType.KEYWORD_IF:
+            else_value = self.parse_if_expression()
+        else:
+            else_value = self.parse_block_expression()
         return IfExpression(condition=condition, then_value=then_value, else_value=else_value, span=if_token.span)
 
     def parse_block_expression(self) -> Expression:

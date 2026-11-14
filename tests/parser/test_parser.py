@@ -795,6 +795,14 @@ class TestParser(unittest.TestCase):
         assert isinstance(fn.body, BlockExpression)
         self.assertIsInstance(fn.body.statements[0], ReturnStatement)
 
+    def test_parse_if_expression_else_if_chain(self):
+        from compiler.ast.nodes import IfExpression
+        program = Parser(Lexer("let x = if a { 1 } else if b { 2 } else { 3 }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, IfExpression)
+        assert isinstance(stmt.value.else_value, IfExpression)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1000,6 +1000,14 @@ class TestVMCsv(unittest.TestCase):
         self.assertEqual(env["a"], 0)
         self.assertEqual(env["b"], 6)
 
+    def test_vm_if_expression_else_if_chain(self):
+        env = run_vm(
+            "let a = if false { 1 } else if true { 2 } else { 3 } "
+            "let b = if false { 1 } else if false { 2 } else { 3 }"
+        )
+        self.assertEqual(env["a"], 2)
+        self.assertEqual(env["b"], 3)
+
 
 if __name__ == "__main__":
     unittest.main()
