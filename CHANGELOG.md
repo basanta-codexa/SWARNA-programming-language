@@ -25,6 +25,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `return` statements for early exit from functions.
 - Statement-form `if` blocks inside block expressions/function bodies, enabling natural early-return control flow before a final expression.
 - `else if` chaining for `if` expressions.
+- `elif` keyword alias for `else if` in `if` statements and expressions.
 
 ### Changed
 - Documentation (`README.md`, `docs/DESIGN_PRINCIPLES.md`, `CHANGELOG.md`) updated to reflect new language features and behavior.

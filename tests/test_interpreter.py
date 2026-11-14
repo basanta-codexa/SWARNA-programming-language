@@ -831,6 +831,14 @@ class TestInterpreterCsv(unittest.TestCase):
         self.assertEqual(env["a"], 2)
         self.assertEqual(env["b"], 3)
 
+    def test_if_elif_chains(self):
+        env = run(
+            "let a = if false { 1 } elif true { 2 } else { 3 } "
+            "if false { let b = 1 } elif false { let b = 2 } elif true { let c = 9 } else { let b = 3 }"
+        )
+        self.assertEqual(env["a"], 2)
+        self.assertEqual(env["c"], 9)
+
 
 if __name__ == "__main__":
     unittest.main()

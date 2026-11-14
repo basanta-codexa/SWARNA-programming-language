@@ -62,11 +62,11 @@ let total = if true {
 }
 ```
 
-All branches must produce the same type. `else if` chains are supported in `if` expressions. An `if` without `else` is only valid as a statement.
+All branches must produce the same type. `else if` chains (and `elif`) are supported in `if` expressions. An `if` without `else` is only valid as a statement.
 
 Reason: conditional values are common in real work: labels, defaults, formatting. Statement-only `if` forces a mutable temporary and more lines.
 
-Status: implemented for the current language. `if` expressions with single-expression or block branches work in both the interpreter and the VM, including `else if` chains, and a final `else` branch is required in expression position. The type checker enforces compatible branch types. Statement-form `if` (including `else if` and no `else`) is also supported.
+Status: implemented for the current language. `if` expressions with single-expression or block branches work in both the interpreter and the VM, including `else if`/`elif` chains, and a final `else` branch is required in expression position. The type checker enforces compatible branch types. Statement-form `if` (including `else if`/`elif` and no `else`) is also supported.
 
 ### 4. Exceptions by default, `Result` by choice
 

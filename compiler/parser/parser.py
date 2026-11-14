@@ -210,6 +210,9 @@ class Parser:
     def parse_if_statement(self) -> IfStatement:
         if_token = self.current
         self._expect(TokenType.KEYWORD_IF, "Expected 'if'", hint="Write `if condition { ... }`.")
+        return self._parse_if_statement_after_keyword(if_token)
+
+    def _parse_if_statement_after_keyword(self, keyword_token) -> IfStatement:
         condition = self.parse_expression()
         then_branch = self.parse_block()
         else_branch = None
@@ -218,9 +221,28 @@ class Parser:
             self._advance()
             if self.current.type == TokenType.KEYWORD_IF:
                 else_branch = BlockStatement(statements=[self.parse_if_statement()], span=else_token.span)
+            elif self.current.type == TokenType.KEYWORD_ELIF:
+                elif_token = self.current
+                self._advance()
+                else_branch = BlockStatement(
+                    statements=[self._parse_if_statement_after_keyword(elif_token)],
+                    span=elif_token.span,
+                )
             else:
                 else_branch = self.parse_block()
-        return IfStatement(condition=condition, then_branch=then_branch, else_branch=else_branch, span=if_token.span)
+        elif self.current.type == TokenType.KEYWORD_ELIF:
+            elif_token = self.current
+            self._advance()
+            else_branch = BlockStatement(
+                statements=[self._parse_if_statement_after_keyword(elif_token)],
+                span=elif_token.span,
+            )
+        return IfStatement(
+            condition=condition,
+            then_branch=then_branch,
+            else_branch=else_branch,
+            span=keyword_token.span,
+        )
 
     def parse_while_statement(self) -> WhileStatement:
         while_token = self.current
@@ -255,18 +277,37 @@ class Parser:
     def parse_if_expression(self) -> IfExpression:
         if_token = self.current
         self._expect(TokenType.KEYWORD_IF, "Expected 'if'", hint="Write `if condition { value } else { value }`.")
+        return self._parse_if_expression_after_keyword(if_token)
+
+    def _parse_if_expression_after_keyword(self, keyword_token) -> IfExpression:
         condition = self.parse_expression()
         then_value = self.parse_block_expression()
-        self._expect(
-            TokenType.KEYWORD_ELSE,
-            "if used as an expression requires an else branch",
-            hint="Add `else { ... }` or `else if ...`, or use `if` as a statement.",
-        )
-        if self.current.type == TokenType.KEYWORD_IF:
-            else_value = self.parse_if_expression()
+        if self.current.type == TokenType.KEYWORD_ELSE:
+            self._advance()
+            if self.current.type == TokenType.KEYWORD_IF:
+                else_value = self.parse_if_expression()
+            elif self.current.type == TokenType.KEYWORD_ELIF:
+                elif_token = self.current
+                self._advance()
+                else_value = self._parse_if_expression_after_keyword(elif_token)
+            else:
+                else_value = self.parse_block_expression()
+        elif self.current.type == TokenType.KEYWORD_ELIF:
+            elif_token = self.current
+            self._advance()
+            else_value = self._parse_if_expression_after_keyword(elif_token)
         else:
-            else_value = self.parse_block_expression()
-        return IfExpression(condition=condition, then_value=then_value, else_value=else_value, span=if_token.span)
+            raise SwarnaSyntaxError(
+                "if used as an expression requires an else branch",
+                self.current.span,
+                hint="Add `else { ... }`, `else if ...`, or `elif ...`, or use `if` as a statement.",
+            )
+        return IfExpression(
+            condition=condition,
+            then_value=then_value,
+            else_value=else_value,
+            span=keyword_token.span,
+        )
 
     def parse_block_expression(self) -> Expression:
         lbrace_token = self.current

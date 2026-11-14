@@ -803,6 +803,14 @@ class TestParser(unittest.TestCase):
         assert isinstance(stmt.value, IfExpression)
         assert isinstance(stmt.value.else_value, IfExpression)
 
+    def test_parse_if_expression_elif_chain(self):
+        from compiler.ast.nodes import IfExpression
+        program = Parser(Lexer("let x = if a { 1 } elif b { 2 } else { 3 }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStatement)
+        assert isinstance(stmt.value, IfExpression)
+        assert isinstance(stmt.value.else_value, IfExpression)
+
 
 if __name__ == "__main__":
     unittest.main()
