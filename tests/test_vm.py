@@ -180,6 +180,9 @@ class TestVM(unittest.TestCase):
             "let i = 0 while i < 3 { i = i + 1 } print(i)",
             "let i = 5 while i < 3 { i = i + 1 } print(i)",
             "let i = 0 while i < 3 { if i == 1 { print(99) } i = i + 1 } print(i)",
+            "let i = 0 while true { i = i + 1 if i == 3 { break } } print(i)",
+            "let i = 0 let total = 0 "
+            "while i < 5 { i = i + 1 if i == 3 { continue } total = total + i } print(total)",
         ]
         for source in sources:
             with self.subTest(source=source):
@@ -399,6 +402,34 @@ class TestVMForLoops(unittest.TestCase):
     def test_vm_for_loop_over_empty_list(self):
         env = run_vm("let total = 0 for x in [] { total = total + 1 }")
         self.assertEqual(env, {"total": 0})
+
+    def test_vm_for_loop_break_stops_iteration(self):
+        program = Parser(
+            Lexer("for x in [1, 2, 3, 4] { if x == 3 { break } print(x) }")
+        ).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, [1, 2])
+
+    def test_vm_for_loop_continue_skips_item(self):
+        program = Parser(
+            Lexer("for x in [1, 2, 3, 4] { if x == 2 { continue } print(x) }")
+        ).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, [1, 3, 4])
+
+    def test_vm_break_only_exits_inner_loop(self):
+        program = Parser(
+            Lexer(
+                "for x in [1, 2] { "
+                "for y in [10, 20] { if y == 20 { break } print(x + y) } "
+                "print(x) }"
+            )
+        ).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, [11, 1, 12, 2])
 
     def test_vm_nested_for_loops(self):
         env = run_vm(

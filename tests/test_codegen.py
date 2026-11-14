@@ -136,10 +136,11 @@ class TestCodegen(unittest.TestCase):
             "CONST 2",
             "BUILD_LIST 2",
             "ITER_START 'x'",
-            "ITER_NEXT 8",
+            "ITER_NEXT 9",
             "LOAD_NAME 'x'",
             "PRINT",
             "JUMP 4",
+            "ITER_END",
             "HALT",
         ])
 
@@ -148,8 +149,9 @@ class TestCodegen(unittest.TestCase):
         self.assertEqual([repr(i) for i in code], [
             "BUILD_LIST 0",
             "ITER_START 'x'",
-            "ITER_NEXT 4",
+            "ITER_NEXT 5",
             "JUMP 2",
+            "ITER_END",
             "HALT",
         ])
 
@@ -158,12 +160,82 @@ class TestCodegen(unittest.TestCase):
         self.assertEqual([repr(i) for i in compiled.functions["show"].instructions], [
             "LOAD_NAME 'xs'",
             "ITER_START 'x'",
-            "ITER_NEXT 6",
+            "ITER_NEXT 7",
             "LOAD_NAME 'x'",
             "PRINT",
             "JUMP 2",
+            "ITER_END",
             "CONST 0",
             "RETURN",
+        ])
+
+    def test_compile_while_break(self):
+        code = compile_source("while true { break }")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST True",
+            "JUMP_IF_FALSE 4",
+            "JUMP 4",
+            "JUMP 0",
+            "HALT",
+        ])
+
+    def test_compile_while_continue(self):
+        code = compile_source("while true { continue }")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST True",
+            "JUMP_IF_FALSE 4",
+            "JUMP 0",
+            "JUMP 0",
+            "HALT",
+        ])
+
+    def test_compile_for_break(self):
+        code = compile_source("for x in [1, 2] { break }")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST 1",
+            "CONST 2",
+            "BUILD_LIST 2",
+            "ITER_START 'x'",
+            "ITER_NEXT 8",
+            "JUMP 7",
+            "JUMP 4",
+            "ITER_END",
+            "HALT",
+        ])
+
+    def test_compile_for_continue(self):
+        code = compile_source("for x in [1, 2] { continue }")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST 1",
+            "CONST 2",
+            "BUILD_LIST 2",
+            "ITER_START 'x'",
+            "ITER_NEXT 8",
+            "JUMP 4",
+            "JUMP 4",
+            "ITER_END",
+            "HALT",
+        ])
+
+    def test_compile_nested_break_targets_inner_loop(self):
+        code = compile_source("for x in [1] { for y in [2] { break } print(x) }")
+        self.assertEqual([repr(i) for i in code], [
+            "CONST 1",
+            "BUILD_LIST 1",
+            "ITER_START 'x'",
+            "ITER_NEXT 15",
+            "CONST 2",
+            "BUILD_LIST 1",
+            "ITER_START 'y'",
+            "ITER_NEXT 11",
+            "JUMP 10",
+            "JUMP 7",
+            "ITER_END",
+            "LOAD_NAME 'x'",
+            "PRINT",
+            "JUMP 3",
+            "ITER_END",
+            "HALT",
         ])
 
     def test_compile_float_division(self):

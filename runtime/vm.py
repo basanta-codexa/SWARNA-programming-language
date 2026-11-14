@@ -463,6 +463,14 @@ class VM:
                 else:
                     self.env[frame.name] = item
                     self.constant.discard(frame.name)
+            elif ins.op == Op.ITER_END:
+                if not self.iterators:
+                    raise SwarnaRuntimeError(
+                        "ITER_END without ITER_START",
+                        ins.span,
+                        hint="The bytecode compiler produced an invalid for loop.",
+                    )
+                self._restore_for_frame(self.iterators.pop())
             elif ins.op == Op.CALL:
                 self._call(ins)
             elif ins.op == Op.RETURN:

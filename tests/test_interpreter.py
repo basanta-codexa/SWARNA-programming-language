@@ -162,6 +162,17 @@ class TestInterpreter(unittest.TestCase):
         env = run("let i = 0 while i < 3 { i = i + 1 }")
         self.assertEqual(env["i"], 3)
 
+    def test_while_break_exits_loop(self):
+        env = run("let i = 0 while true { i = i + 1 if i == 3 { break } }")
+        self.assertEqual(env["i"], 3)
+
+    def test_while_continue_skips_rest_of_body(self):
+        env = run(
+            "let i = 0 let total = 0 "
+            "while i < 5 { i = i + 1 if i == 3 { continue } total = total + i }"
+        )
+        self.assertEqual(env["total"], 12)
+
     def test_undefined_name_diagnostic_has_span(self):
         with self.assertRaises(SwarnaNameError) as raised:
             run("let y = x + 1")
@@ -237,6 +248,34 @@ class TestInterpreterForLoops(unittest.TestCase):
     def test_for_loop_over_empty_list(self):
         env = run("let total = 0 for x in [] { total = total + 1 }")
         self.assertEqual(env, {"total": 0})
+
+    def test_for_loop_break_stops_iteration(self):
+        program = Parser(
+            Lexer("for x in [1, 2, 3, 4] { if x == 3 { break } print(x) }")
+        ).parse_program()
+        interpreter = Interpreter()
+        interpreter.eval(program)
+        self.assertEqual(interpreter.output, [1, 2])
+
+    def test_for_loop_continue_skips_item(self):
+        program = Parser(
+            Lexer("for x in [1, 2, 3, 4] { if x == 2 { continue } print(x) }")
+        ).parse_program()
+        interpreter = Interpreter()
+        interpreter.eval(program)
+        self.assertEqual(interpreter.output, [1, 3, 4])
+
+    def test_break_only_exits_inner_loop(self):
+        program = Parser(
+            Lexer(
+                "for x in [1, 2] { "
+                "for y in [10, 20] { if y == 20 { break } print(x + y) } "
+                "print(x) }"
+            )
+        ).parse_program()
+        interpreter = Interpreter()
+        interpreter.eval(program)
+        self.assertEqual(interpreter.output, [11, 1, 12, 2])
 
     def test_nested_for_loops(self):
         env = run(

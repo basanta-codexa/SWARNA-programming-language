@@ -294,6 +294,33 @@ class TestSemanticErrors(unittest.TestCase):
         with self.assertRaisesRegex(SwarnaSemanticError, "Undefined name 'x'"):
             check("for x in [1] { print(x) } print(x)")
 
+    def test_break_is_allowed_in_while(self):
+        check("while true { break }")
+
+    def test_continue_is_allowed_in_for(self):
+        check("for x in [1] { continue }")
+
+    def test_break_outside_loop_is_rejected(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError, "`break` is only allowed inside a loop"
+        ):
+            check("break")
+
+    def test_continue_outside_loop_is_rejected(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError, "`continue` is only allowed inside a loop"
+        ):
+            check("continue")
+
+    def test_break_in_function_body_is_rejected(self):
+        with self.assertRaisesRegex(
+            SwarnaSemanticError, "`break` is only allowed inside a loop"
+        ):
+            check("fn f() -> Int { break 1 }")
+
+    def test_break_in_nested_loop_is_allowed(self):
+        check("while true { for x in [1] { break } break }")
+
     def test_for_loop_restores_const_outer_binding(self):
         with self.assertRaisesRegex(SwarnaSemanticError, "Cannot assign to const binding 'x'"):
             check("const x = 1 for x in [2] { x = 3 } x = 4")

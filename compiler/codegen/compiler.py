@@ -6,7 +6,9 @@ from compiler.ast.nodes import (
     BlockExpression,
     BlockStatement,
     BoolLiteral,
+    BreakStatement,
     CallExpression,
+    ContinueStatement,
     Expression,
     FloatLiteral,
     ForStatement,
@@ -37,10 +39,12 @@ class Compiler:
     def __init__(self) -> None:
         self.instructions: list[Instruction] = []
         self.functions: dict[str, FunctionInfo] = {}
+        self.loop_stack: list[tuple[list[int], int]] = []
 
     def compile(self, program: Program) -> CompiledProgram:
         self.instructions = []
         self.functions = {}
+        self.loop_stack = []
         for stmt in program.statements:
             if isinstance(stmt, FunctionDeclaration):
                 self.compile_function(stmt)
@@ -56,13 +60,16 @@ class Compiler:
         if name in self.functions:
             raise RuntimeError(f"Duplicate function '{name}'")
         saved_instructions = self.instructions
+        saved_loops = self.loop_stack
         self.instructions = []
+        self.loop_stack = []
         try:
             self.compile_expression(stmt.body)
             self.emit(Op.RETURN, span=stmt.body.span if stmt.body.span is not None else stmt.span)
             instructions = tuple(self.instructions)
         finally:
             self.instructions = saved_instructions
+            self.loop_stack = saved_loops
         self.functions[name] = FunctionInfo(
             name=name,
             parameters=tuple(parameter.name.name for parameter in stmt.parameters),
@@ -99,6 +106,16 @@ class Compiler:
             self.compile_expression(stmt.value)
             self.emit(Op.STORE_INDEX, self._index_root(stmt.target).name, stmt.span)
             return
+        if isinstance(stmt, BreakStatement):
+            if not self.loop_stack:
+                raise RuntimeError("`break` outside a loop reached codegen")
+            self.loop_stack[-1][0].append(self.emit(Op.JUMP, None, stmt.span))
+            return
+        if isinstance(stmt, ContinueStatement):
+            if not self.loop_stack:
+                raise RuntimeError("`continue` outside a loop reached codegen")
+            self.emit(Op.JUMP, self.loop_stack[-1][1], stmt.span)
+            return
         if isinstance(stmt, PrintStatement):
             self.compile_expression(stmt.value)
             self.emit(Op.PRINT, span=stmt.span)
@@ -119,18 +136,36 @@ class Compiler:
             loop_start = len(self.instructions)
             self.compile_expression(stmt.condition)
             jump_to_end = self.emit(Op.JUMP_IF_FALSE, None, stmt.condition.span)
-            self.compile_block(stmt.body)
+            breaks: list[int] = []
+            self.loop_stack.append((breaks, loop_start))
+            try:
+                self.compile_block(stmt.body)
+            finally:
+                self.loop_stack.pop()
             self.emit(Op.JUMP, loop_start, stmt.span)
-            self.patch(jump_to_end, len(self.instructions))
+            loop_end = len(self.instructions)
+            self.patch(jump_to_end, loop_end)
+            for index in breaks:
+                self.patch(index, loop_end)
             return
         if isinstance(stmt, ForStatement):
             self.compile_expression(stmt.iterable)
             self.emit(Op.ITER_START, stmt.name.name, stmt.iterable.span)
             loop_start = len(self.instructions)
             jump_to_end = self.emit(Op.ITER_NEXT, None, stmt.name.span)
-            self.compile_block(stmt.body)
+            breaks = []
+            self.loop_stack.append((breaks, loop_start))
+            try:
+                self.compile_block(stmt.body)
+            finally:
+                self.loop_stack.pop()
             self.emit(Op.JUMP, loop_start, stmt.span)
-            self.patch(jump_to_end, len(self.instructions))
+            cleanup = len(self.instructions)
+            self.emit(Op.ITER_END, span=stmt.span)
+            after_loop = len(self.instructions)
+            self.patch(jump_to_end, after_loop)
+            for index in breaks:
+                self.patch(index, cleanup)
             return
         if isinstance(stmt, BlockStatement):
             self.compile_block(stmt)

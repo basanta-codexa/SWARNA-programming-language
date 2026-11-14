@@ -2,12 +2,28 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
 from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.csv import read_csv_data
 from runtime.files import read_text_file
 from runtime.values import Value, format_literal, value_type_name
+
+
+class _LoopSignal(BaseException):
+    """Control-flow signal for `break` and `continue`.
+
+    This derives from BaseException so a broad `except Exception` in the
+    runtime cannot swallow it, and so it is not reported as an error.
+    """
+
+
+class _LoopBreak(_LoopSignal):
+    pass
+
+
+class _LoopContinue(_LoopSignal):
+    pass
 
 
 @dataclass(frozen=True)
@@ -166,6 +182,10 @@ class Interpreter:
                 ) from None
             collection[index] = value
             return
+        if isinstance(stmt, BreakStatement):
+            raise _LoopBreak()
+        if isinstance(stmt, ContinueStatement):
+            raise _LoopContinue()
         if isinstance(stmt, PrintStatement):
             self.output.append(self.eval_expression(stmt.value))
             return
@@ -177,7 +197,12 @@ class Interpreter:
             return
         if isinstance(stmt, WhileStatement):
             while bool(self.eval_expression(stmt.condition)):
-                self.eval_block(stmt.body)
+                try:
+                    self.eval_block(stmt.body)
+                except _LoopContinue:
+                    continue
+                except _LoopBreak:
+                    break
             return
         if isinstance(stmt, ForStatement):
             iterable = self.eval_expression(stmt.iterable)
@@ -195,7 +220,12 @@ class Interpreter:
                 for item in iterable:
                     self.env[name] = item
                     self.constant[name] = False
-                    self.eval_block(stmt.body)
+                    try:
+                        self.eval_block(stmt.body)
+                    except _LoopContinue:
+                        continue
+                    except _LoopBreak:
+                        break
             finally:
                 if had_previous:
                     self.env[name] = previous_value

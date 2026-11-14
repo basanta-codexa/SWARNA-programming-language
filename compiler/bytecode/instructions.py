@@ -42,6 +42,7 @@ class Op(Enum):
     READ_CSV = auto()
     ITER_START = auto()
     ITER_NEXT = auto()
+    ITER_END = auto()
     CALL = auto()
     RETURN = auto()
     HALT = auto()

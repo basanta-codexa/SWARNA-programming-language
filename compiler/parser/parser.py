@@ -1,4 +1,4 @@
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, Statement, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
 from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
@@ -39,6 +39,14 @@ class Parser:
             return self.parse_while_statement()
         if self.current.type == TokenType.KEYWORD_FOR:
             return self.parse_for_statement()
+        if self.current.type == TokenType.KEYWORD_BREAK:
+            token = self.current
+            self._advance()
+            return BreakStatement(span=token.span)
+        if self.current.type == TokenType.KEYWORD_CONTINUE:
+            token = self.current
+            self._advance()
+            return ContinueStatement(span=token.span)
         if self.current.type == TokenType.KEYWORD_FN:
             return self.parse_function_declaration()
         if self.current.type == TokenType.IDENTIFIER and self.current.value == "print":
@@ -48,7 +56,7 @@ class Parser:
         raise SwarnaSyntaxError(
             "Expected statement",
             self.current.span,
-            hint="Expected `let`, `const`, `fn`, `if`, `while`, `for`, `print`, or an assignment.",
+            hint="Expected `let`, `const`, `fn`, `if`, `while`, `for`, `break`, `continue`, `print`, or an assignment.",
         )
 
     def parse_assignment_statement(self) -> AssignmentStatement | IndexAssignmentStatement:
@@ -264,6 +272,8 @@ class Parser:
                 TokenType.KEYWORD_CONST,
                 TokenType.KEYWORD_WHILE,
                 TokenType.KEYWORD_FOR,
+                TokenType.KEYWORD_BREAK,
+                TokenType.KEYWORD_CONTINUE,
                 TokenType.KEYWORD_FN,
             ):
                 statements.append(self.parse_statement())

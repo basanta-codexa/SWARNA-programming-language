@@ -1,6 +1,6 @@
 import unittest
 
-from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, CallExpression, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
+from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, StringLiteral, TypeAnnotation, UnaryExpression, WhileStatement
 from compiler.diagnostics import SourceSpan
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
@@ -346,6 +346,25 @@ class TestParser(unittest.TestCase):
         stmt = program.statements[0]
         assert isinstance(stmt, ForStatement)
         self.assertEqual(stmt.body.statements, [])
+
+    def test_parse_break(self):
+        program = Parser(Lexer("while true { break }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, WhileStatement)
+        self.assertEqual(stmt.body.statements, [BreakStatement()])
+
+    def test_parse_continue(self):
+        program = Parser(Lexer("while true { continue }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, WhileStatement)
+        self.assertEqual(stmt.body.statements, [ContinueStatement()])
+
+    def test_parse_break_and_continue_in_for(self):
+        program = Parser(Lexer("for x in [1] { if x > 0 { continue } break }")).parse_program()
+        stmt = program.statements[0]
+        assert isinstance(stmt, ForStatement)
+        self.assertIsInstance(stmt.body.statements[0], IfStatement)
+        self.assertEqual(stmt.body.statements[1], BreakStatement())
 
     def test_parse_float_literal(self):
         parser = Parser(Lexer("let x = 3.5"))

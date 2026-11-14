@@ -9,7 +9,9 @@ from compiler.ast.nodes import (
     BlockExpression,
     BlockStatement,
     BoolLiteral,
+    BreakStatement,
     CallExpression,
+    ContinueStatement,
     Expression,
     FloatLiteral,
     ForStatement,
@@ -203,10 +205,12 @@ class TypeChecker:
     ):
         self.env: dict[str, Binding] = dict(initial_bindings or {})
         self.functions: dict[str, FunctionSignature] = dict(initial_functions or {})
+        self.loop_depth = 0
 
     def check(self, program: Program) -> None:
         saved_env = dict(self.env)
         saved_functions = dict(self.functions)
+        self.loop_depth = 0
         try:
             self._declare_functions(program)
             for stmt in program.statements:
@@ -489,6 +493,24 @@ class TypeChecker:
                 )
             return
 
+        if isinstance(stmt, BreakStatement):
+            if self.loop_depth == 0:
+                self._error(
+                    "`break` is only allowed inside a loop",
+                    stmt.span,
+                    "Move it into a `while` or `for` body.",
+                )
+            return
+
+        if isinstance(stmt, ContinueStatement):
+            if self.loop_depth == 0:
+                self._error(
+                    "`continue` is only allowed inside a loop",
+                    stmt.span,
+                    "Move it into a `while` or `for` body.",
+                )
+            return
+
         if isinstance(stmt, PrintStatement):
             self.check_expression(stmt.value)
             return
@@ -502,7 +524,11 @@ class TypeChecker:
 
         if isinstance(stmt, WhileStatement):
             self._check_condition(stmt.condition, "`while` condition")
-            self.check_block(stmt.body)
+            self.loop_depth += 1
+            try:
+                self.check_block(stmt.body)
+            finally:
+                self.loop_depth -= 1
             return
 
         if isinstance(stmt, ForStatement):
@@ -536,9 +562,11 @@ class TypeChecker:
                 element_type = Type.UNKNOWN
             previous = self.env.get(name)
             self.env[name] = Binding(element_type, constant=False, span=stmt.name.span)
+            self.loop_depth += 1
             try:
                 self.check_block(stmt.body)
             finally:
+                self.loop_depth -= 1
                 if previous is None:
                     self.env.pop(name, None)
                 else:

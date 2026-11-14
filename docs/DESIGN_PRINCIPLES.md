@@ -146,7 +146,7 @@ print(total)
 
 The loop variable takes the list's element type, or the map's key type. It is mutable and scoped to the loop. If an outer binding has the same name, the outer binding is restored after the loop. Declarations inside the loop body leak, matching `while` and `if`.
 
-The iterable must be a `List[T]` or a `Map[K, V]`; an `Unknown` iterable is accepted and makes the loop variable `Unknown`. Iterating a map yields its keys in insertion order, so `totals[team]` reads the value. There is no iteration over ranges or strings yet, and there is no `break` or `continue`.
+The iterable must be a `List[T]` or a `Map[K, V]`; an `Unknown` iterable is accepted and makes the loop variable `Unknown`. Iterating a map yields its keys in insertion order, so `totals[team]` reads the value. `break` exits the nearest loop and `continue` skips to the next iteration. There is no iteration over ranges or strings yet.
 
 Reason: list iteration is the smallest useful loop over a collection, and map keys are the other shape the CSV and grouping work needs. Reusing the existing block and binding rules keeps the feature small.
 
@@ -268,7 +268,7 @@ The checker runs before execution in `--run` and before code generation in `--em
 
 Division by zero remains a runtime error; the checker does not evaluate expressions.
 
-Known gaps: no user-defined generics or type aliases, no list mutation, no iteration over ranges or strings, no `break` or `continue`, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. Function bodies must end with a value; procedures are unsupported. The interpreter and VM keep their runtime checks so they can still be tested independently.
+Known gaps: no user-defined generics or type aliases, no list mutation, no iteration over ranges or strings, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging of branch bindings, no `Int`/`Float` widening in assignments or `if` branches, and only the first semantic error is reported. Block values are currently available only as `if` expression branches and function bodies, and a nested `if` statement cannot appear before the final value of a block-valued branch; use a nested `if` expression as the final value. Function bodies must end with a value; procedures are unsupported. The interpreter and VM keep their runtime checks so they can still be tested independently.
 
 Status: implemented as a separate pass for the current subset.
 
