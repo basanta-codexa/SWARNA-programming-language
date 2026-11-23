@@ -1,5 +1,6 @@
 import unittest
 
+from compiler.diagnostics import SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
 
@@ -123,6 +124,19 @@ class TestLexer(unittest.TestCase):
         self.assertEqual(tokens[0].value, "hello")
         self.assertEqual(tokens[1].type, TokenType.STRING)
         self.assertEqual(tokens[1].value, 'a"b')
+
+    def test_known_escapes_are_supported(self):
+        tokens = Lexer(r'"a\nb\tc\\d\"e"').tokenize()
+        self.assertEqual(tokens[0].value, 'a\nb\tc\\d"e')
+
+    def test_unknown_escape_is_rejected(self):
+        with self.assertRaises(SwarnaSyntaxError) as raised:
+            Lexer(r'"a\qb"').tokenize()
+        error = raised.exception
+        self.assertIn("Unknown escape", error.message)
+        self.assertEqual(error.span.line, 1)
+        self.assertEqual(error.span.column, 3)
+        self.assertTrue(error.hint)
 
     def test_unterminated_string(self):
         lexer = Lexer('"hello')

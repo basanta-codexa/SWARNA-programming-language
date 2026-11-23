@@ -58,6 +58,7 @@ class Lexer:
         chars: list[str] = []
         while self.current_char is not None and self.current_char != '"':
             if self.current_char == "\\":
+                escape_line, escape_column = self.line, self.column
                 self.advance()
                 if self.current_char is None:
                     raise SwarnaSyntaxError(
@@ -66,7 +67,13 @@ class Lexer:
                         hint='Add a closing double quote (") before the end of the line.',
                     )
                 escapes = {'"': '"', "\\": "\\", "n": "\n", "t": "\t"}
-                chars.append(escapes.get(self.current_char, self.current_char))
+                if self.current_char not in escapes:
+                    raise SwarnaSyntaxError(
+                        f"Unknown escape sequence '\\{self.current_char}'",
+                        SourceSpan(escape_line, escape_column, 1),
+                        hint='Use \\", \\\\, \\n, or \\t.',
+                    )
+                chars.append(escapes[self.current_char])
                 self.advance()
             else:
                 chars.append(self.current_char)
