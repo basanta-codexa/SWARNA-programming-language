@@ -348,7 +348,7 @@ class TestParser(unittest.TestCase):
 
     def test_parse_for_requires_loop_variable(self):
         parser = Parser(Lexer("for in [1] { print(1) }"))
-        with self.assertRaisesRegex(SyntaxError, "Expected a loop variable after 'for'"):
+        with self.assertRaisesRegex(SyntaxError, "reserved keyword"):
             parser.parse_program()
 
     def test_parse_for_allows_empty_body(self):

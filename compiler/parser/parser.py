@@ -31,6 +31,15 @@ class Parser:
         self._advance()
         return value
 
+    def _expect_identifier(self, context: str, message: str, hint: str) -> str:
+        if self.current.type != TokenType.IDENTIFIER and self.current.type.name.startswith("KEYWORD_"):
+            raise SwarnaSyntaxError(
+                f"'{self.current.value}' is a reserved keyword and cannot be used as {context}",
+                self.current.span,
+                hint=hint,
+            )
+        return self._expect(TokenType.IDENTIFIER, message, hint=hint)
+
     def parse_program(self) -> Program:
         program_span = self.current.span
         statements: list[Statement] = []
@@ -133,10 +142,10 @@ class Parser:
         fn_token = self.current
         self._expect(TokenType.KEYWORD_FN, "Expected 'fn'", hint="Write `fn name(...) { ... }`.")
         name_token = self.current
-        name_value = self._expect(
-            TokenType.IDENTIFIER,
+        name_value = self._expect_identifier(
+            "a function name",
             "Expected a function name",
-            hint="Write `fn name(...) { ... }`.",
+            "Write `fn name(...) { ... }` with a non-keyword name.",
         )
         name = Identifier(name_value, span=name_token.span)
         self._expect(
@@ -177,10 +186,10 @@ class Parser:
 
     def parse_parameter(self) -> Parameter:
         name_token = self.current
-        name_value = self._expect(
-            TokenType.IDENTIFIER,
+        name_value = self._expect_identifier(
+            "a parameter name",
             "Expected parameter name",
-            hint="Write a parameter as `name` or `name: Type`.",
+            "Write a parameter as `name` or `name: Type`, using a non-keyword name.",
         )
         name = Identifier(name_value, span=name_token.span)
         type_name = None
@@ -283,10 +292,10 @@ class Parser:
             hint="Write `for item in values { ... }`.",
         )
         name_token = self.current
-        name_value = self._expect(
-            TokenType.IDENTIFIER,
+        name_value = self._expect_identifier(
+            "a loop variable",
             "Expected a loop variable after 'for'",
-            hint="Write `for item in values { ... }`.",
+            "Write `for item in values { ... }` with a non-keyword name.",
         )
         name = Identifier(name_value, span=name_token.span)
         self._expect(
@@ -304,7 +313,11 @@ class Parser:
         try_block = self.parse_block()
         self._expect(TokenType.KEYWORD_CATCH, "Expected 'catch' after try block", hint="Add `catch name { ... }` to handle the error.")
         name_token = self.current
-        name_value = self._expect(TokenType.IDENTIFIER, "Expected a catch variable name", hint="Name the caught error, as in `catch e { ... }`.")
+        name_value = self._expect_identifier(
+            "a catch variable name",
+            "Expected a catch variable name",
+            "Name the caught error with a non-keyword name, as in `catch e { ... }`.",
+        )
         catch_name = Identifier(name_value, span=name_token.span)
         catch_block = self.parse_block()
         return TryCatchStatement(try_block=try_block, catch_name=catch_name, catch_block=catch_block, span=try_token.span)
@@ -514,10 +527,10 @@ class Parser:
             )
         name_token = self.current
         name = Identifier(
-            self._expect(
-                TokenType.IDENTIFIER,
+            self._expect_identifier(
+                "a variable name",
                 "Expected identifier",
-                hint="Provide a name after `let` or `const`.",
+                "Provide a non-keyword name after `let` or `const`.",
             ),
             span=name_token.span,
         )

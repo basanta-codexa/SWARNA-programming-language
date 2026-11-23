@@ -33,6 +33,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `Int`-to-`Float` widening in type checking and key runtime coercions (annotated `let` bindings and function arguments/returns in interpreter/VM).
 
 ### Changed
+- Keywords used as variable, function, parameter, loop, or catch names now produce a clear reserved-keyword diagnostic.
 - Assigning to `print` now produces a clear reserved-statement diagnostic instead of a misleading parser error.
 - Duplicate bindings and duplicate literal map keys are now semantic errors instead of silent replacements.
 - Unknown string escapes now produce a syntax diagnostic instead of silently dropping the backslash.
