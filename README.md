@@ -100,7 +100,7 @@ python -m swarna --run examples/team_averages.sw
 - **Collections and strings:** List and map literals, indexing, map assignment and `get`, `len`, list concatenation with `+`, string indexing/iteration, and `range(...)`.
 - **Built-ins and I/O:** `print`, `len`, `get`, `range`, `input`, `int`, `float`, `str`, `read_file`, and `read_csv`. `print` accepts one or more comma-separated values and joins them with `, ` on one line: `print("Hello", 12)` prints `Hello, 12`.
 - **Tooling:** Interpreter and bytecode VM execution paths, REPL, source diagnostics with hints, and `--explain` for selected error categories.
-- **Syntax:** `#` line comments.
+- **Syntax:** `#` line comments. Identifiers use ASCII letters, digits, and underscores, and cannot start with a digit.
 
 ## Known limitations
 

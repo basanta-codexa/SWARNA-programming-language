@@ -2,6 +2,9 @@ from compiler.diagnostics import SourceSpan, SwarnaSyntaxError
 from compiler.lexer.tokens import Token, TokenType
 
 
+IDENTIFIER_HINT = "Use only A-Z, a-z, 0-9, and underscore in names."
+
+
 class Lexer:
     def __init__(self, source: str):
         self.source = source
@@ -104,6 +107,13 @@ class Lexer:
 
         if ch.isalpha() or ch == "_":
             value = self._read_identifier()
+            for index, char in enumerate(value):
+                if not char.isascii():
+                    raise SwarnaSyntaxError(
+                        f"Identifier contains non-ASCII character {char!r}",
+                        SourceSpan(line, column + index, 1),
+                        hint=IDENTIFIER_HINT,
+                    )
             if value == "let":
                 return Token(TokenType.KEYWORD_LET, value, line, column)
             if value == "const":
