@@ -119,6 +119,23 @@ class TestReadCsvData(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "expected an Int in column 'id'"):
             read_csv_data("id\n4.2\n", "data.csv", schema)
 
+    def test_non_finite_floats_are_rejected(self):
+        schema = (("score", "Float"),)
+        for raw in ("nan", "NaN", "inf", "-inf", "Infinity"):
+            with self.subTest(raw=raw):
+                with self.assertRaises(SwarnaRuntimeError):
+                    read_csv_data("score\n" + raw + "\n", "data.csv", schema)
+
+    def test_numeric_underscores_are_rejected(self):
+        for type_name, raw in (("Float", "1_0"), ("Int", "1_0")):
+            with self.subTest(type_name=type_name):
+                with self.assertRaises(SwarnaRuntimeError):
+                    read_csv_data(
+                        "value\n" + raw + "\n",
+                        "data.csv",
+                        (("value", type_name),),
+                    )
+
     def test_empty_numeric_value_is_reported(self):
         text = "name,team,score\nAda,Blue,\n"
         with self.assertRaisesRegex(RuntimeError, "got an empty value"):

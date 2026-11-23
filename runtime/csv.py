@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from compiler.diagnostics import SourceSpan, SwarnaRuntimeError
@@ -250,16 +251,19 @@ def _convert_field(
             source_name=path,
         )
 
-    if type_name == "Int":
+    if type_name == "Int" and "_" not in raw:
         try:
             return int(raw)
         except ValueError:
             pass
-    elif type_name == "Float":
+    elif type_name == "Float" and "_" not in raw:
         try:
-            return float(raw)
+            value = float(raw)
         except ValueError:
             pass
+        else:
+            if math.isfinite(value):
+                return value
     elif type_name == "Bool":
         lowered = raw.strip().lower()
         if lowered == "true":

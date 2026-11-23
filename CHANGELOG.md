@@ -33,6 +33,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `Int`-to-`Float` widening in type checking and key runtime coercions (annotated `let` bindings and function arguments/returns in interpreter/VM).
 
 ### Changed
+- CSV numeric cells now reject `nan`/`inf` floats and underscore separators.
 - Inferred `Int`-to-`Float` widening now stores `Float` values, using type information passed from the checker to the interpreter and VM.
 - Explicit `Float` annotations now coerce stored values consistently in the interpreter and VM, including assignments and list/map elements.
 - Empty maps now refine their key and value types on index assignment; mixed value types and non-scalar keys are rejected.
