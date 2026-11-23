@@ -397,7 +397,7 @@ class TestFunctions(unittest.TestCase):
     def test_unannotated_return_type_is_inferred(self):
         checker = check("fn add(a: Int, b: Int) { a + b } let x = add(2, 3)")
         self.assertIs(checker.functions["add"].return_type, Type.INT)
-        self.assertIs(checker.env["x"].type, Type.UNKNOWN)
+        self.assertIs(checker.env["x"].type, Type.INT)
 
     def test_return_type_inferred_from_if_expression(self):
         checker = check("fn abs(x: Int) { if x < 0 { -x } else { x } }")

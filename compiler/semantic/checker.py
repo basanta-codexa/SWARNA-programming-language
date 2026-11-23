@@ -231,6 +231,7 @@ class TypeChecker:
         self.return_types = []
         try:
             self._declare_functions(program)
+            self._infer_function_returns(program)
             for stmt in program.statements:
                 if isinstance(stmt, FunctionDeclaration):
                     continue
@@ -288,6 +289,34 @@ class TypeChecker:
                 span=stmt.name.span,
             )
 
+    def _infer_function_returns(self, program: Program) -> None:
+        """Infer unannotated return types to a fixed point.
+
+        Checking bodies once in source order makes a call to a later function
+        see `Unknown`, while a call to an earlier function sees its inferred
+        type. Repeating until signatures stop changing removes that dependence.
+        Errors found here are deliberately swallowed: the final `check_function`
+        pass reports them once the signatures are stable.
+        """
+        declarations = [
+            stmt for stmt in program.statements if isinstance(stmt, FunctionDeclaration)
+        ]
+        for _ in range(len(declarations) + 1):
+            changed = False
+            for stmt in declarations:
+                name = stmt.name.name
+                if stmt.return_type is not None:
+                    continue
+                before = self.functions[name].return_type
+                try:
+                    self.check_function(stmt)
+                except SwarnaSemanticError:
+                    pass
+                if self.functions[name].return_type != before:
+                    changed = True
+            if not changed:
+                break
+
     def check_function(self, stmt: FunctionDeclaration) -> None:
         signature = self.functions[stmt.name.name]
         saved_env = self.env
@@ -319,7 +348,7 @@ class TypeChecker:
                 )
             body_type = self.check_expression(stmt.body)
             inferred_return = body_type
-            if signature.return_type is None:
+            if stmt.return_type is None:
                 for return_type in self.return_types:
                     unified = common_element_type(inferred_return, return_type)
                     if unified is None:
