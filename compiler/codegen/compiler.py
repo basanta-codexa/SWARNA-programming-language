@@ -38,11 +38,12 @@ from compiler.bytecode.instructions import Instruction, Op
 from compiler.bytecode.program import CompiledProgram, FunctionInfo
 from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan
-from runtime.values import UNIT
+from runtime.values import UNIT, annotation_has_float, annotation_is_float
 
 
 class Compiler:
-    def __init__(self) -> None:
+    def __init__(self, inferred_types: dict[int, TypeAnnotation] | None = None) -> None:
+        self.inferred_types = inferred_types or {}
         self.instructions: list[Instruction] = []
         self.functions: dict[str, FunctionInfo] = {}
         self.loop_stack: list[tuple[list[int], int, int, int]] = []
@@ -286,6 +287,15 @@ class Compiler:
             self.compile_statement(stmt)
 
     def compile_expression(self, expr: Expression) -> None:
+        self._compile_expression_impl(expr)
+        annotation = self.inferred_types.get(id(expr))
+        if annotation_has_float(annotation) and (
+            annotation_is_float(annotation)
+            or isinstance(expr, (IfExpression, ListLiteral, MapLiteral))
+        ):
+            self.emit(Op.COERCE, annotation, expr.span)
+
+    def _compile_expression_impl(self, expr: Expression) -> None:
         if isinstance(expr, IntegerLiteral):
             self.emit(Op.CONST, expr.value, expr.span)
             return

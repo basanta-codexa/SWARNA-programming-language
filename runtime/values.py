@@ -20,6 +20,20 @@ Value = int | float | bool | str | list["Value"] | dict["Value", "Value"] | _Uni
 CYCLE_MARKER = "<cycle>"
 
 
+def annotation_is_float(annotation: TypeAnnotation | None) -> bool:
+    return annotation is not None and annotation.name == "Float" and not annotation.arguments
+
+
+def annotation_has_float(annotation: TypeAnnotation | None) -> bool:
+    """Whether an annotation promises a Float at any storage position."""
+
+    if annotation is None:
+        return False
+    if annotation.name == "Float" and not annotation.arguments:
+        return True
+    return any(annotation_has_float(argument) for argument in annotation.arguments)
+
+
 def coerce_to_annotation(value: Value, annotation: TypeAnnotation | None) -> Value:
     """Apply the runtime coercions promised by an explicit annotation."""
 

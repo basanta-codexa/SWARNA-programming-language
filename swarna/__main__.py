@@ -37,8 +37,9 @@ def parse_source(source: str) -> str:
 
 def emit_bytecode_source(source: str) -> str:
     program = Parser(Lexer(source)).parse_program()
-    TypeChecker().check(program)
-    compiled = Compiler().compile(program)
+    checker = TypeChecker()
+    checker.check(program)
+    compiled = Compiler(checker.expression_types).compile(program)
     lines = [repr(i) for i in compiled.instructions]
     for function in compiled.functions.values():
         lines.append(f"FUNCTION {function.name}/{len(function.parameters)}")
@@ -97,7 +98,7 @@ def run_source(
         function_signatures.clear()
         function_signatures.update(checker.functions)
     output_start = len(interpreter.output)
-    interpreter.eval(program)
+    interpreter.eval(program, checker.expression_types)
     return "\n".join(format_value(value) for value in interpreter.output[output_start:])
 
 

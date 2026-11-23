@@ -9,7 +9,16 @@ from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.csv import read_csv_data
 from runtime.files import read_text_file
-from runtime.values import UNIT, Value, coerce_to_annotation, format_literal, format_value, value_type_name
+from runtime.values import (
+    UNIT,
+    Value,
+    annotation_has_float,
+    annotation_is_float,
+    coerce_to_annotation,
+    format_literal,
+    format_value,
+    value_type_name,
+)
 
 
 class _LoopSignal(BaseException):
@@ -54,10 +63,12 @@ class Interpreter:
         self.annotations: dict[str, TypeAnnotation] = self.global_annotations
         self.functions: dict[str, Function] = {}
         self.output: list[Value] = []
+        self.inferred_types: dict[int, TypeAnnotation] = {}
         self.call_depth = 0
         self.max_call_depth = 200
 
-    def eval(self, program: Program) -> dict[str, Value]:
+    def eval(self, program: Program, inferred_types: dict[int, TypeAnnotation] | None = None) -> dict[str, Value]:
+        self.inferred_types = inferred_types or {}
         self.env = self.global_env
         self.constant = self.global_constant
         self.annotations = self.global_annotations
@@ -598,6 +609,16 @@ class Interpreter:
             self.annotations = saved_annotations
 
     def eval_expression(self, expr: Expression) -> Value:
+        value = self._eval_expression_impl(expr)
+        annotation = self.inferred_types.get(id(expr))
+        if annotation_has_float(annotation) and (
+            annotation_is_float(annotation)
+            or isinstance(expr, (IfExpression, ListLiteral, MapLiteral))
+        ):
+            return coerce_to_annotation(value, annotation)
+        return value
+
+    def _eval_expression_impl(self, expr: Expression) -> Value:
         if isinstance(expr, IntegerLiteral):
             return expr.value
         if isinstance(expr, FloatLiteral):

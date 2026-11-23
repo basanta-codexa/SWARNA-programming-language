@@ -136,6 +136,19 @@ def common_element_type(left: Type, right: Type) -> Type | None:
     return None
 
 
+def annotation_for_type(type: Type) -> TypeAnnotation:
+    """Describe an inferred type using the same shape as an annotation."""
+
+    if type.is_list:
+        return TypeAnnotation("List", [annotation_for_type(type.element_type)])
+    if type.is_map:
+        return TypeAnnotation(
+            "Map",
+            [annotation_for_type(type.key_type), annotation_for_type(type.value_type)],
+        )
+    return TypeAnnotation(type.name, [])
+
+
 def is_scalar_type(type: Type) -> bool:
     """Return whether a type can be used as a map key.
 
@@ -222,6 +235,7 @@ class TypeChecker:
         self.current_return_type: Type | None = None
         self.return_types: list[Type] = []
         self.assigned: set[str] = set(self.env)
+        self.expression_types: dict[int, TypeAnnotation] = {}
 
     def check(self, program: Program) -> None:
         saved_env = dict(self.env)
@@ -231,6 +245,7 @@ class TypeChecker:
         self.current_return_type = None
         self.return_types = []
         self.assigned = set(self.env)
+        self.expression_types = {}
         try:
             self._declare_functions(program)
             self._infer_function_returns(program)
@@ -757,6 +772,11 @@ class TypeChecker:
             self.check_statement(stmt)
 
     def check_expression(self, expr: Expression) -> Type:
+        result = self._check_expression_impl(expr)
+        self.expression_types[id(expr)] = annotation_for_type(result)
+        return result
+
+    def _check_expression_impl(self, expr: Expression) -> Type:
         if isinstance(expr, IntegerLiteral):
             return Type.INT
         if isinstance(expr, FloatLiteral):
