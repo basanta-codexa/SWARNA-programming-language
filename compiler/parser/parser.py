@@ -4,6 +4,18 @@ from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
 
 
+COMPARISON_TOKENS = frozenset(
+    {
+        TokenType.EQEQ,
+        TokenType.BANGEQ,
+        TokenType.LT,
+        TokenType.LTEQ,
+        TokenType.GT,
+        TokenType.GTEQ,
+    }
+)
+
+
 class Parser:
     def __init__(self, lexer: Lexer):
         self.lexer = lexer
@@ -576,18 +588,18 @@ class Parser:
 
     def parse_comparison(self) -> Expression:
         node = self.parse_additive()
-        if self.current.type in (
-            TokenType.EQEQ,
-            TokenType.BANGEQ,
-            TokenType.LT,
-            TokenType.LTEQ,
-            TokenType.GT,
-            TokenType.GTEQ,
-        ):
+        if self.current.type in COMPARISON_TOKENS:
             op_token = self.current
             op = self.current.value
             self._advance()
-            node = BinaryExpression(left=node, operator=op, right=self.parse_additive(), span=op_token.span)
+            right = self.parse_additive()
+            if self.current.type in COMPARISON_TOKENS:
+                raise SwarnaSyntaxError(
+                    "Comparison operators cannot be chained",
+                    self.current.span,
+                    hint="Write `(a < b) && (b < c)` to combine two comparisons.",
+                )
+            node = BinaryExpression(left=node, operator=op, right=right, span=op_token.span)
         return node
 
     def parse_additive(self) -> Expression:
