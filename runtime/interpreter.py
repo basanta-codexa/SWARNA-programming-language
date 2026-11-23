@@ -116,6 +116,11 @@ class Interpreter:
             self.eval_statement(stmt)
         return dict(self.env)
 
+    def _print_values(self, values: list[Value]) -> Value:
+        output = values[0] if len(values) == 1 else ", ".join(format_value(value) for value in values)
+        self.output.append(output)
+        return output
+
     def eval_statement(self, stmt: Statement) -> None:
         if isinstance(stmt, FunctionDeclaration):
             raise SwarnaRuntimeError(
@@ -255,12 +260,7 @@ class Interpreter:
             self.eval_expression(stmt.expression)
             return
         if isinstance(stmt, PrintStatement):
-            values = [self.eval_expression(value) for value in stmt.values]
-            self.output.append(
-                values[0]
-                if len(values) == 1
-                else ", ".join(format_value(value) for value in values)
-            )
+            self._print_values([self.eval_expression(value) for value in stmt.values])
             return
         if isinstance(stmt, IfStatement):
             if bool(self.eval_expression(stmt.condition)):
@@ -346,6 +346,15 @@ class Interpreter:
         return self.eval_expression(block.value)
 
     def eval_call(self, expr: CallExpression) -> Value:
+        if expr.callee.name == "print":
+            if not expr.arguments:
+                raise SwarnaRuntimeError(
+                    "Function 'print' expects at least 1 argument, got 0",
+                    expr.span,
+                    hint="Pass the value to print, as in `print(value)`.",
+                )
+            self._print_values([self.eval_expression(argument) for argument in expr.arguments])
+            return UNIT
         if expr.callee.name == "len":
             if len(expr.arguments) != 1:
                 raise SwarnaRuntimeError(

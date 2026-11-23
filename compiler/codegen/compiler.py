@@ -345,6 +345,15 @@ class Compiler:
             self.emit(Op.INDEX, span=expr.span)
             return
         if isinstance(expr, CallExpression):
+            if expr.callee.name == "print":
+                if not expr.arguments:
+                    raise RuntimeError("`print` expects at least one argument")
+                for argument in expr.arguments:
+                    self.compile_expression(argument)
+                if len(expr.arguments) > 1:
+                    self.emit(Op.JOIN_PRINT, len(expr.arguments), expr.span)
+                self.emit(Op.PRINT_EXPR, span=expr.span)
+                return
             if expr.callee.name == "len":
                 if len(expr.arguments) != 1:
                     raise RuntimeError("`len` expects exactly one argument")

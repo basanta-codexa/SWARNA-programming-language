@@ -633,9 +633,9 @@ class TestFunctions(unittest.TestCase):
         with self.assertRaisesRegex(SwarnaSemanticError, "Built-in 'len' must be called"):
             check("let x = len")
 
-    def test_print_is_not_an_expression(self):
-        with self.assertRaisesRegex(SwarnaSemanticError, "`print` is a statement, not an expression"):
-            check("let x = print(1)")
+    def test_print_is_an_expression_returning_unit(self):
+        checker = check("let x = print(1)")
+        self.assertIs(checker.env["x"].type, Type.UNIT)
 
     def test_list_elements_must_have_one_type(self):
         with self.assertRaisesRegex(

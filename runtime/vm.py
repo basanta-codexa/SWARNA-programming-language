@@ -15,6 +15,7 @@ from runtime.files import read_text_file
 from runtime.values import (
     MAP_MUTATION_HINT,
     MAP_MUTATION_MESSAGE,
+    UNIT,
     Value,
     coerce_to_annotation,
     format_literal,
@@ -321,6 +322,9 @@ class VM:
                     self.stack.append(", ".join(format_value(value) for value in values))
                 elif ins.op == Op.PRINT:
                     self.output.append(self._pop(ins))
+                elif ins.op == Op.PRINT_EXPR:
+                    self.output.append(self._pop(ins))
+                    self.stack.append(UNIT)
                 elif ins.op == Op.JUMP:
                     ip = self._jump_target(ins, len(instructions))
                 elif ins.op == Op.JUMP_IF_FALSE:

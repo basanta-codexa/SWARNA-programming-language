@@ -8,6 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- `print(...)` can now be used as an expression; it prints as before and returns `Unit`.
 - Multiple comma-separated arguments to `print`, joined with `, ` on one line (for example, `print("Hello", 12)`).
 - Exception handling v1: `throw` (with a `String` message) and `try { ... } catch name { ... }` to catch runtime/user errors, with the caught error message bound to `name` (lexer/parser/AST, type checking, interpreter, bytecode/VM, and tests).
 - `break` and `continue` statements for `while` and `for` loops (lexer, parser, type checker, interpreter, VM, codegen, and tests).

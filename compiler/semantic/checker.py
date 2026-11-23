@@ -883,11 +883,15 @@ class TypeChecker:
 
         if isinstance(expr, CallExpression):
             if expr.callee.name == "print":
-                self._error(
-                    "`print` is a statement, not an expression",
-                    expr.span,
-                    "Use `print(value)` on its own line.",
-                )
+                if not expr.arguments:
+                    self._error(
+                        "Function 'print' expects at least 1 argument, got 0",
+                        expr.span,
+                        "Pass the value to print, as in `print(value)`.",
+                    )
+                for argument in expr.arguments:
+                    self.check_expression(argument)
+                return Type.UNIT
             if expr.callee.name == "len":
                 if len(expr.arguments) != 1:
                     self._error(
