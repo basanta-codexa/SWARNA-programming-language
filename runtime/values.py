@@ -16,6 +16,8 @@ UNIT = _UnitValue()
 
 Value = int | float | bool | str | list["Value"] | dict["Value", "Value"] | _UnitValue
 
+CYCLE_MARKER = "<cycle>"
+
 
 def _int_digit_count(value: int) -> int:
     """Approximate decimal digits without converting the integer to a string."""
@@ -44,24 +46,33 @@ def value_type_name(value: Value) -> str:
     return type(value).__name__
 
 
-def format_value(value: Value) -> str:
-    """Format a value for print output."""
+def format_value(value: Value, *, _seen: set[int] | None = None) -> str:
+    """Format a value for print output, marking cycles instead of recursing."""
 
     if value is UNIT:
         return "()"
     if type(value) is bool:
         return "true" if value else "false"
-    if isinstance(value, list):
-        return "[" + ", ".join(_format_item(item) for item in value) + "]"
-    if isinstance(value, dict):
-        return (
-            "{"
-            + ", ".join(
-                f"{_format_item(key)}: {_format_item(item)}"
-                for key, item in value.items()
+    if isinstance(value, (list, dict)):
+        if _seen is None:
+            _seen = set()
+        marker = id(value)
+        if marker in _seen:
+            return CYCLE_MARKER
+        _seen.add(marker)
+        try:
+            if isinstance(value, list):
+                return "[" + ", ".join(_format_item(item, _seen) for item in value) + "]"
+            return (
+                "{"
+                + ", ".join(
+                    f"{_format_item(key, _seen)}: {_format_item(item, _seen)}"
+                    for key, item in value.items()
+                )
+                + "}"
             )
-            + "}"
-        )
+        finally:
+            _seen.discard(marker)
     if type(value) is int:
         try:
             if _int_digit_count(value) > MAX_INT_DIGITS:
@@ -75,7 +86,7 @@ def format_value(value: Value) -> str:
     return str(value)
 
 
-def format_literal(value: Value) -> str:
+def format_literal(value: Value, *, _seen: set[int] | None = None) -> str:
     """Format a value as source-like text, quoting strings.
 
     Use this in diagnostics, where `Key "missing"` reads better than
@@ -90,8 +101,8 @@ def format_literal(value: Value) -> str:
             .replace("\t", "\\t")
         )
         return f'"{escaped}"'
-    return format_value(value)
+    return format_value(value, _seen=_seen)
 
 
-def _format_item(value: Value) -> str:
-    return format_literal(value)
+def _format_item(value: Value, seen: set[int] | None = None) -> str:
+    return format_literal(value, _seen=seen)

@@ -35,6 +35,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ### Changed
 - Fixed VM `try`/`catch` handler cleanup for `break` and `continue`, and aligned VM catch scoping with the interpreter.
 - Replaced host integer-limit crashes with SWARNA diagnostics at parse, print, and CLI boundaries.
+- Cyclic lists and maps now format as `<cycle>` instead of crashing with `RecursionError`.
 - Hardened explicit conversions: `float(...)` requires finite numeric values (rejects `inf`/`nan`) and `int(...)` rejects non-finite `Float` inputs; improved conversion diagnostics and `+` string-combination hints.
 - Documented explicit/implicit conversion rules (numeric widening only; no implicit `Bool↔Int`, `String↔number`, or value→`String` conversions).
 
