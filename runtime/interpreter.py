@@ -228,7 +228,12 @@ class Interpreter:
             self.eval_expression(stmt.expression)
             return
         if isinstance(stmt, PrintStatement):
-            self.output.append(self.eval_expression(stmt.value))
+            values = [self.eval_expression(value) for value in stmt.values]
+            self.output.append(
+                values[0]
+                if len(values) == 1
+                else ", ".join(format_value(value) for value in values)
+            )
             return
         if isinstance(stmt, IfStatement):
             if bool(self.eval_expression(stmt.condition)):

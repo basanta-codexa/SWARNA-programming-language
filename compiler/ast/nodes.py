@@ -131,8 +131,13 @@ class IndexAssignmentStatement:
 
 @dataclass(frozen=True)
 class PrintStatement:
-    value: Expression
+    values: tuple[Expression, ...]
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
+
+    @property
+    def value(self) -> Expression:
+        """The first argument, for callers that only need a single value."""
+        return self.values[0]
 
 
 @dataclass(frozen=True)

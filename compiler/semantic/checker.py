@@ -606,7 +606,8 @@ class TypeChecker:
             return
 
         if isinstance(stmt, PrintStatement):
-            self.check_expression(stmt.value)
+            for value in stmt.values:
+                self.check_expression(value)
             return
 
         if isinstance(stmt, IfStatement):

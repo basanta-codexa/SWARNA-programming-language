@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import math
 import operator
@@ -298,6 +298,17 @@ class VM:
                     self._binary(ins, operator.gt)
                 elif ins.op == Op.GTE:
                     self._binary(ins, operator.ge)
+                elif ins.op == Op.JOIN_PRINT:
+                    count = ins.arg
+                    if not isinstance(count, int) or count < 2 or len(self.stack) < count:
+                        raise SwarnaRuntimeError(
+                            "Invalid JOIN_PRINT instruction",
+                            ins.span,
+                            hint="The bytecode compiler produced an invalid print operation.",
+                        )
+                    values = [self._pop(ins) for _ in range(count)]
+                    values.reverse()
+                    self.stack.append(", ".join(format_value(value) for value in values))
                 elif ins.op == Op.PRINT:
                     self.output.append(self._pop(ins))
                 elif ins.op == Op.JUMP:

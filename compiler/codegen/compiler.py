@@ -184,7 +184,10 @@ class Compiler:
             self.emit(Op.POP, span=stmt.span)
             return
         if isinstance(stmt, PrintStatement):
-            self.compile_expression(stmt.value)
+            for value in stmt.values:
+                self.compile_expression(value)
+            if len(stmt.values) > 1:
+                self.emit(Op.JOIN_PRINT, len(stmt.values), span=stmt.span)
             self.emit(Op.PRINT, span=stmt.span)
             return
         if isinstance(stmt, IfStatement):

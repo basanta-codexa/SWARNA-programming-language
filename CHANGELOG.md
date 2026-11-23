@@ -8,6 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- Multiple comma-separated arguments to `print`, joined with `, ` on one line (for example, `print("Hello", 12)`).
 - Exception handling v1: `throw` (with a `String` message) and `try { ... } catch name { ... }` to catch runtime/user errors, with the caught error message bound to `name` (lexer/parser/AST, type checking, interpreter, bytecode/VM, and tests).
 - `break` and `continue` statements for `while` and `for` loops (lexer, parser, type checker, interpreter, VM, codegen, and tests).
 - Packaging via `pyproject.toml`, editable installs, `swarna` console-script entry point, and `swarna.__version__`.
@@ -32,6 +33,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `Int`-to-`Float` widening in type checking and key runtime coercions (annotated `let` bindings and function arguments/returns in interpreter/VM).
 
 ### Changed
+- Fixed VM `try`/`catch` handler cleanup for `break` and `continue`, and aligned VM catch scoping with the interpreter.
+- Replaced host integer-limit crashes with SWARNA diagnostics at parse, print, and CLI boundaries.
 - Hardened explicit conversions: `float(...)` requires finite numeric values (rejects `inf`/`nan`) and `int(...)` rejects non-finite `Float` inputs; improved conversion diagnostics and `+` string-combination hints.
 - Documented explicit/implicit conversion rules (numeric widening only; no implicit `Bool↔Int`, `String↔number`, or value→`String` conversions).
 

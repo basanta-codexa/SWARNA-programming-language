@@ -484,15 +484,18 @@ class Parser:
         self._expect(
             TokenType.LPAREN,
             "Expected '(' after print",
-            hint="`print` takes one argument in parentheses: `print(value)`.",
+            hint="`print` takes one or more comma-separated values: `print(a, b)`.",
         )
-        value = self.parse_expression()
+        values = [self.parse_expression()]
+        while self.current.type == TokenType.COMMA:
+            self._advance()
+            values.append(self.parse_expression())
         self._expect(
             TokenType.RPAREN,
             "Expected ')' after print argument",
-            hint="Close the `print` call with `)`.",
+            hint="Separate values with commas, and close the call with `)`.",
         )
-        return PrintStatement(value=value, span=print_token.span)
+        return PrintStatement(values=tuple(values), span=print_token.span)
 
     def parse_binding_statement(self, constant: bool) -> LetStatement:
         keyword_token = self.current

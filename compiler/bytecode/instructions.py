@@ -30,6 +30,7 @@ class Op(Enum):
     GT = auto()
     GTE = auto()
     PRINT = auto()
+    JOIN_PRINT = auto()
     JUMP = auto()
     JUMP_IF_FALSE = auto()
     POP = auto()

@@ -107,7 +107,7 @@ class TestParser(unittest.TestCase):
     def test_parse_print_statement(self):
         parser = Parser(Lexer("print(42)"))
         program = parser.parse_program()
-        self.assertEqual(program, Program(statements=[PrintStatement(value=IntegerLiteral(42))]))
+        self.assertEqual(program, Program(statements=[PrintStatement(values=(IntegerLiteral(42),))]))
 
     def test_parse_print_expression(self):
         parser = Parser(Lexer("let x = 1 print(x + 2)"))
@@ -330,7 +330,7 @@ class TestParser(unittest.TestCase):
                 ForStatement(
                     name=Identifier("x"),
                     iterable=ListLiteral(elements=[IntegerLiteral(1), IntegerLiteral(2)]),
-                    body=BlockStatement(statements=[PrintStatement(value=Identifier("x"))]),
+                    body=BlockStatement(statements=[PrintStatement(values=(Identifier("x"),))]),
                 )
             ],
         )
