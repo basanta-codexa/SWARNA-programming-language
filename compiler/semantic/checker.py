@@ -221,6 +221,7 @@ class TypeChecker:
         self.function_depth = 0
         self.current_return_type: Type | None = None
         self.return_types: list[Type] = []
+        self.assigned: set[str] = set(self.env)
 
     def check(self, program: Program) -> None:
         saved_env = dict(self.env)
@@ -229,6 +230,7 @@ class TypeChecker:
         self.function_depth = 0
         self.current_return_type = None
         self.return_types = []
+        self.assigned = set(self.env)
         try:
             self._declare_functions(program)
             self._infer_function_returns(program)
@@ -323,6 +325,7 @@ class TypeChecker:
         saved_function_depth = self.function_depth
         saved_current_return = self.current_return_type
         saved_return_types = self.return_types
+        saved_assigned = self.assigned
         self.env = dict(self.env)
         self.function_depth += 1
         self.current_return_type = signature.return_type
@@ -346,6 +349,7 @@ class TypeChecker:
                     constant=False,
                     span=parameter.name.span,
                 )
+                self.assigned.add(parameter.name.name)
             body_type = self.check_expression(stmt.body)
             inferred_return = body_type
             if stmt.return_type is None:
@@ -380,6 +384,7 @@ class TypeChecker:
             self.function_depth = saved_function_depth
             self.current_return_type = saved_current_return
             self.return_types = saved_return_types
+            self.assigned = saved_assigned
 
     def _resolve_type(self, type_name: TypeAnnotation | None, default: Type | None) -> Type | None:
         if type_name is None:
@@ -468,6 +473,7 @@ class TypeChecker:
                 constant=stmt.constant,
                 span=stmt.name.span,
             )
+            self.assigned.add(stmt.name.name)
             return
 
         if isinstance(stmt, AssignmentStatement):
@@ -506,6 +512,7 @@ class TypeChecker:
                     "A binding keeps the type of its first value.",
                     category="type-mismatch",
                 )
+            self.assigned.add(name)
             return
 
         if isinstance(stmt, IndexAssignmentStatement):
@@ -624,14 +631,21 @@ class TypeChecker:
             return
 
         if isinstance(stmt, TryCatchStatement):
+            before_assigned = set(self.assigned)
             self.check_block(stmt.try_block)
+            try_assigned = set(self.assigned)
+            self.assigned = set(before_assigned)
             saved_env = self.env
             self.env = dict(self.env)
             self.env[stmt.catch_name.name] = Binding(Type.STRING, constant=False, span=stmt.catch_name.span)
+            self.assigned.add(stmt.catch_name.name)
             try:
                 self.check_block(stmt.catch_block)
+                catch_assigned = set(self.assigned)
             finally:
                 self.env = saved_env
+                self.assigned = set(before_assigned)
+            self.assigned = try_assigned & catch_assigned
             return
 
         if isinstance(stmt, PrintStatement):
@@ -640,19 +654,27 @@ class TypeChecker:
             return
 
         if isinstance(stmt, IfStatement):
+            before_assigned = set(self.assigned)
             self._check_condition(stmt.condition, "`if` condition")
             self.check_block(stmt.then_branch)
-            if stmt.else_branch is not None:
+            then_assigned = set(self.assigned)
+            self.assigned = set(before_assigned)
+            if stmt.else_branch is None:
+                self.assigned = set(before_assigned)
+            else:
                 self.check_block(stmt.else_branch)
+                self.assigned = then_assigned & self.assigned
             return
 
         if isinstance(stmt, WhileStatement):
+            before_assigned = set(self.assigned)
             self._check_condition(stmt.condition, "`while` condition")
             self.loop_depth += 1
             try:
                 self.check_block(stmt.body)
             finally:
                 self.loop_depth -= 1
+                self.assigned = before_assigned
             return
 
         if isinstance(stmt, ForStatement):
@@ -686,13 +708,16 @@ class TypeChecker:
                 element_type = Type.STRING
             else:
                 element_type = Type.UNKNOWN
+            before_assigned = set(self.assigned)
             previous = self.env.get(name)
             self.env[name] = Binding(element_type, constant=False, span=stmt.name.span)
+            self.assigned.add(name)
             self.loop_depth += 1
             try:
                 self.check_block(stmt.body)
             finally:
                 self.loop_depth -= 1
+                self.assigned = before_assigned
                 if previous is None:
                     self.env.pop(name, None)
                 else:
@@ -990,6 +1015,13 @@ class TypeChecker:
                     "Declare it first with `let name = value` or `const name = value`.",
                     category="undefined-name",
                 )
+            if expr.name not in self.assigned:
+                self._error(
+                    f"Name '{expr.name}' may not have been assigned yet",
+                    expr.span,
+                    "Declare it on every path that reaches this use.",
+                    category="undefined-name",
+                )
             return binding.type
 
         if isinstance(expr, UnaryExpression):
@@ -1027,9 +1059,13 @@ class TypeChecker:
             return self.check_expression(expr.value)
 
         if isinstance(expr, IfExpression):
+            before_assigned = set(self.assigned)
             self._check_condition(expr.condition, "`if` condition")
             then_type = self.check_expression(expr.then_value)
+            then_assigned = set(self.assigned)
+            self.assigned = set(before_assigned)
             else_type = self.check_expression(expr.else_value)
+            self.assigned = then_assigned & self.assigned
             return self._common_type(then_type, else_type, expr)
 
         self._error(
