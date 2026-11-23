@@ -12,7 +12,15 @@ from compiler.bytecode.program import CompiledProgram, FunctionInfo
 from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.csv import read_csv_data
 from runtime.files import read_text_file
-from runtime.values import Value, coerce_to_annotation, format_literal, format_value, value_type_name
+from runtime.values import (
+    MAP_MUTATION_HINT,
+    MAP_MUTATION_MESSAGE,
+    Value,
+    coerce_to_annotation,
+    format_literal,
+    format_value,
+    value_type_name,
+)
 
 
 @dataclass
@@ -680,6 +688,14 @@ class VM:
                         self.iterators.pop()
                         self._restore_for_frame(frame)
                         ip = self._jump_target(ins, len(instructions))
+                    except RuntimeError as error:
+                        if "dictionary changed size during iteration" not in str(error):
+                            raise
+                        raise SwarnaRuntimeError(
+                            MAP_MUTATION_MESSAGE,
+                            ins.span,
+                            hint=MAP_MUTATION_HINT,
+                        ) from None
                     else:
                         self.env[frame.name] = item
                         self.constant.discard(frame.name)

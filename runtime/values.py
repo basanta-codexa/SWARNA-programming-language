@@ -19,6 +19,9 @@ Value = int | float | bool | str | list["Value"] | dict["Value", "Value"] | _Uni
 
 CYCLE_MARKER = "<cycle>"
 
+MAP_MUTATION_MESSAGE = "Cannot change a map while iterating over it"
+MAP_MUTATION_HINT = "Collect the keys first, or build a new map instead."
+
 
 def annotation_is_float(annotation: TypeAnnotation | None) -> bool:
     return annotation is not None and annotation.name == "Float" and not annotation.arguments

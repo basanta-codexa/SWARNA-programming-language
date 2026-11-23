@@ -18,6 +18,8 @@ from runtime.values import (
     format_literal,
     format_value,
     value_type_name,
+    MAP_MUTATION_HINT,
+    MAP_MUTATION_MESSAGE,
 )
 
 
@@ -288,15 +290,26 @@ class Interpreter:
             previous_value = self.env.get(name)
             previous_constant = self.constant.get(name, False)
             try:
-                for item in iterable:
-                    self.env[name] = item
-                    self.constant[name] = False
-                    try:
-                        self.eval_block(stmt.body)
-                    except _LoopContinue:
-                        continue
-                    except _LoopBreak:
-                        break
+                try:
+                    for item in iterable:
+                        self.env[name] = item
+                        self.constant[name] = False
+                        try:
+                            self.eval_block(stmt.body)
+                        except _LoopContinue:
+                            continue
+                        except _LoopBreak:
+                            break
+                except SwarnaRuntimeError:
+                    raise
+                except RuntimeError as error:
+                    if "dictionary changed size during iteration" not in str(error):
+                        raise
+                    raise SwarnaRuntimeError(
+                        MAP_MUTATION_MESSAGE,
+                        stmt.span,
+                        hint=MAP_MUTATION_HINT,
+                    ) from None
             finally:
                 if had_previous:
                     self.env[name] = previous_value
