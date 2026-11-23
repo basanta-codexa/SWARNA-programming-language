@@ -481,6 +481,12 @@ class Parser:
     def parse_print_statement(self) -> PrintStatement:
         print_token = self.current
         self._advance()  # 'print'
+        if self.current.type == TokenType.EQUAL:
+            raise SwarnaSyntaxError(
+                "`print` is a reserved statement and cannot be assigned",
+                print_token.span,
+                hint="Use `print(value)` to write output, or choose another name for the variable.",
+            )
         self._expect(
             TokenType.LPAREN,
             "Expected '(' after print",

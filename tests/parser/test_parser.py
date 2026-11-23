@@ -1,7 +1,7 @@
 import unittest
 
 from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, StringLiteral, TypeAnnotation, UnaryExpression, UnitLiteral, WhileStatement
-from compiler.diagnostics import SourceSpan
+from compiler.diagnostics import SourceSpan, SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 
@@ -108,6 +108,12 @@ class TestParser(unittest.TestCase):
         parser = Parser(Lexer("print(42)"))
         program = parser.parse_program()
         self.assertEqual(program, Program(statements=[PrintStatement(values=(IntegerLiteral(42),))]))
+
+    def test_print_cannot_be_assigned_to(self):
+        with self.assertRaises(SwarnaSyntaxError) as raised:
+            Parser(Lexer("print = 5")).parse_program()
+        self.assertIn("reserved", raised.exception.message)
+        self.assertTrue(raised.exception.hint)
 
     def test_parse_print_expression(self):
         parser = Parser(Lexer("let x = 1 print(x + 2)"))
