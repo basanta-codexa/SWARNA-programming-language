@@ -1051,6 +1051,46 @@ class TestVMCsv(unittest.TestCase):
             run_vm("throw 1")
 
 
+class TestVMTryHandlerCleanup(unittest.TestCase):
+    """Non-local jumps out of a try block must unregister its handler."""
+
+    def _run_expecting_zero_division(self, source: str):
+        program = Parser(Lexer(source)).parse_program()
+        vm = VM()
+        with self.assertRaises(SwarnaZeroDivisionError):
+            vm.run(Compiler().compile(program))
+        return vm.output
+
+    def test_break_in_while_try_does_not_leave_stale_handler(self):
+        output = self._run_expecting_zero_division(
+            'let i = 0 while i < 1 { i = i + 1 try { break } catch e { print("STALE") } } '
+            "print(1 / 0)"
+        )
+        self.assertEqual(output, [])
+
+    def test_break_in_for_try_does_not_leave_stale_handler(self):
+        output = self._run_expecting_zero_division(
+            'for x in [1, 2] { try { break } catch e { print("STALE") } } print(1 / 0)'
+        )
+        self.assertEqual(output, [])
+
+    def test_continue_in_while_try_does_not_leave_stale_handler(self):
+        output = self._run_expecting_zero_division(
+            'let i = 0 while i < 2 { i = i + 1 try { continue } catch e { print("STALE") } } '
+            "print(1 / 0)"
+        )
+        self.assertEqual(output, [])
+
+    def test_break_does_not_pop_try_outside_the_loop(self):
+        program = Parser(Lexer(
+            'try { let i = 0 while i < 1 { i = i + 1 try { break } catch e { print("INNER") } } '
+            'print(1 / 0) } catch e { print("OUTER") }'
+        )).parse_program()
+        vm = VM()
+        vm.run(Compiler().compile(program))
+        self.assertEqual(vm.output, ["OUTER"])
+
+
 if __name__ == "__main__":
     unittest.main()
 

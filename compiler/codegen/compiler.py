@@ -45,12 +45,14 @@ class Compiler:
     def __init__(self) -> None:
         self.instructions: list[Instruction] = []
         self.functions: dict[str, FunctionInfo] = {}
-        self.loop_stack: list[tuple[list[int], int]] = []
+        self.loop_stack: list[tuple[list[int], int, int]] = []
+        self.try_depth = 0
 
     def compile(self, program: Program) -> CompiledProgram:
         self.instructions = []
         self.functions = {}
         self.loop_stack = []
+        self.try_depth = 0
         for stmt in program.statements:
             if isinstance(stmt, FunctionDeclaration):
                 self.compile_function(stmt)
@@ -67,8 +69,10 @@ class Compiler:
             raise RuntimeError(f"Duplicate function '{name}'")
         saved_instructions = self.instructions
         saved_loops = self.loop_stack
+        saved_try_depth = self.try_depth
         self.instructions = []
         self.loop_stack = []
+        self.try_depth = 0
         try:
             self.compile_expression(stmt.body)
             self.emit(Op.RETURN, span=stmt.body.span if stmt.body.span is not None else stmt.span)
@@ -76,6 +80,7 @@ class Compiler:
         finally:
             self.instructions = saved_instructions
             self.loop_stack = saved_loops
+            self.try_depth = saved_try_depth
         self.functions[name] = FunctionInfo(
             name=name,
             parameters=tuple(parameter.name.name for parameter in stmt.parameters),
@@ -94,6 +99,16 @@ class Compiler:
         if ins.op not in (Op.JUMP, Op.JUMP_IF_FALSE, Op.ITER_NEXT, Op.SETUP_TRY):
             raise RuntimeError(f"Cannot patch non-jump instruction at {index}: {ins!r}")
         self.instructions[index] = Instruction(ins.op, target, span=ins.span)
+
+    def _emit_loop_exit_pops(self, span: SourceSpan | None) -> None:
+        """Pop try handlers entered inside the loop a jump is leaving.
+
+        Handlers that were already active when the loop started must stay:
+        a `break` exits the loop, not the surrounding `try`.
+        """
+        loop_try_depth = self.loop_stack[-1][2]
+        for _ in range(self.try_depth - loop_try_depth):
+            self.emit(Op.POP_TRY, span=span)
 
     def compile_statement(self, stmt: Statement) -> None:
         if isinstance(stmt, LetStatement):
@@ -117,11 +132,13 @@ class Compiler:
         if isinstance(stmt, BreakStatement):
             if not self.loop_stack:
                 raise RuntimeError("`break` outside a loop reached codegen")
+            self._emit_loop_exit_pops(stmt.span)
             self.loop_stack[-1][0].append(self.emit(Op.JUMP, None, stmt.span))
             return
         if isinstance(stmt, ContinueStatement):
             if not self.loop_stack:
                 raise RuntimeError("`continue` outside a loop reached codegen")
+            self._emit_loop_exit_pops(stmt.span)
             self.emit(Op.JUMP, self.loop_stack[-1][1], stmt.span)
             return
         if isinstance(stmt, ReturnStatement):
@@ -134,7 +151,11 @@ class Compiler:
             return
         if isinstance(stmt, TryCatchStatement):
             handler_index = self.emit(Op.SETUP_TRY, None, stmt.span)
-            self.compile_block(stmt.try_block)
+            self.try_depth += 1
+            try:
+                self.compile_block(stmt.try_block)
+            finally:
+                self.try_depth -= 1
             self.emit(Op.POP_TRY, span=stmt.span)
             end_jump = self.emit(Op.JUMP, None, stmt.span)
             self.patch(handler_index, len(self.instructions))
@@ -167,7 +188,7 @@ class Compiler:
             self.compile_expression(stmt.condition)
             jump_to_end = self.emit(Op.JUMP_IF_FALSE, None, stmt.condition.span)
             breaks: list[int] = []
-            self.loop_stack.append((breaks, loop_start))
+            self.loop_stack.append((breaks, loop_start, self.try_depth))
             try:
                 self.compile_block(stmt.body)
             finally:
@@ -184,7 +205,7 @@ class Compiler:
             loop_start = len(self.instructions)
             jump_to_end = self.emit(Op.ITER_NEXT, None, stmt.name.span)
             breaks = []
-            self.loop_stack.append((breaks, loop_start))
+            self.loop_stack.append((breaks, loop_start, self.try_depth))
             try:
                 self.compile_block(stmt.body)
             finally:
