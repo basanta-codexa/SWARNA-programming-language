@@ -7,7 +7,10 @@ from runtime.values import format_literal
 
 
 def read_text_file(path: str, span: SourceSpan | None) -> str:
-    """Read a UTF-8 text file, converting host errors into SWARNA diagnostics."""
+    """Read a UTF-8 text file, converting host errors into SWARNA diagnostics.
+
+    ``utf-8-sig`` drops a leading BOM when present and still reads plain UTF-8.
+    """
 
     file_path = Path(path)
     if file_path.is_dir():
@@ -17,7 +20,7 @@ def read_text_file(path: str, span: SourceSpan | None) -> str:
             hint="Pass the path of a text file, not a directory.",
         )
     try:
-        return file_path.read_text(encoding="utf-8")
+        return file_path.read_text(encoding="utf-8-sig")
     except FileNotFoundError:
         raise SwarnaRuntimeError(
             f"Could not read file {format_literal(path)}: file not found",
