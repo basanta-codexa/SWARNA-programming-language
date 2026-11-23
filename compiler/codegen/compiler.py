@@ -45,14 +45,16 @@ class Compiler:
     def __init__(self) -> None:
         self.instructions: list[Instruction] = []
         self.functions: dict[str, FunctionInfo] = {}
-        self.loop_stack: list[tuple[list[int], int, int]] = []
+        self.loop_stack: list[tuple[list[int], int, int, int]] = []
         self.try_depth = 0
+        self.catch_depth = 0
 
     def compile(self, program: Program) -> CompiledProgram:
         self.instructions = []
         self.functions = {}
         self.loop_stack = []
         self.try_depth = 0
+        self.catch_depth = 0
         for stmt in program.statements:
             if isinstance(stmt, FunctionDeclaration):
                 self.compile_function(stmt)
@@ -70,9 +72,11 @@ class Compiler:
         saved_instructions = self.instructions
         saved_loops = self.loop_stack
         saved_try_depth = self.try_depth
+        saved_catch_depth = self.catch_depth
         self.instructions = []
         self.loop_stack = []
         self.try_depth = 0
+        self.catch_depth = 0
         try:
             self.compile_expression(stmt.body)
             self.emit(Op.RETURN, span=stmt.body.span if stmt.body.span is not None else stmt.span)
@@ -81,6 +85,7 @@ class Compiler:
             self.instructions = saved_instructions
             self.loop_stack = saved_loops
             self.try_depth = saved_try_depth
+            self.catch_depth = saved_catch_depth
         self.functions[name] = FunctionInfo(
             name=name,
             parameters=tuple(parameter.name.name for parameter in stmt.parameters),
@@ -107,8 +112,11 @@ class Compiler:
         a `break` exits the loop, not the surrounding `try`.
         """
         loop_try_depth = self.loop_stack[-1][2]
+        loop_catch_depth = self.loop_stack[-1][3]
         for _ in range(self.try_depth - loop_try_depth):
             self.emit(Op.POP_TRY, span=span)
+        for _ in range(self.catch_depth - loop_catch_depth):
+            self.emit(Op.END_CATCH, span=span)
 
     def compile_statement(self, stmt: Statement) -> None:
         if isinstance(stmt, LetStatement):
@@ -158,10 +166,18 @@ class Compiler:
                 self.try_depth -= 1
             self.emit(Op.POP_TRY, span=stmt.span)
             end_jump = self.emit(Op.JUMP, None, stmt.span)
-            self.patch(handler_index, len(self.instructions))
-            self.emit(Op.DECLARE_NAME, stmt.catch_name.name, stmt.catch_name.span)
-            self.compile_block(stmt.catch_block)
-            self.patch(end_jump, len(self.instructions))
+            catch_start = len(self.instructions)
+            self.catch_depth += 1
+            try:
+                self.emit(Op.DECLARE_NAME, stmt.catch_name.name, stmt.catch_name.span)
+                self.compile_block(stmt.catch_block)
+            finally:
+                self.catch_depth -= 1
+            catch_end = len(self.instructions)
+            self.emit(Op.END_CATCH, span=stmt.span)
+            after_catch = len(self.instructions)
+            self.patch(end_jump, after_catch)
+            self.patch(handler_index, (catch_start, catch_end))
             return
         if isinstance(stmt, ExpressionStatement):
             self.compile_expression(stmt.expression)
@@ -188,7 +204,7 @@ class Compiler:
             self.compile_expression(stmt.condition)
             jump_to_end = self.emit(Op.JUMP_IF_FALSE, None, stmt.condition.span)
             breaks: list[int] = []
-            self.loop_stack.append((breaks, loop_start, self.try_depth))
+            self.loop_stack.append((breaks, loop_start, self.try_depth, self.catch_depth))
             try:
                 self.compile_block(stmt.body)
             finally:
@@ -205,7 +221,7 @@ class Compiler:
             loop_start = len(self.instructions)
             jump_to_end = self.emit(Op.ITER_NEXT, None, stmt.name.span)
             breaks = []
-            self.loop_stack.append((breaks, loop_start, self.try_depth))
+            self.loop_stack.append((breaks, loop_start, self.try_depth, self.catch_depth))
             try:
                 self.compile_block(stmt.body)
             finally:

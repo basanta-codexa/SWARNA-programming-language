@@ -27,10 +27,17 @@ class ForFrame:
 @dataclass
 class TryHandler:
     target: int
+    catch_end: int
     stack_depth: int
     iterator_depth: int
-    env: dict[str, Value]
-    constant: set[str]
+
+
+@dataclass
+class CatchScope:
+    saved_env: dict[str, Value]
+    saved_constant: set[str]
+    start: int
+    end: int
 
 
 class VM:
@@ -44,6 +51,7 @@ class VM:
         self.functions: dict[str, FunctionInfo] = {}
         self.iterators: list[ForFrame] = []
         self.handlers: list[TryHandler] = []
+        self.catch_scopes: list[CatchScope] = []
         self.call_depth = 0
         self.max_call_depth = 200
 
@@ -95,20 +103,46 @@ class VM:
         self.functions = program.functions
         self.iterators = []
         self.handlers = []
+        self.catch_scopes = []
         self.call_depth = 0
         try:
             self._execute(program.instructions, allow_return=False)
         finally:
             self._cleanup_iterators(0)
             self.handlers = []
+            self.catch_scopes = []
         return dict(self.env)
+
+    def _discard_catch_scopes(self, ip: int, handler_target: int | None) -> None:
+        """Restore environments of catch blocks an error is leaving.
+
+        A catch scope is kept when the error is being handled inside it; it is
+        discarded when the handler lies outside its instruction range.
+        """
+        while self.catch_scopes:
+            scope = self.catch_scopes[-1]
+            if not (scope.start <= ip <= scope.end):
+                break
+            if handler_target is not None and scope.start <= handler_target <= scope.end:
+                break
+            self.catch_scopes.pop()
+            self.env = scope.saved_env
+            self.constant = scope.saved_constant
 
     def _unwind_to_handler(self, message: str) -> int:
         handler = self.handlers.pop()
         self.stack = self.stack[: handler.stack_depth]
         self._cleanup_iterators(handler.iterator_depth)
-        self.env = handler.env
-        self.constant = handler.constant
+        self.catch_scopes.append(
+            CatchScope(
+                saved_env=self.env,
+                saved_constant=self.constant,
+                start=handler.target,
+                end=handler.catch_end,
+            )
+        )
+        self.env = dict(self.env)
+        self.constant = set(self.constant)
         self.stack.append(message)
         return handler.target
 
@@ -654,19 +688,23 @@ class VM:
                         )
                     raise SwarnaRuntimeError(value, ins.span)
                 elif ins.op == Op.SETUP_TRY:
-                    target = self._jump_target(ins, len(instructions))
+                    target, catch_end = self._try_targets(ins, len(instructions))
                     self.handlers.append(
                         TryHandler(
                             target=target,
+                            catch_end=catch_end,
                             stack_depth=len(self.stack),
                             iterator_depth=len(self.iterators),
-                            env=dict(self.env),
-                            constant=set(self.constant),
                         )
                     )
                 elif ins.op == Op.POP_TRY:
                     if self.handlers:
                         self.handlers.pop()
+                elif ins.op == Op.END_CATCH:
+                    if self.catch_scopes:
+                        scope = self.catch_scopes.pop()
+                        self.env = scope.saved_env
+                        self.constant = scope.saved_constant
                 elif ins.op == Op.CALL:
                     self._call(ins)
                 elif ins.op == Op.RETURN:
@@ -692,6 +730,8 @@ class VM:
                         hint="The bytecode compiler produced an unsupported instruction.",
                     )
             except SwarnaRuntimeError as error:
+                handler_target = self.handlers[-1].target if self.handlers else None
+                self._discard_catch_scopes(ip, handler_target)
                 if self.handlers:
                     ip = self._unwind_to_handler(error.message)
                 else:
@@ -772,10 +812,12 @@ class VM:
             local_constant.discard(parameter)
         iterator_depth = len(self.iterators)
         saved_handlers = self.handlers
+        saved_catch_scopes = self.catch_scopes
         self.stack = []
         self.env = local_env
         self.constant = local_constant
         self.handlers = []
+        self.catch_scopes = []
         self.call_depth += 1
         try:
             result = self._execute(function.instructions, allow_return=True)
@@ -792,6 +834,7 @@ class VM:
         finally:
             self._cleanup_iterators(iterator_depth)
             self.handlers = saved_handlers
+            self.catch_scopes = saved_catch_scopes
             self.call_depth -= 1
             self.stack = saved_stack
             self.env = saved_env
@@ -801,6 +844,8 @@ class VM:
     def _jump_target(ins: Instruction, code_size: int) -> int:
         """Jump targets are absolute instruction indices and must be in bounds."""
         target = ins.arg
+        if isinstance(target, tuple):
+            target = target[0]
         if not isinstance(target, int) or not (0 <= target < code_size):
             raise SwarnaRuntimeError(
                 f"Invalid jump target: {target!r}",
@@ -808,3 +853,17 @@ class VM:
                 hint="The bytecode compiler produced an invalid jump.",
             )
         return target
+
+    @classmethod
+    def _try_targets(cls, ins: Instruction, code_size: int) -> tuple[int, int]:
+        """Return the catch entry and the END_CATCH index of a SETUP_TRY."""
+        target = cls._jump_target(ins, code_size)
+        arg = ins.arg
+        catch_end = arg[1] if isinstance(arg, tuple) and len(arg) == 2 else code_size
+        if not isinstance(catch_end, int) or not (target <= catch_end <= code_size):
+            raise SwarnaRuntimeError(
+                f"Invalid catch range: {arg!r}",
+                ins.span,
+                hint="The bytecode compiler produced an invalid try/catch range.",
+            )
+        return target, catch_end

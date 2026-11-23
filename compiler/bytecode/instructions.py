@@ -49,6 +49,7 @@ class Op(Enum):
     THROW = auto()
     SETUP_TRY = auto()
     POP_TRY = auto()
+    END_CATCH = auto()
     ITER_START = auto()
     ITER_NEXT = auto()
     ITER_END = auto()
