@@ -1,5 +1,5 @@
 from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, Parameter, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, ThrowStatement, TryCatchStatement, TypeAnnotation, UnaryExpression, UnitLiteral, WhileStatement
-from compiler.diagnostics import SwarnaSyntaxError
+from compiler.diagnostics import MAX_INT_DIGITS, SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
 from compiler.lexer.tokens import TokenType
 
@@ -601,7 +601,17 @@ class Parser:
         if self.current.type == TokenType.INTEGER:
             token = self.current
             self._advance()
-            return IntegerLiteral(int(token.value), span=token.span)
+            try:
+                if len(token.value) > MAX_INT_DIGITS:
+                    raise ValueError("too many digits")
+                value = int(token.value)
+            except ValueError:
+                raise SwarnaSyntaxError(
+                    f"Integer literal is too large: {len(token.value)} digits",
+                    token.span,
+                    hint="Use a shorter literal, or build the value with arithmetic instead.",
+                ) from None
+            return IntegerLiteral(value, span=token.span)
         if self.current.type == TokenType.FLOAT:
             token = self.current
             self._advance()

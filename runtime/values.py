@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import math
+
+from compiler.diagnostics import MAX_INT_DIGITS, SwarnaRuntimeError
+
 
 class _UnitValue:
     __slots__ = ()
@@ -11,6 +15,13 @@ class _UnitValue:
 UNIT = _UnitValue()
 
 Value = int | float | bool | str | list["Value"] | dict["Value", "Value"] | _UnitValue
+
+
+def _int_digit_count(value: int) -> int:
+    """Approximate decimal digits without converting the integer to a string."""
+    if value == 0:
+        return 1
+    return int(abs(value).bit_length() * math.log10(2)) + 1
 
 
 def value_type_name(value: Value) -> str:
@@ -51,6 +62,16 @@ def format_value(value: Value) -> str:
             )
             + "}"
         )
+    if type(value) is int:
+        try:
+            if _int_digit_count(value) > MAX_INT_DIGITS:
+                raise ValueError("too many digits")
+            return str(value)
+        except ValueError:
+            raise SwarnaRuntimeError(
+                "Integer value is too large to print",
+                hint="Use a shorter value, or build and print it in smaller parts.",
+            ) from None
     return str(value)
 
 

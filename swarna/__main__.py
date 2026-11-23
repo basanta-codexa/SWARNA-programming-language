@@ -154,7 +154,7 @@ def main(argv: list[str] | None = None) -> int:
             prefix = f"{source_name}: " if source_name else ""
             print(f"error: {prefix}{e}", file=sys.stderr)
             return 1
-        except (NameError, TypeError, ZeroDivisionError, RuntimeError) as e:
+        except (NameError, TypeError, ZeroDivisionError, RuntimeError, ValueError, OverflowError) as e:
             prefix = f"{source_name}: " if source_name else ""
             print(f"error: {prefix}{e}", file=sys.stderr)
             return 1
@@ -175,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
         except SyntaxError as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
-        except (NameError, TypeError, ZeroDivisionError, RuntimeError) as e:
+        except (NameError, TypeError, ZeroDivisionError, RuntimeError, ValueError, OverflowError) as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
         except KeyboardInterrupt:
@@ -231,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
             print(render_diagnostic(source, e, explain=explain), file=sys.stderr)
         except SyntaxError as e:
             print(f"error: {e}", file=sys.stderr)
-        except (NameError, TypeError, ZeroDivisionError, RuntimeError) as e:
+        except (NameError, TypeError, ZeroDivisionError, RuntimeError, ValueError, OverflowError) as e:
             print(f"error: {e}", file=sys.stderr)
         except KeyboardInterrupt:
             print("\ninterrupted", file=sys.stderr)

@@ -3,6 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+# Python 3.11+ limits int/str conversions to 4300 digits by default. SWARNA
+# applies the same limit explicitly so behavior is identical on 3.10 too.
+MAX_INT_DIGITS = 4300
+
+
 # Expanded, plain-language explanations keyed by error category. Raise sites
 # attach a category; `render_diagnostic(..., explain=True)` looks the text up
 # here, so adding coverage does not require repeating prose at every raise site.
