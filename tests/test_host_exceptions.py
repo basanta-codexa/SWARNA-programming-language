@@ -1,6 +1,7 @@
 import io
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
+from unittest.mock import patch
 
 from compiler.diagnostics import SwarnaRuntimeError, SwarnaSyntaxError
 from compiler.lexer.lexer import Lexer
@@ -31,6 +32,17 @@ class TestHostExceptionBoundary(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn("too large", stderr.getvalue())
         self.assertNotIn("Traceback", stderr.getvalue())
+
+    def test_cli_handles_path_check_failure_for_inline_source(self):
+        stdout = io.StringIO()
+        with patch(
+            "swarna.__main__.Path.is_file",
+            side_effect=OSError(36, "File name too long"),
+        ):
+            with redirect_stdout(stdout):
+                status = main(["--run", "print(1)"])
+        self.assertEqual(status, 0)
+        self.assertEqual(stdout.getvalue().strip(), "1")
 
     def test_cli_reports_huge_computed_integer_without_traceback(self):
         source = (

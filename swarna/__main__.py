@@ -12,6 +12,19 @@ from runtime.values import format_value
 from swarna import __version__
 
 
+def _is_source_file(argument: str) -> bool:
+    """Check for a source file without letting odd inline source raise here.
+
+    On POSIX, `Path.is_file()` raises OSError for overlong path components;
+    inline programs are often longer than a filename. Treat any such failure
+    as "not a file" and let the normal source pipeline handle the text.
+    """
+    try:
+        return Path(argument).is_file()
+    except (OSError, ValueError):
+        return False
+
+
 def lex_source(source: str) -> str:
     tokens = Lexer(source).tokenize()
     return "\n".join(f"{t.type.name} {t.value!r} ({t.line}:{t.column})" for t in tokens)
@@ -127,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.source is not None:
         source = args.source
         candidate = Path(args.source)
-        is_file = candidate.is_file()
+        is_file = _is_source_file(args.source)
         if is_file:
             try:
                 source = candidate.read_text(encoding="utf-8-sig")
