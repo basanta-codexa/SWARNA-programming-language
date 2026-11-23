@@ -33,6 +33,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `Int`-to-`Float` widening in type checking and key runtime coercions (annotated `let` bindings and function arguments/returns in interpreter/VM).
 
 ### Changed
+- Empty maps now refine their key and value types on index assignment; mixed value types and non-scalar keys are rejected.
 - Reading a variable now requires it to be assigned on every path that reaches the use.
 - Function return inference is now order-independent: unannotated return types are inferred to a fixed point before checking call sites.
 - Fixed VM `try`/`catch` handler cleanup for `break` and `continue`, and aligned VM catch scoping with the interpreter.

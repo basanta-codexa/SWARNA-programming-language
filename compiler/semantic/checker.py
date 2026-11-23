@@ -574,6 +574,24 @@ class TypeChecker:
                     f"Use a {collection_type.value_type.label} value.",
                     category="type-mismatch",
                 )
+            if collection_type.is_map and isinstance(stmt.target.collection, Identifier):
+                key_type = self.check_expression(stmt.target.index)
+                refined_key = key_type if key_type is not Type.UNKNOWN else collection_type.key_type
+                refined_value = common_element_type(collection_type.value_type, value_type)
+                if refined_value is None:
+                    self._error(
+                        f"Cannot assign {value_type.label} to {collection_type.label}",
+                        stmt.value.span,
+                        "Use the map's existing value type.",
+                        category="type-mismatch",
+                    )
+                refined = Type.map_of(refined_key, refined_value)
+                if refined != collection_type:
+                    self.env[name] = Binding(
+                        refined,
+                        constant=binding.constant,
+                        span=binding.span,
+                    )
             return
 
         if isinstance(stmt, BreakStatement):
@@ -1092,6 +1110,14 @@ class TypeChecker:
                 "Use a list, map, or string value before the brackets.",
             )
         if collection_type.is_map:
+            if index_type is not Type.UNKNOWN and not is_scalar_type(index_type):
+                self._error(
+                    "Map keys must be Int, Float, String, or Bool, got "
+                    f"{index_type.label}",
+                    expr.index.span,
+                    "Use a scalar value as the map key.",
+                    category="type-mismatch",
+                )
             if index_type is not Type.UNKNOWN and not self._is_assignable(
                 collection_type.key_type, index_type
             ):
