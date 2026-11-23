@@ -33,6 +33,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `Int`-to-`Float` widening in type checking and key runtime coercions (annotated `let` bindings and function arguments/returns in interpreter/VM).
 
 ### Changed
+- The CLI now reports `file not found` for path-like source arguments instead of lexing them as inline code.
 - `read_file` and `read_csv` now strip a leading UTF-8 BOM instead of treating it as data.
 - CSV numeric cells now reject `nan`/`inf` floats and underscore separators.
 - Inferred `Int`-to-`Float` widening now stores `Float` values, using type information passed from the checker to the interpreter and VM.

@@ -687,6 +687,21 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertIn("Undefined name 'missing'", output)
         self.assertIn(str(path), output)
 
+    def test_run_cli_reports_missing_source_file(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["--run", "definitely_not_a_file.sw"])
+        self.assertEqual(code, 1)
+        self.assertIn("file not found", stderr.getvalue())
+        self.assertNotIn("Unexpected character", stderr.getvalue())
+
+    def test_inline_source_with_division_is_not_a_file(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            code = main(["--run", "print(1/1)"])
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.getvalue(), "1.0\n")
+
 
 if __name__ == "__main__":
     unittest.main()

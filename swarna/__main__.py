@@ -25,6 +25,20 @@ def _is_source_file(argument: str) -> bool:
         return False
 
 
+def _looks_like_path(argument: str) -> bool:
+    """Guess whether a CLI argument names a file rather than inline source."""
+
+    if not argument or any(char.isspace() for char in argument):
+        return False
+    if any(char in argument for char in "(){}[]=+-\"'#"):
+        return False
+    normalized = argument.replace("\\", "/")
+    name = normalized.rsplit("/", 1)[-1]
+    if "/" in normalized:
+        return "." in name
+    return bool(name) and (name[0].isalpha() or name[0] == "_") and "." in name
+
+
 def lex_source(source: str) -> str:
     tokens = Lexer(source).tokenize()
     return "\n".join(f"{t.type.name} {t.value!r} ({t.line}:{t.column})" for t in tokens)
@@ -142,6 +156,12 @@ def main(argv: list[str] | None = None) -> int:
         source = args.source
         candidate = Path(args.source)
         is_file = _is_source_file(args.source)
+        if not is_file and _looks_like_path(args.source):
+            print(
+                f"error: Could not read '{args.source}': file not found",
+                file=sys.stderr,
+            )
+            return 1
         if is_file:
             try:
                 source = candidate.read_text(encoding="utf-8-sig")
