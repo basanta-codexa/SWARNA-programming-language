@@ -40,7 +40,7 @@ from compiler.ast.nodes import (
 )
 from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan, SwarnaSemanticError
-from runtime.values import UNIT
+from runtime.values import UNIT, format_literal
 
 
 @dataclass(frozen=True)
@@ -236,6 +236,7 @@ class TypeChecker:
         self.return_types: list[Type] = []
         self.assigned: set[str] = set(self.env)
         self.expression_types: dict[int, TypeAnnotation] = {}
+        self.declared_names: set[str] = set()
 
     def check(self, program: Program) -> None:
         saved_env = dict(self.env)
@@ -246,6 +247,7 @@ class TypeChecker:
         self.return_types = []
         self.assigned = set(self.env)
         self.expression_types = {}
+        self.declared_names = set()
         try:
             self._declare_functions(program)
             self._infer_function_returns(program)
@@ -470,6 +472,13 @@ class TypeChecker:
                     stmt.name.span,
                     "Use a different name for the binding.",
                 )
+            if stmt.name.name in self.declared_names:
+                self._error(
+                    f"Binding '{stmt.name.name}' is already declared",
+                    stmt.name.span,
+                    "Assign to the existing binding instead, or use a new name.",
+                )
+            self.declared_names.add(stmt.name.name)
             value_type = self.check_expression(stmt.value)
             binding_type = value_type
             if stmt.type_name is not None:
@@ -665,9 +674,11 @@ class TypeChecker:
 
         if isinstance(stmt, TryCatchStatement):
             before_assigned = set(self.assigned)
+            before_declared = set(self.declared_names)
             self.check_block(stmt.try_block)
             try_assigned = set(self.assigned)
             self.assigned = set(before_assigned)
+            self.declared_names = set(before_declared)
             saved_env = self.env
             self.env = dict(self.env)
             self.env[stmt.catch_name.name] = Binding(Type.STRING, constant=False, span=stmt.catch_name.span)
@@ -678,6 +689,7 @@ class TypeChecker:
             finally:
                 self.env = saved_env
                 self.assigned = set(before_assigned)
+                self.declared_names = set(before_declared)
             self.assigned = try_assigned & catch_assigned
             return
 
@@ -688,15 +700,18 @@ class TypeChecker:
 
         if isinstance(stmt, IfStatement):
             before_assigned = set(self.assigned)
+            before_declared = set(self.declared_names)
             self._check_condition(stmt.condition, "`if` condition")
             self.check_block(stmt.then_branch)
             then_assigned = set(self.assigned)
             self.assigned = set(before_assigned)
+            self.declared_names = set(before_declared)
             if stmt.else_branch is None:
                 self.assigned = set(before_assigned)
             else:
                 self.check_block(stmt.else_branch)
                 self.assigned = then_assigned & self.assigned
+                self.declared_names = set(before_declared)
             return
 
         if isinstance(stmt, WhileStatement):
@@ -767,6 +782,18 @@ class TypeChecker:
             "This statement is not supported by the type checker yet.",
         )
 
+    @staticmethod
+    def _literal_key(expr: Expression) -> tuple[str, object] | None:
+        if isinstance(expr, StringLiteral):
+            return ("String", expr.value)
+        if isinstance(expr, IntegerLiteral):
+            return ("Int", expr.value)
+        if isinstance(expr, FloatLiteral):
+            return ("Float", expr.value)
+        if isinstance(expr, BoolLiteral):
+            return ("Bool", expr.value)
+        return None
+
     def check_block(self, block: BlockStatement) -> None:
         for stmt in block.statements:
             self.check_statement(stmt)
@@ -809,6 +836,7 @@ class TypeChecker:
         if isinstance(expr, MapLiteral):
             key_type = Type.UNKNOWN
             value_type = Type.UNKNOWN
+            seen_keys: set[tuple[str, object]] = set()
             for key, value in expr.entries:
                 current_key = self.check_expression(key)
                 current_value = self.check_expression(value)
@@ -820,6 +848,15 @@ class TypeChecker:
                         "Use a scalar key.",
                         category="type-mismatch",
                     )
+                literal_key = self._literal_key(key)
+                if literal_key is not None:
+                    if literal_key in seen_keys:
+                        self._error(
+                            f"Duplicate map key {format_literal(literal_key[1])}",
+                            key.span,
+                            "Use each key once in a map literal.",
+                        )
+                    seen_keys.add(literal_key)
                 unified_key = common_element_type(key_type, current_key)
                 if unified_key is None:
                     self._error(
@@ -1098,12 +1135,15 @@ class TypeChecker:
 
         if isinstance(expr, IfExpression):
             before_assigned = set(self.assigned)
+            before_declared = set(self.declared_names)
             self._check_condition(expr.condition, "`if` condition")
             then_type = self.check_expression(expr.then_value)
             then_assigned = set(self.assigned)
             self.assigned = set(before_assigned)
+            self.declared_names = set(before_declared)
             else_type = self.check_expression(expr.else_value)
             self.assigned = then_assigned & self.assigned
+            self.declared_names = set(before_declared)
             return self._common_type(then_type, else_type, expr)
 
         self._error(

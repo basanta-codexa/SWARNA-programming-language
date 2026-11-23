@@ -33,6 +33,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `Int`-to-`Float` widening in type checking and key runtime coercions (annotated `let` bindings and function arguments/returns in interpreter/VM).
 
 ### Changed
+- Duplicate bindings and duplicate literal map keys are now semantic errors instead of silent replacements.
 - Unknown string escapes now produce a syntax diagnostic instead of silently dropping the backslash.
 - Mutating a map while iterating over it now raises a catchable SWARNA error with a source span and hint.
 - The CLI now reports `file not found` for path-like source arguments instead of lexing them as inline code.
