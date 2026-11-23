@@ -12,7 +12,7 @@ from compiler.bytecode.program import CompiledProgram, FunctionInfo
 from compiler.diagnostics import SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.csv import read_csv_data
 from runtime.files import read_text_file
-from runtime.values import Value, format_literal, format_value, value_type_name
+from runtime.values import Value, coerce_to_annotation, format_literal, format_value, value_type_name
 
 
 @dataclass
@@ -199,6 +199,8 @@ class VM:
                 elif ins.op == Op.STORE_CONST:
                     self.env[ins.arg] = self._pop(ins)
                     self.constant.add(ins.arg)
+                elif ins.op == Op.COERCE:
+                    self.stack.append(coerce_to_annotation(self._pop(ins), ins.arg))
                 elif ins.op == Op.DUP:
                     if not self.stack:
                         raise SwarnaRuntimeError(

@@ -13,6 +13,7 @@ class Op(Enum):
     STORE_NAME = auto()
     DECLARE_NAME = auto()
     STORE_CONST = auto()
+    COERCE = auto()
     DUP = auto()
     ADD = auto()
     SUB = auto()

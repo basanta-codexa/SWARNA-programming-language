@@ -9,7 +9,7 @@ from compiler.csv_schema import CsvSchemaError, parse_csv_schema
 from compiler.diagnostics import SourceSpan, SwarnaNameError, SwarnaRuntimeError, SwarnaTypeError, SwarnaZeroDivisionError
 from runtime.csv import read_csv_data
 from runtime.files import read_text_file
-from runtime.values import UNIT, Value, format_literal, format_value, value_type_name
+from runtime.values import UNIT, Value, coerce_to_annotation, format_literal, format_value, value_type_name
 
 
 class _LoopSignal(BaseException):
@@ -48,8 +48,10 @@ class Interpreter:
     def __init__(self) -> None:
         self.global_env: dict[str, Value] = {}
         self.global_constant: dict[str, bool] = {}
+        self.global_annotations: dict[str, TypeAnnotation] = {}
         self.env: dict[str, Value] = self.global_env
         self.constant: dict[str, bool] = self.global_constant
+        self.annotations: dict[str, TypeAnnotation] = self.global_annotations
         self.functions: dict[str, Function] = {}
         self.output: list[Value] = []
         self.call_depth = 0
@@ -58,6 +60,7 @@ class Interpreter:
     def eval(self, program: Program) -> dict[str, Value]:
         self.env = self.global_env
         self.constant = self.global_constant
+        self.annotations = self.global_annotations
         seen: set[str] = set()
         for stmt in program.statements:
             if not isinstance(stmt, FunctionDeclaration):
@@ -109,15 +112,17 @@ class Interpreter:
             )
         if isinstance(stmt, LetStatement):
             name = stmt.name.name
-            value = self.eval_expression(stmt.value)
-            if stmt.type_name is not None and stmt.type_name.name == "Float" and type(value) is int and not stmt.type_name.arguments:
-                value = float(value)
+            value = coerce_to_annotation(self.eval_expression(stmt.value), stmt.type_name)
             self.env[name] = value
             self.constant[name] = stmt.constant
+            if stmt.type_name is not None:
+                self.annotations[name] = stmt.type_name
+            else:
+                self.annotations.pop(name, None)
             return
         if isinstance(stmt, AssignmentStatement):
             name = stmt.name.name
-            value = self.eval_expression(stmt.value)
+            value = coerce_to_annotation(self.eval_expression(stmt.value), self.annotations.get(name))
             if name not in self.env:
                 if name in self.functions:
                     raise SwarnaNameError(
@@ -170,6 +175,15 @@ class Interpreter:
             collection = self.eval_expression(stmt.target.collection)
             index = self.eval_expression(stmt.target.index)
             value = self.eval_expression(stmt.value)
+            annotation = self.annotations.get(name)
+            if (
+                isinstance(stmt.target.collection, Identifier)
+                and annotation is not None
+                and annotation.name == "Map"
+                and len(annotation.arguments) == 2
+            ):
+                index = coerce_to_annotation(index, annotation.arguments[0])
+                value = coerce_to_annotation(value, annotation.arguments[1])
             if isinstance(collection, list):
                 raise SwarnaTypeError(
                     "Lists are immutable; cannot assign to an index",
@@ -551,13 +565,22 @@ class Interpreter:
             )
         saved_env = self.env
         saved_constant = self.constant
+        saved_annotations = self.annotations
         local_env = dict(self.global_env)
         local_constant = dict(self.global_constant)
-        for parameter, value in zip(function.parameters, arguments):
+        local_annotations = dict(self.global_annotations)
+        for parameter, value, annotation in zip(
+            function.parameters, arguments, function.parameter_annotations
+        ):
             local_env[parameter] = value
             local_constant[parameter] = False
+            if annotation is not None:
+                local_annotations[parameter] = annotation
+            else:
+                local_annotations.pop(parameter, None)
         self.env = local_env
         self.constant = local_constant
+        self.annotations = local_annotations
         self.call_depth += 1
         try:
             try:
@@ -572,6 +595,7 @@ class Interpreter:
             self.call_depth -= 1
             self.env = saved_env
             self.constant = saved_constant
+            self.annotations = saved_annotations
 
     def eval_expression(self, expr: Expression) -> Value:
         if isinstance(expr, IntegerLiteral):

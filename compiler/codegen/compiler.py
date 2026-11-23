@@ -48,6 +48,7 @@ class Compiler:
         self.loop_stack: list[tuple[list[int], int, int, int]] = []
         self.try_depth = 0
         self.catch_depth = 0
+        self.annotations: dict[str, TypeAnnotation] = {}
 
     def compile(self, program: Program) -> CompiledProgram:
         self.instructions = []
@@ -55,6 +56,7 @@ class Compiler:
         self.loop_stack = []
         self.try_depth = 0
         self.catch_depth = 0
+        self.annotations = {}
         for stmt in program.statements:
             if isinstance(stmt, FunctionDeclaration):
                 self.compile_function(stmt)
@@ -73,10 +75,12 @@ class Compiler:
         saved_loops = self.loop_stack
         saved_try_depth = self.try_depth
         saved_catch_depth = self.catch_depth
+        saved_annotations = self.annotations
         self.instructions = []
         self.loop_stack = []
         self.try_depth = 0
         self.catch_depth = 0
+        self.annotations = {}
         try:
             self.compile_expression(stmt.body)
             self.emit(Op.RETURN, span=stmt.body.span if stmt.body.span is not None else stmt.span)
@@ -86,6 +90,7 @@ class Compiler:
             self.loop_stack = saved_loops
             self.try_depth = saved_try_depth
             self.catch_depth = saved_catch_depth
+            self.annotations = saved_annotations
         self.functions[name] = FunctionInfo(
             name=name,
             parameters=tuple(parameter.name.name for parameter in stmt.parameters),
@@ -121,21 +126,44 @@ class Compiler:
     def compile_statement(self, stmt: Statement) -> None:
         if isinstance(stmt, LetStatement):
             self.compile_expression(stmt.value)
+            if stmt.type_name is not None:
+                self.emit(Op.COERCE, stmt.type_name, stmt.span)
             self.emit(
                 Op.STORE_CONST if stmt.constant else Op.DECLARE_NAME,
                 stmt.name.name,
                 stmt.name.span,
             )
+            if stmt.type_name is not None:
+                self.annotations[stmt.name.name] = stmt.type_name
+            else:
+                self.annotations.pop(stmt.name.name, None)
             return
         if isinstance(stmt, AssignmentStatement):
             self.compile_expression(stmt.value)
+            annotation = self.annotations.get(stmt.name.name)
+            if annotation is not None:
+                self.emit(Op.COERCE, annotation, stmt.span)
             self.emit(Op.STORE_NAME, stmt.name.name, stmt.name.span)
             return
         if isinstance(stmt, IndexAssignmentStatement):
             self.compile_expression(stmt.target.collection)
             self.compile_expression(stmt.target.index)
+            root_name = self._index_root(stmt.target).name
+            root_annotation = self.annotations.get(root_name)
+            map_annotation = (
+                root_annotation
+                if isinstance(stmt.target.collection, Identifier)
+                and root_annotation is not None
+                and root_annotation.name == "Map"
+                and len(root_annotation.arguments) == 2
+                else None
+            )
+            if map_annotation is not None:
+                self.emit(Op.COERCE, map_annotation.arguments[0], stmt.span)
             self.compile_expression(stmt.value)
-            self.emit(Op.STORE_INDEX, self._index_root(stmt.target).name, stmt.span)
+            if map_annotation is not None:
+                self.emit(Op.COERCE, map_annotation.arguments[1], stmt.span)
+            self.emit(Op.STORE_INDEX, root_name, stmt.span)
             return
         if isinstance(stmt, BreakStatement):
             if not self.loop_stack:

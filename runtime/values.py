@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 
+from compiler.ast.nodes import TypeAnnotation
 from compiler.diagnostics import MAX_INT_DIGITS, SwarnaRuntimeError
 
 
@@ -17,6 +18,25 @@ UNIT = _UnitValue()
 Value = int | float | bool | str | list["Value"] | dict["Value", "Value"] | _UnitValue
 
 CYCLE_MARKER = "<cycle>"
+
+
+def coerce_to_annotation(value: Value, annotation: TypeAnnotation | None) -> Value:
+    """Apply the runtime coercions promised by an explicit annotation."""
+
+    if annotation is None:
+        return value
+    if annotation.name == "Float" and not annotation.arguments:
+        return float(value) if type(value) is int else value
+    if annotation.name == "List" and len(annotation.arguments) == 1 and isinstance(value, list):
+        element_annotation = annotation.arguments[0]
+        return [coerce_to_annotation(item, element_annotation) for item in value]
+    if annotation.name == "Map" and len(annotation.arguments) == 2 and isinstance(value, dict):
+        key_annotation, value_annotation = annotation.arguments
+        return {
+            coerce_to_annotation(key, key_annotation): coerce_to_annotation(item, value_annotation)
+            for key, item in value.items()
+        }
+    return value
 
 
 def _int_digit_count(value: int) -> int:
