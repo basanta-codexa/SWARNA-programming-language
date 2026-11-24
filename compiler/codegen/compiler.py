@@ -417,6 +417,13 @@ class Compiler:
                 self.compile_expression(expr.arguments[0])
                 self.emit(Op.UPPER if expr.callee.name == "upper" else Op.LOWER, span=expr.span)
                 return
+            if expr.callee.name == "split":
+                if len(expr.arguments) != 2:
+                    raise RuntimeError("`split` expects exactly two arguments")
+                for argument in expr.arguments:
+                    self.compile_expression(argument)
+                self.emit(Op.SPLIT, span=expr.span)
+                return
             if expr.callee.name == "contains":
                 if len(expr.arguments) != 2:
                     raise RuntimeError("`contains` expects exactly two arguments")

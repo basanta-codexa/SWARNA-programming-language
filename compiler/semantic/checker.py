@@ -93,7 +93,7 @@ Type.UNIT = Type("Unit")
 Type.UNKNOWN = Type("Unknown")
 
 
-BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "int", "float", "str", "range", "read_file", "read_csv", "upper", "lower", "contains"})
+BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "int", "float", "str", "range", "read_file", "read_csv", "upper", "lower", "contains", "split"})
 
 
 @dataclass(frozen=True)
@@ -909,6 +909,30 @@ class TypeChecker:
                         category="type-mismatch",
                     )
                 return Type.STRING
+            if expr.callee.name == "split":
+                if len(expr.arguments) != 2:
+                    self._error(
+                        f"Function 'split' expects 2 arguments, got {len(expr.arguments)}",
+                        expr.span,
+                        "Pass the text and a non-empty separator.",
+                    )
+                for argument in expr.arguments:
+                    argument_type = self.check_expression(argument)
+                    if argument_type is not Type.UNKNOWN and argument_type is not Type.STRING:
+                        self._error(
+                            f"Function 'split' expects String arguments, got {argument_type.label}",
+                            argument.span,
+                            "Pass two String values to `split`.",
+                            category="type-mismatch",
+                        )
+                separator = expr.arguments[1]
+                if isinstance(separator, StringLiteral) and separator.value == "":
+                    self._error(
+                        "Function 'split' separator cannot be empty",
+                        separator.span,
+                        "Pass a non-empty separator, such as \",\".",
+                    )
+                return Type.list_of(Type.STRING)
             if expr.callee.name == "contains":
                 if len(expr.arguments) != 2:
                     self._error(

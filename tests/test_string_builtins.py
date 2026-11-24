@@ -86,5 +86,36 @@ class TestContains(unittest.TestCase):
             _check('contains(1, "a")')
 
 
+class TestSplit(unittest.TestCase):
+    def _assert_both(self, source: str, expected: list[str]) -> None:
+        self.assertEqual(_interpreter_output(source), expected)
+        self.assertEqual(_vm_output(source), expected)
+
+    def test_checker_returns_list_of_string(self):
+        checker = _check('let parts = split("a,b", ",")')
+        self.assertEqual(checker.env["parts"].type.label, "List[String]")
+
+    def test_basic_split(self):
+        self._assert_both('print(split("a,b,c", ","))', ['["a", "b", "c"]'])
+
+    def test_multi_character_separator(self):
+        self._assert_both('print(split("a::b::c", "::"))', ['["a", "b", "c"]'])
+
+    def test_missing_separator_returns_whole_string(self):
+        self._assert_both('print(split("abc", ","))', ['["abc"]'])
+
+    def test_empty_separator_is_rejected(self):
+        with self.assertRaises(SwarnaSemanticError):
+            _check('split("abc", "")')
+
+    def test_wrong_argument_count(self):
+        with self.assertRaises(SwarnaSemanticError):
+            _check('split("a,b")')
+
+    def test_wrong_argument_type(self):
+        with self.assertRaises(SwarnaSemanticError):
+            _check('split(1, ",")')
+
+
 if __name__ == "__main__":
     unittest.main()

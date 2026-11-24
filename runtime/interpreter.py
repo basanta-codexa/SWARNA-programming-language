@@ -373,6 +373,29 @@ class Interpreter:
                     category="type-mismatch",
                 )
             return value.upper() if name == "upper" else value.lower()
+        if expr.callee.name == "split":
+            if len(expr.arguments) != 2:
+                raise SwarnaRuntimeError(
+                    f"Function 'split' expects 2 arguments, got {len(expr.arguments)}",
+                    expr.span,
+                    hint="Pass the text and a non-empty separator.",
+                )
+            values = [self.eval_expression(argument) for argument in expr.arguments]
+            for value, argument in zip(values, expr.arguments):
+                if type(value) is not str:
+                    raise SwarnaTypeError(
+                        f"Function 'split' expects String arguments, got {value_type_name(value)}",
+                        argument.span,
+                        hint="Pass two String values to `split`.",
+                        category="type-mismatch",
+                    )
+            if values[1] == "":
+                raise SwarnaRuntimeError(
+                    "Function 'split' separator cannot be empty",
+                    expr.arguments[1].span,
+                    hint="Pass a non-empty separator, such as \",\".",
+                )
+            return values[0].split(values[1])
         if expr.callee.name == "contains":
             if len(expr.arguments) != 2:
                 raise SwarnaRuntimeError(

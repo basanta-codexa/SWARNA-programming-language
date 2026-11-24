@@ -681,6 +681,23 @@ class VM:
                             category="type-mismatch",
                         )
                     self.stack.append(part in text)
+                elif ins.op == Op.SPLIT:
+                    separator = self._pop(ins)
+                    text = self._pop(ins)
+                    if type(text) is not str or type(separator) is not str:
+                        raise SwarnaTypeError(
+                            "Function 'split' expects String arguments",
+                            ins.span,
+                            hint="Pass two String values to `split`.",
+                            category="type-mismatch",
+                        )
+                    if separator == "":
+                        raise SwarnaRuntimeError(
+                            "Function 'split' separator cannot be empty",
+                            ins.span,
+                            hint="Pass a non-empty separator, such as \",\".",
+                        )
+                    self.stack.append(text.split(separator))
                 elif ins.op == Op.ITER_START:
                     iterable = self._pop(ins)
                     if not isinstance(iterable, (list, dict, str)):
