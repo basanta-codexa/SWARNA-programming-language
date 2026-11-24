@@ -1164,7 +1164,9 @@ class TypeChecker:
         """Validate an index expression and return its collection and result types."""
 
         collection_type = self.check_expression(expr.collection)
-        index_type = self.check_expression(expr.index)
+        index_type = (
+            self.check_expression(expr.index) if expr.index is not None else Type.UNKNOWN
+        )
         if collection_type is not Type.UNKNOWN and not (
             collection_type.is_list or collection_type.is_map or collection_type is Type.STRING
         ):
@@ -1172,6 +1174,30 @@ class TypeChecker:
                 f"Cannot index {collection_type.label}; only lists, maps, and strings can be indexed",
                 expr.collection.span if expr.collection.span is not None else expr.span,
                 "Use a list, map, or string value before the brackets.",
+            )
+        if expr.is_slice:
+            if collection_type is not Type.UNKNOWN and collection_type is not Type.STRING:
+                self._error(
+                    "Slicing is only supported on String values",
+                    expr.span,
+                    "Use `text[start:end]` on a String.",
+                    category="type-mismatch",
+                )
+            end_type = (
+                self.check_expression(expr.end) if expr.end is not None else Type.UNKNOWN
+            )
+            for bound_type, node in ((index_type, expr.index), (end_type, expr.end)):
+                if node is None:
+                    continue
+                if bound_type is not Type.UNKNOWN and bound_type is not Type.INT:
+                    self._error(
+                        f"Slice bound must be Int, got {bound_type.label}",
+                        node.span,
+                        "Use Int bounds, such as `text[1:3]`.",
+                        category="type-mismatch",
+                    )
+            return collection_type, (
+                Type.STRING if collection_type is Type.STRING else Type.UNKNOWN
             )
         if collection_type.is_map:
             if index_type is not Type.UNKNOWN and not is_scalar_type(index_type):

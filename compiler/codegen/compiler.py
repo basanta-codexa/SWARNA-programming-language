@@ -341,6 +341,19 @@ class Compiler:
             return
         if isinstance(expr, IndexExpression):
             self.compile_expression(expr.collection)
+            if expr.is_slice:
+                if expr.index is not None:
+                    self.compile_expression(expr.index)
+                else:
+                    self.emit(Op.CONST, 0, expr.span)
+                if expr.end is not None:
+                    self.compile_expression(expr.end)
+                else:
+                    self.emit(Op.CONST, None, expr.span)
+                self.emit(Op.SLICE, span=expr.span)
+                return
+            if expr.index is None:
+                raise RuntimeError("Index expression has no index or slice end")
             self.compile_expression(expr.index)
             self.emit(Op.INDEX, span=expr.span)
             return

@@ -17,6 +17,7 @@ from runtime.values import (
     coerce_to_annotation,
     format_literal,
     format_value,
+    slice_string,
     value_type_name,
     MAP_MUTATION_HINT,
     MAP_MUTATION_MESSAGE,
@@ -676,6 +677,16 @@ class Interpreter:
             return result
         if isinstance(expr, IndexExpression):
             collection = self.eval_expression(expr.collection)
+            if expr.is_slice:
+                start = self.eval_expression(expr.index) if expr.index is not None else 0
+                end = self.eval_expression(expr.end) if expr.end is not None else None
+                return slice_string(collection, start, end, expr.span)
+            if expr.index is None:
+                raise SwarnaTypeError(
+                    "Index is missing",
+                    expr.span,
+                    hint="Put an Int index inside the brackets.",
+                )
             index = self.eval_expression(expr.index)
             if isinstance(collection, dict):
                 try:

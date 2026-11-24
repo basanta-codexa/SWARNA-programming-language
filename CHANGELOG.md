@@ -8,6 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- String slicing with `text[start:end]`, including omitted bounds and negative indices.
 - `--vm` CLI flag to run programs on the bytecode VM, alongside the existing interpreter path.
 - `print(...)` can now be used as an expression; it prints as before and returns `Unit`.
 - Multiple comma-separated arguments to `print`, joined with `, ` on one line (for example, `print("Hello", 12)`).

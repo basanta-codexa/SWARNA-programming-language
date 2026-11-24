@@ -758,13 +758,25 @@ class Parser:
                 self.current.span,
                 hint="Put an Int index inside the brackets, for example `values[0]`.",
             )
-        index = self.parse_expression()
+        index = None if self.current.type == TokenType.COLON else self.parse_expression()
+        end = None
+        is_slice = self.current.type == TokenType.COLON
+        if is_slice:
+            self._advance()
+            if self.current.type != TokenType.RBRACKET:
+                end = self.parse_expression()
         self._expect(
             TokenType.RBRACKET,
             "Expected ']' after index",
             hint="Close the index with `]`.",
         )
-        return IndexExpression(collection=collection, index=index, span=lbracket_token.span)
+        return IndexExpression(
+            collection=collection,
+            index=index,
+            end=end,
+            is_slice=is_slice,
+            span=lbracket_token.span,
+        )
 
     def parse_call(self, callee: Identifier) -> CallExpression:
         lparen_token = self.current

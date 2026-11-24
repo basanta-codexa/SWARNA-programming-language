@@ -93,7 +93,9 @@ class ListLiteral:
 @dataclass(frozen=True)
 class IndexExpression:
     collection: "Expression"
-    index: "Expression"
+    index: "Expression | None"
+    end: "Expression | None" = None
+    is_slice: bool = False
     span: SourceSpan | None = field(default=None, compare=False, repr=False)
 
 

@@ -20,6 +20,7 @@ from runtime.values import (
     coerce_to_annotation,
     format_literal,
     format_value,
+    slice_string,
     value_type_name,
 )
 
@@ -380,6 +381,11 @@ class VM:
                             ) from None
                         result[key] = value
                     self.stack.append(result)
+                elif ins.op == Op.SLICE:
+                    end = self._pop(ins)
+                    start = self._pop(ins)
+                    collection = self._pop(ins)
+                    self.stack.append(slice_string(collection, start, end, ins.span))
                 elif ins.op == Op.INDEX:
                     index = self._pop(ins)
                     collection = self._pop(ins)

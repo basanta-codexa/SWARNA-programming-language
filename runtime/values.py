@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 
 from compiler.ast.nodes import TypeAnnotation
-from compiler.diagnostics import MAX_INT_DIGITS, SwarnaRuntimeError
+from compiler.diagnostics import MAX_INT_DIGITS, SourceSpan, SwarnaRuntimeError, SwarnaTypeError
 
 
 class _UnitValue:
@@ -61,6 +61,26 @@ def _int_digit_count(value: int) -> int:
     if value == 0:
         return 1
     return int(abs(value).bit_length() * math.log10(2)) + 1
+
+
+def slice_string(text: Value, start: Value, end: Value | None, span: SourceSpan | None) -> str:
+    """Return text[start:end] with language-level type checks."""
+
+    if type(text) is not str:
+        raise SwarnaTypeError(
+            f"Cannot slice {value_type_name(text)}",
+            span,
+            hint="Only String values can be sliced.",
+            category="type-mismatch",
+        )
+    if type(start) is not int or (end is not None and type(end) is not int):
+        raise SwarnaTypeError(
+            "Slice bounds must be Int",
+            span,
+            hint="Use Int bounds, such as `text[1:3]`.",
+            category="type-mismatch",
+        )
+    return text[start:end]
 
 
 def value_type_name(value: Value) -> str:

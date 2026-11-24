@@ -39,6 +39,7 @@ class Op(Enum):
     BUILD_LIST = auto()
     BUILD_MAP = auto()
     INDEX = auto()
+    SLICE = auto()
     STORE_INDEX = auto()
     MAP_GET = auto()
     LEN = auto()
