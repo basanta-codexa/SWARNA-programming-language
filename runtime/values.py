@@ -104,6 +104,40 @@ def append_value(collection: Value, value: Value, span: SourceSpan | None) -> Va
     return UNIT
 
 
+def first_value(collection: Value, span: SourceSpan | None) -> Value:
+    if not isinstance(collection, list):
+        raise SwarnaTypeError(
+            f"Function 'first' expects a List, got {value_type_name(collection)}",
+            span,
+            hint="Pass a List to `first`.",
+            category="type-mismatch",
+        )
+    if not collection:
+        raise SwarnaRuntimeError(
+            "Function 'first' cannot be called on an empty list",
+            span,
+            hint="Add an element before reading the first value.",
+        )
+    return collection[0]
+
+
+def last_value(collection: Value, span: SourceSpan | None) -> Value:
+    if not isinstance(collection, list):
+        raise SwarnaTypeError(
+            f"Function 'last' expects a List, got {value_type_name(collection)}",
+            span,
+            hint="Pass a List to `last`.",
+            category="type-mismatch",
+        )
+    if not collection:
+        raise SwarnaRuntimeError(
+            "Function 'last' cannot be called on an empty list",
+            span,
+            hint="Add an element before reading the last value.",
+        )
+    return collection[-1]
+
+
 def value_type_name(value: Value) -> str:
     """Return the user-facing name of a runtime value's type."""
 

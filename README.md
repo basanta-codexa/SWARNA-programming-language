@@ -99,7 +99,7 @@ python -m swarna --run examples/team_averages.sw
 - **Error handling (v1):** `throw "message"` and `try { ... } catch e { ... }`. Caught runtime/user errors bind the error message to `e` as a `String`.
 - **Functions:** `fn` declarations, optional parameter and return annotations, `return`, recursion/mutual recursion, and local scope.
 - **Collections and strings:** List and map literals, indexing, map assignment and `get`, `len`, list concatenation with `+`, string/list indexing with `start:end` slices (negative bounds allowed), string iteration, and `range(...)`.
-- **Built-ins and I/O:** `print`, `len`, `get`, `range`, `input`, `int`, `float`, `str`, `read_file`, `read_csv`, `upper`, `lower`, `contains`, `split`, and `append`. `print` accepts one or more comma-separated values and joins them with `, ` on one line: `print("Hello", 12)` prints `Hello, 12`. As an expression, `print(...)` returns `Unit` (`()`).
+- **Built-ins and I/O:** `print`, `len`, `get`, `range`, `input`, `int`, `float`, `str`, `read_file`, `read_csv`, `upper`, `lower`, `contains`, `split`, `append`, `first`, and `last`. `print` accepts one or more comma-separated values and joins them with `, ` on one line: `print("Hello", 12)` prints `Hello, 12`. As an expression, `print(...)` returns `Unit` (`()`).
 - **Tooling:** Interpreter and bytecode VM execution paths, REPL, source diagnostics with hints, and `--explain` for selected error categories.
 - **Syntax:** `#` line comments. Identifiers use ASCII letters, digits, and underscores, and cannot start with a digit. String literals cannot span lines; use `\n`.
 

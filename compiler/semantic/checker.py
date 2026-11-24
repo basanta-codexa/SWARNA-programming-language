@@ -93,7 +93,7 @@ Type.UNIT = Type("Unit")
 Type.UNKNOWN = Type("Unknown")
 
 
-BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "int", "float", "str", "range", "read_file", "read_csv", "upper", "lower", "contains", "split", "append"})
+BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "int", "float", "str", "range", "read_file", "read_csv", "upper", "lower", "contains", "split", "append", "first", "last"})
 
 
 @dataclass(frozen=True)
@@ -903,6 +903,23 @@ class TypeChecker:
                         category="type-mismatch",
                     )
                 return Type.STRING
+            if expr.callee.name in ("first", "last"):
+                name = expr.callee.name
+                if len(expr.arguments) != 1:
+                    self._error(
+                        f"Function '{name}' expects 1 argument, got {len(expr.arguments)}",
+                        expr.span,
+                        f"Pass one List to `{name}`.",
+                    )
+                list_type = self.check_expression(expr.arguments[0])
+                if list_type is not Type.UNKNOWN and not list_type.is_list:
+                    self._error(
+                        f"Function '{name}' expects a List, got {list_type.label}",
+                        expr.arguments[0].span,
+                        f"Pass a List to `{name}`.",
+                        category="type-mismatch",
+                    )
+                return list_type.element_type if list_type.is_list else Type.UNKNOWN
             if expr.callee.name == "append":
                 if len(expr.arguments) != 2:
                     self._error(

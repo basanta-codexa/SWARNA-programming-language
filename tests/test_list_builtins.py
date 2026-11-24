@@ -1,7 +1,7 @@
 import unittest
 
 from compiler.codegen.compiler import Compiler
-from compiler.diagnostics import SwarnaSemanticError
+from compiler.diagnostics import SwarnaRuntimeError, SwarnaSemanticError
 from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 from compiler.semantic.checker import TypeChecker
@@ -61,6 +61,41 @@ class TestAppend(unittest.TestCase):
     def test_checker_rejects_wrong_argument_count(self):
         with self.assertRaises(SwarnaSemanticError):
             TypeChecker().check(_parse("append([1])"))
+
+
+class TestFirstLast(unittest.TestCase):
+    def _assert_both(self, source: str, expected: list[str]) -> None:
+        self.assertEqual(_interpreter_output(source), expected)
+        self.assertEqual(_vm_output(source), expected)
+
+    def test_checker_preserves_element_type(self):
+        checker = TypeChecker()
+        checker.check(_parse("let x = first([1, 2]) let y = last([1, 2])"))
+        self.assertEqual(checker.env["x"].type.label, "Int")
+        self.assertEqual(checker.env["y"].type.label, "Int")
+
+    def test_first(self):
+        self._assert_both("print(first([1, 2]))", ["1"])
+
+    def test_last(self):
+        self._assert_both("print(last([1, 2]))", ["2"])
+
+    def test_string_list(self):
+        self._assert_both('print(first(["a", "b"])) print(last(["a", "b"]))', ["a", "b"])
+
+    def test_empty_list_is_diagnostic(self):
+        with self.assertRaises(SwarnaRuntimeError):
+            _interpreter_output("print(first([]))")
+        with self.assertRaises(SwarnaRuntimeError):
+            _vm_output("print(last([]))")
+
+    def test_checker_rejects_non_list(self):
+        with self.assertRaises(SwarnaSemanticError):
+            TypeChecker().check(_parse("first(1)"))
+
+    def test_checker_rejects_wrong_argument_count(self):
+        with self.assertRaises(SwarnaSemanticError):
+            TypeChecker().check(_parse("last([1], [2])"))
 
 
 if __name__ == "__main__":

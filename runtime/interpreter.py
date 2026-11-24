@@ -16,6 +16,8 @@ from runtime.values import (
     annotation_has_float,
     annotation_is_float,
     coerce_to_annotation,
+    first_value,
+    last_value,
     format_literal,
     format_value,
     slice_value,
@@ -387,6 +389,16 @@ class Interpreter:
                     category="type-mismatch",
                 )
             return value.upper() if name == "upper" else value.lower()
+        if expr.callee.name in ("first", "last"):
+            if len(expr.arguments) != 1:
+                raise SwarnaRuntimeError(
+                    f"Function '{expr.callee.name}' expects 1 argument, got {len(expr.arguments)}",
+                    expr.span,
+                    hint=f"Pass one List to `{expr.callee.name}`.",
+                )
+            collection = self.eval_expression(expr.arguments[0])
+            helper = first_value if expr.callee.name == "first" else last_value
+            return helper(collection, expr.span)
         if expr.callee.name == "append":
             if len(expr.arguments) != 2:
                 raise SwarnaRuntimeError(

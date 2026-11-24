@@ -463,8 +463,8 @@ class TestCLIHelpers(unittest.TestCase):
     def test_repl_preserves_collection_annotations(self):
         stderr = io.StringIO()
         inputs = iter([
-            "fn first(xs: List[Int]) -> Int { xs[0] }",
-            'let x = first(["a"])',
+            "fn head(xs: List[Int]) -> Int { xs[0] }",
+            'let x = head(["a"])',
             ":q",
         ])
         with (
@@ -476,7 +476,7 @@ class TestCLIHelpers(unittest.TestCase):
             code = main(["--run"])
         self.assertEqual(code, 0)
         self.assertIn(
-            "Argument 1 of 'first' must be List[Int], got List[String]",
+            "Argument 1 of 'head' must be List[Int], got List[String]",
             stderr.getvalue(),
         )
 

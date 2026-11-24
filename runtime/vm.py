@@ -20,7 +20,9 @@ from runtime.values import (
     append_value,
     coerce_to_annotation,
     format_literal,
+    first_value,
     format_value,
+    last_value,
     slice_value,
     value_type_name,
 )
@@ -713,6 +715,10 @@ class VM:
                     value = self._pop(ins)
                     collection = self._pop(ins)
                     self.stack.append(append_value(collection, value, ins.span))
+                elif ins.op in (Op.FIRST, Op.LAST):
+                    collection = self._pop(ins)
+                    helper = first_value if ins.op == Op.FIRST else last_value
+                    self.stack.append(helper(collection, ins.span))
                 elif ins.op == Op.ITER_START:
                     iterable = self._pop(ins)
                     if not isinstance(iterable, (list, dict, str)):

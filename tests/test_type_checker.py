@@ -178,9 +178,9 @@ class TestTypeInference(unittest.TestCase):
         )
 
     def test_unannotated_list_parameter_is_unknown(self):
-        checker = check("fn first(xs) { xs[0] }")
-        self.assertIs(checker.functions["first"].parameters[0], Type.UNKNOWN)
-        self.assertIs(checker.functions["first"].return_type, Type.UNKNOWN)
+        checker = check("fn head(xs) { xs[0] }")
+        self.assertIs(checker.functions["head"].parameters[0], Type.UNKNOWN)
+        self.assertIs(checker.functions["head"].return_type, Type.UNKNOWN)
 
 
 class TestSemanticErrors(unittest.TestCase):
@@ -561,7 +561,7 @@ class TestFunctions(unittest.TestCase):
     def test_read_csv_row_column_is_unknown(self):
         checker = check(
             'let rows = read_csv("scores.csv", { name: String, score: Float })'
-            ' let first = rows[0] let score = first["score"]'
+            ' let row = rows[0] let score = row["score"]'
         )
         self.assertIs(checker.env["score"].type, Type.UNKNOWN)
 
@@ -699,17 +699,17 @@ class TestFunctions(unittest.TestCase):
 
     def test_function_collection_annotations(self):
         checker = check(
-            "fn first(xs: List[Int]) -> Int { xs[0] } "
-            "let x = first([1, 2])"
+            "fn head(xs: List[Int]) -> Int { xs[0] } "
+            "let x = head([1, 2])"
         )
         self.assertIs(checker.env["x"].type, Type.INT)
 
     def test_function_collection_annotation_rejects_wrong_argument(self):
         with self.assertRaisesRegex(
             SwarnaSemanticError,
-            "Argument 1 of 'first' must be List\\[Int\\], got List\\[Float\\]",
+            "Argument 1 of 'head' must be List\\[Int\\], got List\\[Float\\]",
         ):
-            check("fn first(xs: List[Int]) -> Int { xs[0] } let x = first([1.0])")
+            check("fn head(xs: List[Int]) -> Int { xs[0] } let x = head([1.0])")
 
     def test_function_collection_return_annotation_is_checked(self):
         with self.assertRaisesRegex(

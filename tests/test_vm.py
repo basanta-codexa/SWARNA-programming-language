@@ -861,7 +861,7 @@ class TestVMCollections(unittest.TestCase):
             "let xs = [1] + [2, 3] print(xs)",
             "let xs = [[1], [2, 3]] print(xs[1][0])",
             "let x = [1, 2] == [1, 2] print(x)",
-            "fn first(xs) { xs[0] } print(first([9, 8]))",
+            "fn head(xs) { xs[0] } print(head([9, 8]))",
             'let m = { "a": 1 } print(m["a"] + len(m))',
             'print({ "a": 1, "b": 2 })',
             'let m = { "a": { "b": 2 } } print(m["a"]["b"])',
