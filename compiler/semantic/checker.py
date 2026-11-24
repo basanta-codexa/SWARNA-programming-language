@@ -93,7 +93,7 @@ Type.UNIT = Type("Unit")
 Type.UNKNOWN = Type("Unknown")
 
 
-BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "int", "float", "str", "range", "read_file", "read_csv", "upper", "lower"})
+BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "int", "float", "str", "range", "read_file", "read_csv", "upper", "lower", "contains"})
 
 
 @dataclass(frozen=True)
@@ -909,6 +909,23 @@ class TypeChecker:
                         category="type-mismatch",
                     )
                 return Type.STRING
+            if expr.callee.name == "contains":
+                if len(expr.arguments) != 2:
+                    self._error(
+                        f"Function 'contains' expects 2 arguments, got {len(expr.arguments)}",
+                        expr.span,
+                        "Pass the text and the part to look for.",
+                    )
+                for argument in expr.arguments:
+                    argument_type = self.check_expression(argument)
+                    if argument_type is not Type.UNKNOWN and argument_type is not Type.STRING:
+                        self._error(
+                            f"Function 'contains' expects String arguments, got {argument_type.label}",
+                            argument.span,
+                            "Pass two String values to `contains`.",
+                            category="type-mismatch",
+                        )
+                return Type.BOOL
             if expr.callee.name == "len":
                 if len(expr.arguments) != 1:
                     self._error(

@@ -373,6 +373,23 @@ class Interpreter:
                     category="type-mismatch",
                 )
             return value.upper() if name == "upper" else value.lower()
+        if expr.callee.name == "contains":
+            if len(expr.arguments) != 2:
+                raise SwarnaRuntimeError(
+                    f"Function 'contains' expects 2 arguments, got {len(expr.arguments)}",
+                    expr.span,
+                    hint="Pass the text and the part to look for.",
+                )
+            values = [self.eval_expression(argument) for argument in expr.arguments]
+            for value, argument in zip(values, expr.arguments):
+                if type(value) is not str:
+                    raise SwarnaTypeError(
+                        f"Function 'contains' expects String arguments, got {value_type_name(value)}",
+                        argument.span,
+                        hint="Pass two String values to `contains`.",
+                        category="type-mismatch",
+                    )
+            return values[1] in values[0]
         if expr.callee.name == "len":
             if len(expr.arguments) != 1:
                 raise SwarnaRuntimeError(

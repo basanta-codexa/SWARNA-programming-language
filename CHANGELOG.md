@@ -8,6 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- `contains(text, part)` string built-in returning Bool.
 - `upper(text)` and `lower(text)` string built-ins.
 - String slicing with `text[start:end]`, including omitted bounds and negative indices.
 - `--vm` CLI flag to run programs on the bytecode VM, alongside the existing interpreter path.

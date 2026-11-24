@@ -59,5 +59,32 @@ class TestUpperLower(unittest.TestCase):
             _check('upper("a", "b")')
 
 
+class TestContains(unittest.TestCase):
+    def _assert_both(self, source: str, expected: list[str]) -> None:
+        self.assertEqual(_interpreter_output(source), expected)
+        self.assertEqual(_vm_output(source), expected)
+
+    def test_checker_returns_bool(self):
+        checker = _check('let b = contains("hello", "ell")')
+        self.assertIs(checker.env["b"].type, Type.BOOL)
+
+    def test_found(self):
+        self._assert_both('print(contains("hello", "ell"))', ["true"])
+
+    def test_not_found(self):
+        self._assert_both('print(contains("hello", "xyz"))', ["false"])
+
+    def test_empty_part(self):
+        self._assert_both('print(contains("hello", ""))', ["true"])
+
+    def test_wrong_argument_count(self):
+        with self.assertRaises(SwarnaSemanticError):
+            _check('contains("hello")')
+
+    def test_wrong_argument_type(self):
+        with self.assertRaises(SwarnaSemanticError):
+            _check('contains(1, "a")')
+
+
 if __name__ == "__main__":
     unittest.main()

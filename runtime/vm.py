@@ -670,6 +670,17 @@ class VM:
                             category="type-mismatch",
                         )
                     self.stack.append(value.upper() if ins.op == Op.UPPER else value.lower())
+                elif ins.op == Op.CONTAINS:
+                    part = self._pop(ins)
+                    text = self._pop(ins)
+                    if type(text) is not str or type(part) is not str:
+                        raise SwarnaTypeError(
+                            "Function 'contains' expects String arguments",
+                            ins.span,
+                            hint="Pass two String values to `contains`.",
+                            category="type-mismatch",
+                        )
+                    self.stack.append(part in text)
                 elif ins.op == Op.ITER_START:
                     iterable = self._pop(ins)
                     if not isinstance(iterable, (list, dict, str)):
