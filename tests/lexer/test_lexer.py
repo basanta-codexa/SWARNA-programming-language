@@ -138,6 +138,15 @@ class TestLexer(unittest.TestCase):
         self.assertEqual(error.span.column, 3)
         self.assertTrue(error.hint)
 
+    def test_newline_inside_string_is_rejected(self):
+        with self.assertRaises(SwarnaSyntaxError) as raised:
+            Lexer('"a\nb"').tokenize()
+        error = raised.exception
+        self.assertIn("cannot span lines", error.message)
+        self.assertEqual(error.span.line, 1)
+        self.assertEqual(error.span.column, 3)
+        self.assertIn("\\n", error.hint or "")
+
     def test_unterminated_string(self):
         lexer = Lexer('"hello')
         with self.assertRaises(SyntaxError):

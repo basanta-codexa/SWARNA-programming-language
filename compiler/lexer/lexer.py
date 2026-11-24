@@ -78,6 +78,12 @@ class Lexer:
                     )
                 chars.append(escapes[self.current_char])
                 self.advance()
+            elif self.current_char in ("\n", "\r"):
+                raise SwarnaSyntaxError(
+                    "String literal cannot span lines",
+                    SourceSpan(self.line, self.column, 1),
+                    hint="Use \\n for a newline inside a string.",
+                )
             else:
                 chars.append(self.current_char)
                 self.advance()
