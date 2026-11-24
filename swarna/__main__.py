@@ -8,6 +8,7 @@ from compiler.lexer.lexer import Lexer
 from compiler.parser.parser import Parser
 from compiler.semantic.checker import Binding, FunctionSignature, Type, TypeChecker, type_from_annotation, type_of_value
 from runtime.interpreter import Interpreter
+from runtime.vm import VM
 from runtime.values import format_value
 from swarna import __version__
 
@@ -116,6 +117,17 @@ def run_source(
     return "\n".join(format_value(value) for value in interpreter.output[output_start:])
 
 
+def run_vm_source(source: str) -> str:
+    """Run source on the bytecode VM and return its printed output."""
+
+    program = Parser(Lexer(source)).parse_program()
+    checker = TypeChecker()
+    checker.check(program)
+    vm = VM()
+    vm.run(Compiler(checker.expression_types).compile(program))
+    return "\n".join(format_value(value) for value in vm.output)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="swarna", description="SWARNA language tools (minimal)")
     parser.add_argument(
@@ -128,6 +140,7 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--parse", action="store_true", help="Print AST for the input")
     mode.add_argument("--emit-bytecode", action="store_true", help="Print compiled bytecode for the input")
     mode.add_argument("--run", action="store_true", help="Run the input and print its output")
+    mode.add_argument("--vm", action="store_true", help="Run the input on the bytecode VM")
     parser.add_argument(
         "--explain",
         action="store_true",
@@ -141,9 +154,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     source_name: str | None = None
-    mode_explicit = bool(args.run or args.parse or args.emit_bytecode or args.lex)
+    mode_explicit = bool(args.run or args.vm or args.parse or args.emit_bytecode or args.lex)
 
     def render(source: str) -> str:
+        if args.vm:
+            return run_vm_source(source)
         if args.run:
             return run_source(source)
         if args.parse:
@@ -223,7 +238,7 @@ def main(argv: list[str] | None = None) -> int:
     function_signatures: dict[str, FunctionSignature] = {}
     explain = args.explain
     print(
-        "SWARNA (minimal) — enter a line, :lex/:parse/:bytecode/:run prefixes optional, "
+        "SWARNA (minimal) — enter a line, :lex/:parse/:bytecode/:run/:vm prefixes optional, "
         ":explain toggles full explanations, :q to quit"
     )
     while True:
@@ -240,7 +255,7 @@ def main(argv: list[str] | None = None) -> int:
             explain = not explain
             print(f"explanations {'on' if explain else 'off'}")
             continue
-        action = "run" if args.run else "parse" if args.parse else "bytecode" if args.emit_bytecode else "lex"
+        action = "vm" if args.vm else "run" if args.run else "parse" if args.parse else "bytecode" if args.emit_bytecode else "lex"
         source = line
         if line.startswith(":parse "):
             action, source = "parse", line[7:]
@@ -248,6 +263,8 @@ def main(argv: list[str] | None = None) -> int:
             action, source = "bytecode", line[10:]
         elif line.startswith(":run "):
             action, source = "run", line[5:]
+        elif line.startswith(":vm "):
+            action, source = "vm", line[4:]
         elif line.startswith(":lex "):
             action, source = "lex", line[5:]
         try:
@@ -257,6 +274,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(emit_bytecode_source(source))
             elif action == "run":
                 output = run_source(source, interpreter, function_signatures)
+                if output:
+                    print(output)
+            elif action == "vm":
+                output = run_vm_source(source)
                 if output:
                     print(output)
             else:

@@ -687,6 +687,42 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertIn("Undefined name 'missing'", output)
         self.assertIn(str(path), output)
 
+    def test_vm_cli_runs_inline_source(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            code = main(["--vm", "print(1 + 2)"])
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.getvalue(), "3\n")
+
+    def test_vm_cli_matches_interpreter(self):
+        source = (
+            "fn double(x: Int) -> Int { x * 2 } "
+            "let xs = [1, 2, 3] "
+            "for x in xs { print(double(x)) }"
+        )
+        interpreter_stdout = io.StringIO()
+        vm_stdout = io.StringIO()
+        with contextlib.redirect_stdout(interpreter_stdout):
+            interpreter_code = main(["--run", source])
+        with contextlib.redirect_stdout(vm_stdout):
+            vm_code = main(["--vm", source])
+        self.assertEqual(interpreter_code, 0)
+        self.assertEqual(vm_code, 0)
+        self.assertEqual(vm_stdout.getvalue(), interpreter_stdout.getvalue())
+
+    def test_vm_cli_runs_source_file(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "program.sw"
+            path.write_text("print(7)\n", encoding="utf-8")
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                code = main(["--vm", str(path)])
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.getvalue(), "7\n")
+
     def test_run_cli_reports_missing_source_file(self):
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):

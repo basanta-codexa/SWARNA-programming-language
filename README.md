@@ -54,6 +54,7 @@ python -m swarna --version
 python -m swarna --lex "let x = 42"
 python -m swarna --parse "let x = 1 + 2 * 3"
 python -m swarna --emit-bytecode "let x = 1 + 2"
+python -m swarna --vm "let x = 1 + 2 print(x)"
 ```
 
 ### Multi-line programs via stdin
