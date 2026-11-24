@@ -104,6 +104,24 @@ def append_value(collection: Value, value: Value, span: SourceSpan | None) -> Va
     return UNIT
 
 
+def sum_value(collection: Value, span: SourceSpan | None) -> Value:
+    if not isinstance(collection, list):
+        raise SwarnaTypeError(
+            f"Function 'sum' expects a List, got {value_type_name(collection)}",
+            span,
+            hint="Pass a List to `sum`.",
+            category="type-mismatch",
+        )
+    if any(type(item) not in (int, float) for item in collection):
+        raise SwarnaTypeError(
+            "Function 'sum' expects a numeric List",
+            span,
+            hint="Use a List[Int] or List[Float].",
+            category="type-mismatch",
+        )
+    return sum(collection)
+
+
 def first_value(collection: Value, span: SourceSpan | None) -> Value:
     if not isinstance(collection, list):
         raise SwarnaTypeError(

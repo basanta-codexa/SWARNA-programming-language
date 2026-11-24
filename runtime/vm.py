@@ -24,6 +24,7 @@ from runtime.values import (
     format_value,
     last_value,
     slice_value,
+    sum_value,
     value_type_name,
 )
 
@@ -719,6 +720,9 @@ class VM:
                     collection = self._pop(ins)
                     helper = first_value if ins.op == Op.FIRST else last_value
                     self.stack.append(helper(collection, ins.span))
+                elif ins.op == Op.SUM:
+                    collection = self._pop(ins)
+                    self.stack.append(sum_value(collection, ins.span))
                 elif ins.op == Op.ITER_START:
                     iterable = self._pop(ins)
                     if not isinstance(iterable, (list, dict, str)):

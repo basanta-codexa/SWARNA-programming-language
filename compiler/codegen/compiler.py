@@ -428,6 +428,12 @@ class Compiler:
                 self.compile_expression(expr.arguments[0])
                 self.emit(Op.UPPER if expr.callee.name == "upper" else Op.LOWER, span=expr.span)
                 return
+            if expr.callee.name == "sum":
+                if len(expr.arguments) != 1:
+                    raise RuntimeError("`sum` expects exactly one argument")
+                self.compile_expression(expr.arguments[0])
+                self.emit(Op.SUM, span=expr.span)
+                return
             if expr.callee.name in ("first", "last"):
                 if len(expr.arguments) != 1:
                     raise RuntimeError(f"`{expr.callee.name}` expects exactly one argument")

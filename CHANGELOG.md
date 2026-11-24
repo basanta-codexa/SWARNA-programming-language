@@ -8,6 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- `sum(xs)` list built-in returning Int or Float for numeric lists.
 - `first(xs)` and `last(xs)` list built-ins preserving the element type.
 - `append(xs, value)` list built-in returning `Unit` and mutating a `let` list.
 - List slicing with `values[start:end]`, including omitted bounds and negative indices.

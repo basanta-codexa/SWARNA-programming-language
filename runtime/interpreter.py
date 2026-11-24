@@ -21,6 +21,7 @@ from runtime.values import (
     format_literal,
     format_value,
     slice_value,
+    sum_value,
     value_type_name,
     MAP_MUTATION_HINT,
     MAP_MUTATION_MESSAGE,
@@ -389,6 +390,14 @@ class Interpreter:
                     category="type-mismatch",
                 )
             return value.upper() if name == "upper" else value.lower()
+        if expr.callee.name == "sum":
+            if len(expr.arguments) != 1:
+                raise SwarnaRuntimeError(
+                    f"Function 'sum' expects 1 argument, got {len(expr.arguments)}",
+                    expr.span,
+                    hint="Pass one numeric List to `sum`.",
+                )
+            return sum_value(self.eval_expression(expr.arguments[0]), expr.span)
         if expr.callee.name in ("first", "last"):
             if len(expr.arguments) != 1:
                 raise SwarnaRuntimeError(

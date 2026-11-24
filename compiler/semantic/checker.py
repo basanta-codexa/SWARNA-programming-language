@@ -93,7 +93,7 @@ Type.UNIT = Type("Unit")
 Type.UNKNOWN = Type("Unknown")
 
 
-BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "int", "float", "str", "range", "read_file", "read_csv", "upper", "lower", "contains", "split", "append", "first", "last"})
+BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "int", "float", "str", "range", "read_file", "read_csv", "upper", "lower", "contains", "split", "append", "first", "last", "sum"})
 
 
 @dataclass(frozen=True)
@@ -903,6 +903,30 @@ class TypeChecker:
                         category="type-mismatch",
                     )
                 return Type.STRING
+            if expr.callee.name == "sum":
+                if len(expr.arguments) != 1:
+                    self._error(
+                        f"Function 'sum' expects 1 argument, got {len(expr.arguments)}",
+                        expr.span,
+                        "Pass one numeric List to `sum`.",
+                    )
+                list_type = self.check_expression(expr.arguments[0])
+                if list_type is not Type.UNKNOWN and not list_type.is_list:
+                    self._error(
+                        f"Function 'sum' expects a List, got {list_type.label}",
+                        expr.arguments[0].span,
+                        "Pass a List to `sum`.",
+                        category="type-mismatch",
+                    )
+                element_type = list_type.element_type if list_type.is_list else Type.UNKNOWN
+                if element_type not in (Type.INT, Type.FLOAT, Type.UNKNOWN):
+                    self._error(
+                        f"Function 'sum' expects a numeric List, got {list_type.label}",
+                        expr.arguments[0].span,
+                        "Use a List[Int] or List[Float].",
+                        category="type-mismatch",
+                    )
+                return Type.FLOAT if element_type is Type.FLOAT else Type.INT
             if expr.callee.name in ("first", "last"):
                 name = expr.callee.name
                 if len(expr.arguments) != 1:

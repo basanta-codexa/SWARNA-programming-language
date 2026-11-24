@@ -98,5 +98,42 @@ class TestFirstLast(unittest.TestCase):
             TypeChecker().check(_parse("last([1], [2])"))
 
 
+class TestSum(unittest.TestCase):
+    def _assert_both(self, source: str, expected: list[str]) -> None:
+        self.assertEqual(_interpreter_output(source), expected)
+        self.assertEqual(_vm_output(source), expected)
+
+    def test_checker_returns_int_for_int_list(self):
+        checker = TypeChecker()
+        checker.check(_parse("let total = sum([1, 2, 3])"))
+        self.assertEqual(checker.env["total"].type.label, "Int")
+
+    def test_checker_returns_float_for_float_list(self):
+        checker = TypeChecker()
+        checker.check(_parse("let total = sum([1.5, 2.5])"))
+        self.assertEqual(checker.env["total"].type.label, "Float")
+
+    def test_sum_ints(self):
+        self._assert_both("print(sum([1, 2, 3]))", ["6"])
+
+    def test_sum_floats(self):
+        self._assert_both("print(str(sum([1.5, 2.5])))", ["4.0"])
+
+    def test_sum_empty_list(self):
+        self._assert_both("print(sum([]))", ["0"])
+
+    def test_checker_rejects_string_list(self):
+        with self.assertRaises(SwarnaSemanticError):
+            TypeChecker().check(_parse('sum(["a", "b"])'))
+
+    def test_checker_rejects_non_list(self):
+        with self.assertRaises(SwarnaSemanticError):
+            TypeChecker().check(_parse("sum(1)"))
+
+    def test_checker_rejects_wrong_argument_count(self):
+        with self.assertRaises(SwarnaSemanticError):
+            TypeChecker().check(_parse("sum([1], [2])"))
+
+
 if __name__ == "__main__":
     unittest.main()
