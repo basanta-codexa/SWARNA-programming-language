@@ -660,6 +660,16 @@ class VM:
                 elif ins.op == Op.TO_STR:
                     value = self._pop(ins)
                     self.stack.append(format_value(value))
+                elif ins.op in (Op.UPPER, Op.LOWER):
+                    value = self._pop(ins)
+                    if type(value) is not str:
+                        raise SwarnaTypeError(
+                            f"String function expects a String, got {value_type_name(value)}",
+                            ins.span,
+                            hint="Pass a String value.",
+                            category="type-mismatch",
+                        )
+                    self.stack.append(value.upper() if ins.op == Op.UPPER else value.lower())
                 elif ins.op == Op.ITER_START:
                     iterable = self._pop(ins)
                     if not isinstance(iterable, (list, dict, str)):

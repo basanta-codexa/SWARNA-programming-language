@@ -356,6 +356,23 @@ class Interpreter:
                 )
             self._print_values([self.eval_expression(argument) for argument in expr.arguments])
             return UNIT
+        if expr.callee.name in ("upper", "lower"):
+            name = expr.callee.name
+            if len(expr.arguments) != 1:
+                raise SwarnaRuntimeError(
+                    f"Function '{name}' expects 1 argument, got {len(expr.arguments)}",
+                    expr.span,
+                    hint=f"Pass one String to `{name}`.",
+                )
+            value = self.eval_expression(expr.arguments[0])
+            if type(value) is not str:
+                raise SwarnaTypeError(
+                    f"Function '{name}' expects a String, got {value_type_name(value)}",
+                    expr.arguments[0].span,
+                    hint=f"Pass a String value to `{name}`.",
+                    category="type-mismatch",
+                )
+            return value.upper() if name == "upper" else value.lower()
         if expr.callee.name == "len":
             if len(expr.arguments) != 1:
                 raise SwarnaRuntimeError(

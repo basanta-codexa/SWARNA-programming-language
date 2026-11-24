@@ -411,6 +411,12 @@ class Compiler:
                 self.compile_expression(expr.arguments[0])
                 self.emit(Op.TO_STR, span=expr.span)
                 return
+            if expr.callee.name in ("upper", "lower"):
+                if len(expr.arguments) != 1:
+                    raise RuntimeError(f"`{expr.callee.name}` expects exactly one argument")
+                self.compile_expression(expr.arguments[0])
+                self.emit(Op.UPPER if expr.callee.name == "upper" else Op.LOWER, span=expr.span)
+                return
             if expr.callee.name == "read_file":
                 if len(expr.arguments) != 1:
                     raise RuntimeError("`read_file` expects exactly one argument")

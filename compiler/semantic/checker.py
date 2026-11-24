@@ -93,7 +93,7 @@ Type.UNIT = Type("Unit")
 Type.UNKNOWN = Type("Unknown")
 
 
-BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "int", "float", "str", "range", "read_file", "read_csv"})
+BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "int", "float", "str", "range", "read_file", "read_csv", "upper", "lower"})
 
 
 @dataclass(frozen=True)
@@ -892,6 +892,23 @@ class TypeChecker:
                 for argument in expr.arguments:
                     self.check_expression(argument)
                 return Type.UNIT
+            if expr.callee.name in ("upper", "lower"):
+                name = expr.callee.name
+                if len(expr.arguments) != 1:
+                    self._error(
+                        f"Function '{name}' expects 1 argument, got {len(expr.arguments)}",
+                        expr.span,
+                        f"Pass one String to `{name}`.",
+                    )
+                argument_type = self.check_expression(expr.arguments[0])
+                if argument_type is not Type.UNKNOWN and argument_type is not Type.STRING:
+                    self._error(
+                        f"Function '{name}' expects a String, got {argument_type.label}",
+                        expr.arguments[0].span,
+                        f"Pass a String value to `{name}`.",
+                        category="type-mismatch",
+                    )
+                return Type.STRING
             if expr.callee.name == "len":
                 if len(expr.arguments) != 1:
                     self._error(

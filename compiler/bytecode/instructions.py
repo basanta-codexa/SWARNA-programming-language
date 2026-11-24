@@ -48,6 +48,8 @@ class Op(Enum):
     TO_INT = auto()
     TO_FLOAT = auto()
     TO_STR = auto()
+    UPPER = auto()
+    LOWER = auto()
     READ_FILE = auto()
     READ_CSV = auto()
     THROW = auto()
