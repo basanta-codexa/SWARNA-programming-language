@@ -175,7 +175,7 @@ class Compiler:
                 self.emit(Op.COERCE, map_annotation.arguments[1], stmt.span)
             elif list_annotation is not None:
                 self.emit(Op.COERCE, list_annotation.arguments[0], stmt.span)
-            self.emit(Op.STORE_INDEX, root_name, stmt.span)
+            self.emit(Op.STORE_INDEX, root_name, stmt.target.span)
             return
         if isinstance(stmt, BreakStatement):
             if not self.loop_stack:
@@ -366,7 +366,7 @@ class Compiler:
             if expr.index is None:
                 raise RuntimeError("Index expression has no index or slice end")
             self.compile_expression(expr.index)
-            self.emit(Op.INDEX, span=expr.span)
+            self.emit(Op.INDEX, span=expr.index.span)
             return
         if isinstance(expr, CallExpression):
             if expr.callee.name == "print":
