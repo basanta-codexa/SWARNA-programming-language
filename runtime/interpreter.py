@@ -17,7 +17,7 @@ from runtime.values import (
     coerce_to_annotation,
     format_literal,
     format_value,
-    slice_string,
+    slice_value,
     value_type_name,
     MAP_MUTATION_HINT,
     MAP_MUTATION_MESSAGE,
@@ -737,7 +737,7 @@ class Interpreter:
             if expr.is_slice:
                 start = self.eval_expression(expr.index) if expr.index is not None else 0
                 end = self.eval_expression(expr.end) if expr.end is not None else None
-                return slice_string(collection, start, end, expr.span)
+                return slice_value(collection, start, end, expr.span)
             if expr.index is None:
                 raise SwarnaTypeError(
                     "Index is missing",

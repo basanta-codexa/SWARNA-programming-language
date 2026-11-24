@@ -63,14 +63,14 @@ def _int_digit_count(value: int) -> int:
     return int(abs(value).bit_length() * math.log10(2)) + 1
 
 
-def slice_string(text: Value, start: Value, end: Value | None, span: SourceSpan | None) -> str:
-    """Return text[start:end] with language-level type checks."""
+def slice_value(collection: Value, start: Value, end: Value | None, span: SourceSpan | None) -> Value:
+    """Return collection[start:end] for Strings and Lists with type checks."""
 
-    if type(text) is not str:
+    if not isinstance(collection, (str, list)):
         raise SwarnaTypeError(
-            f"Cannot slice {value_type_name(text)}",
+            f"Cannot slice {value_type_name(collection)}",
             span,
-            hint="Only String values can be sliced.",
+            hint="Only String and List values can be sliced.",
             category="type-mismatch",
         )
     if type(start) is not int or (end is not None and type(end) is not int):
@@ -80,7 +80,7 @@ def slice_string(text: Value, start: Value, end: Value | None, span: SourceSpan 
             hint="Use Int bounds, such as `text[1:3]`.",
             category="type-mismatch",
         )
-    return text[start:end]
+    return collection[start:end]
 
 
 def value_type_name(value: Value) -> str:

@@ -49,9 +49,9 @@ class TestStringSlices(unittest.TestCase):
     def test_empty_slice(self):
         self._assert_both('print("hello"[2:2])', [""])
 
-    def test_checker_rejects_list_slice(self):
+    def test_checker_rejects_map_slice(self):
         with self.assertRaises(SwarnaSemanticError):
-            TypeChecker().check(_parse("let s = [1, 2][0:1]"))
+            TypeChecker().check(_parse('let m = { "a": 1 }[0:1]'))
 
 
 if __name__ == "__main__":

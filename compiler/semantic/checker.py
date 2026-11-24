@@ -1234,11 +1234,13 @@ class TypeChecker:
                 "Use a list, map, or string value before the brackets.",
             )
         if expr.is_slice:
-            if collection_type is not Type.UNKNOWN and collection_type is not Type.STRING:
+            if collection_type is not Type.UNKNOWN and not (
+                collection_type.is_list or collection_type is Type.STRING
+            ):
                 self._error(
-                    "Slicing is only supported on String values",
+                    "Slicing is only supported on String and List values",
                     expr.span,
-                    "Use `text[start:end]` on a String.",
+                    "Use `text[start:end]` on a String or `values[start:end]` on a List.",
                     category="type-mismatch",
                 )
             end_type = (
@@ -1254,9 +1256,7 @@ class TypeChecker:
                         "Use Int bounds, such as `text[1:3]`.",
                         category="type-mismatch",
                     )
-            return collection_type, (
-                Type.STRING if collection_type is Type.STRING else Type.UNKNOWN
-            )
+            return collection_type, collection_type
         if collection_type.is_map:
             if index_type is not Type.UNKNOWN and not is_scalar_type(index_type):
                 self._error(

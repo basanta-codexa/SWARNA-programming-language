@@ -8,6 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- List slicing with `values[start:end]`, including omitted bounds and negative indices.
 - `split(text, separator)` string built-in returning `List[String]`.
 - `contains(text, part)` string built-in returning Bool.
 - `upper(text)` and `lower(text)` string built-ins.
