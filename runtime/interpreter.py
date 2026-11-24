@@ -195,20 +195,33 @@ class Interpreter:
             index = self.eval_expression(stmt.target.index)
             value = self.eval_expression(stmt.value)
             annotation = self.annotations.get(name)
-            if (
-                isinstance(stmt.target.collection, Identifier)
-                and annotation is not None
-                and annotation.name == "Map"
-                and len(annotation.arguments) == 2
-            ):
+            direct_target = isinstance(stmt.target.collection, Identifier)
+            if direct_target and annotation is not None and annotation.name == "Map" and len(annotation.arguments) == 2:
                 index = coerce_to_annotation(index, annotation.arguments[0])
                 value = coerce_to_annotation(value, annotation.arguments[1])
+            elif (
+                direct_target
+                and annotation is not None
+                and annotation.name == "List"
+                and len(annotation.arguments) == 1
+            ):
+                value = coerce_to_annotation(value, annotation.arguments[0])
             if isinstance(collection, list):
-                raise SwarnaTypeError(
-                    "Lists are immutable; cannot assign to an index",
-                    stmt.target.span,
-                    hint="Build a new list with `+` instead.",
-                )
+                if type(index) is not int:
+                    raise SwarnaTypeError(
+                        "List index must be Int",
+                        stmt.target.index.span,
+                        hint="Use an Int index, such as `values[0]`.",
+                    )
+                try:
+                    collection[index] = value
+                except IndexError:
+                    raise SwarnaRuntimeError(
+                        f"Index {index} is out of range for a list of length {len(collection)}",
+                        stmt.target.span,
+                        hint="Use an index within the list's bounds.",
+                    ) from None
+                return
             if not isinstance(collection, dict):
                 raise SwarnaTypeError(
                     f"Cannot assign to {value_type_name(collection)}",

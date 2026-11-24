@@ -576,26 +576,20 @@ class TypeChecker:
                     root.span,
                     "Change the binding to `let` if it needs to be reassigned.",
                 )
-            collection_type, _ = self._check_index_types(stmt.target)
+            collection_type, target_type = self._check_index_types(stmt.target)
             if collection_type is Type.UNKNOWN:
                 return
-            if collection_type.is_list:
-                self._error(
-                    "Lists are immutable; cannot assign to an index",
-                    stmt.target.span,
-                    "Build a new list with `+` instead.",
-                )
             if collection_type is Type.STRING:
                 self._error(
                     "Strings are immutable; cannot assign to an index",
                     stmt.target.span,
                     "Build a new string instead.",
                 )
-            if not self._is_assignable(collection_type.value_type, value_type):
+            if not self._is_assignable(target_type, value_type):
                 self._error(
                     f"Cannot assign {value_type.label} to {collection_type.label}",
                     stmt.value.span,
-                    f"Use a {collection_type.value_type.label} value.",
+                    f"Use a {target_type.label} value.",
                     category="type-mismatch",
                 )
             if collection_type.is_map and isinstance(stmt.target.collection, Identifier):

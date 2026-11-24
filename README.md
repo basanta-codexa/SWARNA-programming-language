@@ -106,7 +106,7 @@ python -m swarna --run examples/team_averages.sw
 ## Known limitations
 
 - No user-defined types/records, modules/imports, generics, type aliases, string interpolation, or concurrency.
-- Lists and strings do not support element assignment, slicing, or string methods. Maps support assignment and `get`, but not deletion or entry iteration helpers.
+- Strings do not support element assignment; `let` lists support index assignment and both lists and strings support slicing. Maps support assignment and `get`, but not deletion or entry iteration helpers.
 - Collections are homogeneous. Map keys must be `Int`, `Float`, `String`, or `Bool`.
 - No first-class or nested functions, and no mutation of global bindings from within functions. Unannotated parameter or return types may be treated as `Unknown` at some call sites; annotate return types where call-site precision is required.
 - File I/O is limited to `read_file` and `read_csv`. There is no standard library beyond the built-ins listed above, and no formatter, debugger, or language server.

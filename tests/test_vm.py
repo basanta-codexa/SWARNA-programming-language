@@ -774,11 +774,9 @@ class TestVMCollections(unittest.TestCase):
         env = run_vm('let m = { "a": { "b": 1 } } m["a"]["b"] = 2')
         self.assertEqual(env["m"], {"a": {"b": 2}})
 
-    def test_vm_list_index_assignment_rejected(self):
-        with self.assertRaisesRegex(
-            SwarnaTypeError, "Lists are immutable; cannot assign to an index"
-        ):
-            run_vm("let xs = [1, 2] xs[0] = 3")
+    def test_vm_list_index_assignment(self):
+        env = run_vm("let xs = [1, 2] xs[0] = 3")
+        self.assertEqual(env["xs"], [3, 2])
 
     def test_vm_const_map_index_assignment_rejected(self):
         with self.assertRaisesRegex(

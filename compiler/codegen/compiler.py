@@ -151,12 +151,21 @@ class Compiler:
             self.compile_expression(stmt.target.index)
             root_name = self._index_root(stmt.target).name
             root_annotation = self.annotations.get(root_name)
+            direct_target = isinstance(stmt.target.collection, Identifier)
             map_annotation = (
                 root_annotation
-                if isinstance(stmt.target.collection, Identifier)
+                if direct_target
                 and root_annotation is not None
                 and root_annotation.name == "Map"
                 and len(root_annotation.arguments) == 2
+                else None
+            )
+            list_annotation = (
+                root_annotation
+                if direct_target
+                and root_annotation is not None
+                and root_annotation.name == "List"
+                and len(root_annotation.arguments) == 1
                 else None
             )
             if map_annotation is not None:
@@ -164,6 +173,8 @@ class Compiler:
             self.compile_expression(stmt.value)
             if map_annotation is not None:
                 self.emit(Op.COERCE, map_annotation.arguments[1], stmt.span)
+            elif list_annotation is not None:
+                self.emit(Op.COERCE, list_annotation.arguments[0], stmt.span)
             self.emit(Op.STORE_INDEX, root_name, stmt.span)
             return
         if isinstance(stmt, BreakStatement):

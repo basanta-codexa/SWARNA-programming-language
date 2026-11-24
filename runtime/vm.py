@@ -466,11 +466,21 @@ class VM:
                             hint="Change the binding to `let` if it needs to be reassigned.",
                         )
                     if isinstance(collection, list):
-                        raise SwarnaTypeError(
-                            "Lists are immutable; cannot assign to an index",
-                            ins.span,
-                            hint="Build a new list with `+` instead.",
-                        )
+                        if type(index) is not int:
+                            raise SwarnaTypeError(
+                                "List index must be Int",
+                                ins.span,
+                                hint="Use an Int index, such as `values[0]`.",
+                            )
+                        try:
+                            collection[index] = value
+                        except IndexError:
+                            raise SwarnaRuntimeError(
+                                f"Index {index} is out of range for a list of length {len(collection)}",
+                                ins.span,
+                                hint="Use an index within the list's bounds.",
+                            ) from None
+                        continue
                     if not isinstance(collection, dict):
                         raise SwarnaTypeError(
                             f"Cannot assign to {value_type_name(collection)}",

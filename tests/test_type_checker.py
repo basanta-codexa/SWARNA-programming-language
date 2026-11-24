@@ -880,11 +880,9 @@ class TestMaps(unittest.TestCase):
         ):
             check('let m = { "a": 1 } m[0] = 2')
 
-    def test_list_index_assignment_rejected(self):
-        with self.assertRaisesRegex(
-            SwarnaSemanticError, "Lists are immutable; cannot assign to an index"
-        ):
-            check("let xs = [1, 2] xs[0] = 3")
+    def test_list_index_assignment_is_checked(self):
+        checker = check("let xs = [1, 2] xs[0] = 3")
+        self.assertEqual(checker.env["xs"].type.label, "List[Int]")
 
     def test_const_map_index_assignment_rejected(self):
         with self.assertRaisesRegex(

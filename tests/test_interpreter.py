@@ -592,11 +592,9 @@ class TestInterpreterMaps(unittest.TestCase):
         env = run('let m = { "a": { "b": 1 } } m["a"]["b"] = 2')
         self.assertEqual(env["m"], {"a": {"b": 2}})
 
-    def test_list_index_assignment_rejected(self):
-        with self.assertRaisesRegex(
-            SwarnaTypeError, "Lists are immutable; cannot assign to an index"
-        ):
-            run("let xs = [1, 2] xs[0] = 3")
+    def test_list_index_assignment(self):
+        env = run("let xs = [1, 2] xs[0] = 3")
+        self.assertEqual(env["xs"], [3, 2])
 
     def test_const_map_index_assignment_rejected(self):
         with self.assertRaisesRegex(
