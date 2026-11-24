@@ -17,6 +17,7 @@ from runtime.values import (
     MAP_MUTATION_MESSAGE,
     UNIT,
     Value,
+    append_value,
     coerce_to_annotation,
     format_literal,
     format_value,
@@ -708,6 +709,10 @@ class VM:
                             hint="Pass a non-empty separator, such as \",\".",
                         )
                     self.stack.append(text.split(separator))
+                elif ins.op == Op.APPEND:
+                    value = self._pop(ins)
+                    collection = self._pop(ins)
+                    self.stack.append(append_value(collection, value, ins.span))
                 elif ins.op == Op.ITER_START:
                     iterable = self._pop(ins)
                     if not isinstance(iterable, (list, dict, str)):

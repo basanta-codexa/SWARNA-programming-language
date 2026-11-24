@@ -12,6 +12,7 @@ from runtime.files import read_text_file
 from runtime.values import (
     UNIT,
     Value,
+    append_value,
     annotation_has_float,
     annotation_is_float,
     coerce_to_annotation,
@@ -386,6 +387,24 @@ class Interpreter:
                     category="type-mismatch",
                 )
             return value.upper() if name == "upper" else value.lower()
+        if expr.callee.name == "append":
+            if len(expr.arguments) != 2:
+                raise SwarnaRuntimeError(
+                    f"Function 'append' expects 2 arguments, got {len(expr.arguments)}",
+                    expr.span,
+                    hint="Pass a List and the value to append.",
+                )
+            collection = self.eval_expression(expr.arguments[0])
+            value = self.eval_expression(expr.arguments[1])
+            if isinstance(expr.arguments[0], Identifier):
+                annotation = self.annotations.get(expr.arguments[0].name)
+                if (
+                    annotation is not None
+                    and annotation.name == "List"
+                    and len(annotation.arguments) == 1
+                ):
+                    value = coerce_to_annotation(value, annotation.arguments[0])
+            return append_value(collection, value, expr.span)
         if expr.callee.name == "split":
             if len(expr.arguments) != 2:
                 raise SwarnaRuntimeError(

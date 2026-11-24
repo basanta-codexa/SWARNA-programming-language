@@ -52,6 +52,7 @@ class Op(Enum):
     LOWER = auto()
     CONTAINS = auto()
     SPLIT = auto()
+    APPEND = auto()
     READ_FILE = auto()
     READ_CSV = auto()
     THROW = auto()

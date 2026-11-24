@@ -428,6 +428,21 @@ class Compiler:
                 self.compile_expression(expr.arguments[0])
                 self.emit(Op.UPPER if expr.callee.name == "upper" else Op.LOWER, span=expr.span)
                 return
+            if expr.callee.name == "append":
+                if len(expr.arguments) != 2:
+                    raise RuntimeError("`append` expects exactly two arguments")
+                self.compile_expression(expr.arguments[0])
+                self.compile_expression(expr.arguments[1])
+                if isinstance(expr.arguments[0], Identifier):
+                    annotation = self.annotations.get(expr.arguments[0].name)
+                    if (
+                        annotation is not None
+                        and annotation.name == "List"
+                        and len(annotation.arguments) == 1
+                    ):
+                        self.emit(Op.COERCE, annotation.arguments[0], expr.span)
+                self.emit(Op.APPEND, span=expr.span)
+                return
             if expr.callee.name == "split":
                 if len(expr.arguments) != 2:
                     raise RuntimeError("`split` expects exactly two arguments")

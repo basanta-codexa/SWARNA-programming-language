@@ -1,0 +1,67 @@
+import unittest
+
+from compiler.codegen.compiler import Compiler
+from compiler.diagnostics import SwarnaSemanticError
+from compiler.lexer.lexer import Lexer
+from compiler.parser.parser import Parser
+from compiler.semantic.checker import TypeChecker
+from runtime.interpreter import Interpreter
+from runtime.vm import VM
+from runtime.values import format_value
+
+
+def _parse(source: str):
+    return Parser(Lexer(source)).parse_program()
+
+
+def _interpreter_output(source: str) -> list[str]:
+    interpreter = Interpreter()
+    interpreter.eval(_parse(source))
+    return [format_value(value) for value in interpreter.output]
+
+
+def _vm_output(source: str) -> list[str]:
+    vm = VM()
+    vm.run(Compiler().compile(_parse(source)))
+    return [format_value(value) for value in vm.output]
+
+
+class TestAppend(unittest.TestCase):
+    def _assert_both(self, source: str, expected: list[str]) -> None:
+        self.assertEqual(_interpreter_output(source), expected)
+        self.assertEqual(_vm_output(source), expected)
+
+    def test_append_mutates_list(self):
+        self._assert_both("let xs = [1] append(xs, 2) print(xs)", ["[1, 2]"])
+
+    def test_append_returns_unit(self):
+        self._assert_both("let xs = [1] let u = append(xs, 2) print(u)", ["()"])
+
+    def test_annotated_float_list(self):
+        source = "let xs: List[Float] = [1.0] append(xs, 2) print(str(xs[1]))"
+        self._assert_both(source, ["2.0"])
+
+    def test_empty_list_refines(self):
+        checker = TypeChecker()
+        checker.check(_parse("let xs = [] append(xs, 1)"))
+        self.assertEqual(checker.env["xs"].type.label, "List[Int]")
+
+    def test_checker_rejects_wrong_element_type(self):
+        with self.assertRaises(SwarnaSemanticError):
+            TypeChecker().check(_parse('let xs = [1] append(xs, "a")'))
+
+    def test_checker_rejects_empty_list_second_wrong_type(self):
+        with self.assertRaises(SwarnaSemanticError):
+            TypeChecker().check(_parse('let xs = [] append(xs, 1) append(xs, "a")'))
+
+    def test_checker_rejects_non_list(self):
+        with self.assertRaises(SwarnaSemanticError):
+            TypeChecker().check(_parse("append(1, 2)"))
+
+    def test_checker_rejects_wrong_argument_count(self):
+        with self.assertRaises(SwarnaSemanticError):
+            TypeChecker().check(_parse("append([1])"))
+
+
+if __name__ == "__main__":
+    unittest.main()

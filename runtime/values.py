@@ -83,6 +83,27 @@ def slice_value(collection: Value, start: Value, end: Value | None, span: Source
     return collection[start:end]
 
 
+def append_value(collection: Value, value: Value, span: SourceSpan | None) -> Value:
+    """Append a value to a List and return Unit."""
+
+    if not isinstance(collection, list):
+        raise SwarnaTypeError(
+            f"Function 'append' expects a List, got {value_type_name(collection)}",
+            span,
+            hint="Pass a List as the first argument.",
+            category="type-mismatch",
+        )
+    if collection and type(value) is not type(collection[0]):
+        raise SwarnaTypeError(
+            f"Cannot append {value_type_name(value)} to a list of {value_type_name(collection[0])}",
+            span,
+            hint="List elements must have one type.",
+            category="type-mismatch",
+        )
+    collection.append(value)
+    return UNIT
+
+
 def value_type_name(value: Value) -> str:
     """Return the user-facing name of a runtime value's type."""
 

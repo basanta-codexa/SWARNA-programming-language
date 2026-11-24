@@ -136,7 +136,7 @@ A list is written `[value, value, ...]`. `values[index]` reads an element, and n
 
 Element types are inferred. `[1, 2, 3]` is `List[Int]`, and `[]` is `List[Unknown]` until it meets a known element type. Lists are homogeneous. `Int` values widen to `Float` where a `Float` is expected (including mixed numeric lists and branches), so `[1, 2.5]` is a `List[Float]`. Use `//` and integer-only operations when you need an `Int` result.
 
-Lists support index assignment on `let` bindings and slicing; append is not implemented. `for` loops iterate over lists, map keys, and strings; `range(...)` produces a list. List annotations such as `List[Int]` are supported on parameters, returns, and bindings; an unannotated list parameter still infers what it can from the body and call sites.
+Lists support index assignment on `let` bindings and slicing; `append(xs, value)` adds an element to a `let` list. `for` loops iterate over lists, map keys, and strings; `range(...)` produces a list. List annotations such as `List[Int]` are supported on parameters, returns, and bindings; an unannotated list parameter still infers what it can from the body and call sites.
 
 Reason: lists are the first collection and the base for `for` loops, maps, and CSV rows. Homogeneous elements make inference and diagnostics useful without user-defined generics. Deferring mutation kept the first collection increment small; annotations were added once the collection model was stable.
 

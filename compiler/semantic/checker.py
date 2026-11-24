@@ -93,7 +93,7 @@ Type.UNIT = Type("Unit")
 Type.UNKNOWN = Type("Unknown")
 
 
-BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "int", "float", "str", "range", "read_file", "read_csv", "upper", "lower", "contains", "split"})
+BUILTIN_NAMES = frozenset({"print", "len", "get", "input", "int", "float", "str", "range", "read_file", "read_csv", "upper", "lower", "contains", "split", "append"})
 
 
 @dataclass(frozen=True)
@@ -903,6 +903,45 @@ class TypeChecker:
                         category="type-mismatch",
                     )
                 return Type.STRING
+            if expr.callee.name == "append":
+                if len(expr.arguments) != 2:
+                    self._error(
+                        f"Function 'append' expects 2 arguments, got {len(expr.arguments)}",
+                        expr.span,
+                        "Pass a List and the value to append.",
+                    )
+                list_type = self.check_expression(expr.arguments[0])
+                value_type = self.check_expression(expr.arguments[1])
+                if list_type is not Type.UNKNOWN and not list_type.is_list:
+                    self._error(
+                        f"Function 'append' expects a List, got {list_type.label}",
+                        expr.arguments[0].span,
+                        "Pass a List as the first argument.",
+                        category="type-mismatch",
+                    )
+                element_type = list_type.element_type if list_type.is_list else Type.UNKNOWN
+                if not self._is_assignable(element_type, value_type):
+                    self._error(
+                        f"Cannot append {value_type.label} to {list_type.label}",
+                        expr.arguments[1].span,
+                        f"Use a {element_type.label} value.",
+                        category="type-mismatch",
+                    )
+                if isinstance(expr.arguments[0], Identifier):
+                    name = expr.arguments[0].name
+                    binding = self.env.get(name)
+                    if (
+                        binding is not None
+                        and binding.type.is_list
+                        and binding.type.element_type is Type.UNKNOWN
+                        and value_type is not Type.UNKNOWN
+                    ):
+                        self.env[name] = Binding(
+                            Type.list_of(value_type),
+                            constant=binding.constant,
+                            span=binding.span,
+                        )
+                return Type.UNIT
             if expr.callee.name == "split":
                 if len(expr.arguments) != 2:
                     self._error(
