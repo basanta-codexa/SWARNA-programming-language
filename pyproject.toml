@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "swarna"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A small, statically checked programming language with its own compiler, interpreter, and VM."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,6 +14,9 @@ dependencies = []
 
 [project.scripts]
 swarna = "swarna.__main__:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "swarna.__version__"}
 
 [tool.setuptools.packages.find]
 include = ["swarna*", "compiler*", "runtime*"]
