@@ -43,6 +43,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `Int`-to-`Float` widening in type checking and key runtime coercions (annotated `let` bindings and function arguments/returns in interpreter/VM).
 
 ### Changed
+- CI now covers Python 3.10–3.14 on Ubuntu, Windows, and macOS.
 - The `--vm` REPL now preserves bindings and function declarations across lines.
 - The CLI now streams `print` output as it runs, so earlier output survives a later error.
 - CI now builds the distribution, installs the wheel, and smoke-tests the `swarna` CLI.

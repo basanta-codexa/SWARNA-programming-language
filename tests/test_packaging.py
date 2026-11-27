@@ -22,6 +22,16 @@ class TestPackaging(unittest.TestCase):
         self.assertIsNone(re.search(r'(?m)^version\s*=\s*"', text))
         self.assertTrue(re.fullmatch(r"\d+\.\d+\.\d+", swarna.__version__))
 
+    def test_ci_matrix_covers_supported_platforms(self):
+        text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        for platform in ("ubuntu-latest", "windows-latest", "macos-latest"):
+            with self.subTest(platform=platform):
+                self.assertIn(platform, text)
+        for version in ("3.10", "3.11", "3.12", "3.13", "3.14"):
+            with self.subTest(version=version):
+                self.assertIn(f'"{version}"', text)
+        self.assertIn("runs-on: ${{ matrix.os }}", text)
+
     def test_ci_builds_and_smoke_tests_package(self):
         text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         self.assertIn("python -m build", text)
