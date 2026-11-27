@@ -75,6 +75,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Improved conditional diagnostics: clearer hints for non-`Bool` conditions, clearer errors when `if` expressions are missing a final `else`, and clearer branch-type mismatch messages for `if`/`elif` expression chains.
 
 ### Documentation
+- Updated `DESIGN_PRINCIPLES.md` so its status and rule statements match the implemented language.
 - Documented conditional/block-expression consistency rules (statement-form `if` before a final expression, trailing `if` as an expression value, and where block values are supported).
 
 ### Changed

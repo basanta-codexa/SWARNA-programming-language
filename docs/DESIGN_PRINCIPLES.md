@@ -78,11 +78,11 @@ Status: implemented for the current language. `if` expressions with single-expre
 
 ### 4. Exceptions by default, `Result` by choice
 
-Unhandled failures raise an exception with a source location and a readable message. `Result<T, E>` is available when a caller wants to handle failure as a value.
+Unhandled failures raise an exception with a source location and a readable message. `Result<T, E>` is intended as a future opt-in way to handle failure as a value; it is not implemented yet.
 
-Reason: exceptions keep the common path linear. Forcing `Result` everywhere makes short scripts noisy. Explicit `Result` stays for code that must not unwind: library boundaries, batch jobs, anything that needs to continue after a failure.
+Reason: exceptions keep the common path linear. Forcing `Result` everywhere would make short scripts noisy. Explicit `Result` is planned for code that must not unwind: library boundaries, batch jobs, anything that needs to continue after a failure.
 
-Status: accepted, not yet implemented as a language feature. The runtime raises SWARNA diagnostic exceptions with source spans. The interpreter and VM now have call frames; a defined unwinding model and `Result` still need a dedicated error-handling design.
+Status: accepted, not yet implemented as a language feature. `throw` and `try`/`catch` are implemented in both engines, and the runtime raises SWARNA diagnostic exceptions with source spans. A defined unwinding model and `Result` still need a dedicated error-handling design.
 
 ### 5. Word operators are accepted
 
@@ -138,9 +138,9 @@ Element types are inferred. `[1, 2, 3]` is `List[Int]`, and `[]` is `List[Unknow
 
 Lists support index assignment on `let` bindings and slicing; `append(xs, value)` adds an element to a `let` list. `for` loops iterate over lists, map keys, and strings; `range(...)` produces a list. List annotations such as `List[Int]` are supported on parameters, returns, and bindings; an unannotated list parameter still infers what it can from the body and call sites.
 
-Reason: lists are the first collection and the base for `for` loops, maps, and CSV rows. Homogeneous elements make inference and diagnostics useful without user-defined generics. Deferring mutation kept the first collection increment small; annotations were added once the collection model was stable.
+Reason: lists are the first collection and the base for `for` loops, maps, and CSV rows. Homogeneous elements make inference and diagnostics useful without user-defined generics. Index assignment, `append`, and slicing were added once the collection model was stable; annotations remain optional but checked.
 
-Status: implemented in the interpreter, VM, REPL, and type checker. `for` loops over lists work. No list mutation or list methods yet. Maps have their own decision below.
+Status: implemented in the interpreter, VM, REPL, and type checker. `for` loops, index assignment, `append`, and `start:end` slicing work in both engines. Maps have their own decision below.
 
 ### 10. `for` loops iterate over lists and map keys
 
@@ -155,11 +155,11 @@ print(total)
 
 The loop variable takes the list's element type, or the map's key type. It is mutable and scoped to the loop. If an outer binding has the same name, the outer binding is restored after the loop. Declarations inside the loop body leak, matching `while` and `if`.
 
-The iterable must be a `List[T]` or a `Map[K, V]`; an `Unknown` iterable is accepted and makes the loop variable `Unknown`. Iterating a map yields its keys in insertion order, so `totals[team]` reads the value. `break` exits the nearest loop and `continue` skips to the next iteration. There is no iteration over ranges or strings yet.
+The iterable must be a `List[T]`, a `Map[K, V]`, or a `String`; an `Unknown` iterable is accepted and makes the loop variable `Unknown`. Iterating a map yields its keys in insertion order, so `totals[team]` reads the value. Iterating a string yields one-character strings. `range(...)` produces a `List[Int]` and can be used directly as an iterable. `break` exits the nearest loop and `continue` skips to the next iteration.
 
 Reason: list iteration is the smallest useful loop over a collection, and map keys are the other shape the CSV and grouping work needs. Reusing the existing block and binding rules keeps the feature small.
 
-Status: implemented in the type checker, interpreter, VM, REPL, and CLI. `for` loops iterate over lists and map keys.
+Status: implemented in the type checker, interpreter, VM, REPL, and CLI. `for` loops iterate over lists, map keys, strings, and `range(...)` results.
 
 ### 11. Maps are built in and statically typed
 
@@ -182,11 +182,11 @@ print(totals)
 
 Key and value types are inferred. `{ "Ada": 36 }` is `Map[String, Int]`, and `{}` is `Map[Unknown, Unknown]` until it meets a known type. Maps are homogeneous in both positions: all keys share one type and all values share one type. Keys must be `Int`, `Float`, `String`, or `Bool` so they stay hashable at runtime; a list key is rejected before the program runs. Values may be any supported type, including nested maps.
 
-A map binding must be declared with `let` to be assigned; a `const` map rejects index assignment. Lists stay immutable: `values[0] = x` is an error, and list elements are changed by building a new list with `+`. `get(map, key, default)` reads a key and returns `default` when the key is missing, which keeps accumulation from special-casing the first row. `for` loops iterate over map keys in insertion order. Map annotations such as `Map[String, Int]` are supported on parameters, returns, and bindings; an unannotated map parameter still infers what it can.
+A map binding must be declared with `let` to be assigned; a `const` map rejects index assignment. Lists declared with `let` also support index assignment and `append(xs, value)`; strings remain immutable. `get(map, key, default)` reads a key and returns `default` when the key is missing, which keeps accumulation from special-casing the first row. `for` loops iterate over map keys in insertion order. Map annotations such as `Map[String, Int]` are supported on parameters, returns, and bindings; an unannotated map parameter still infers what it can.
 
-Reason: maps are the shape of a CSV row and the base for the switch test. Restricting keys to scalars keeps hashing and equality predictable without a custom protocol. Index assignment is the smallest mutation that makes grouping and aggregation possible; keeping lists immutable preserves the simpler list model until a real need appears.
+Reason: maps are the shape of a CSV row and the base for the switch test. Restricting keys to scalars keeps hashing and equality predictable without a custom protocol. Index assignment is the smallest mutation that makes grouping and aggregation possible; the same operation on lists now supports scripts that need in-place updates without a separate list protocol.
 
-Status: implemented in the interpreter, VM, REPL, and type checker. No insert or delete helper or map iteration yet. The runnable aggregation example is `examples/team_averages.sw`.
+Status: implemented in the interpreter, VM, REPL, and type checker. There is no delete helper; `for key in map` iterates keys in insertion order. The runnable aggregation example is `examples/team_averages.sw`.
 
 ## Rules for changes
 
@@ -244,7 +244,7 @@ The rules for the current subset:
 - A list literal infers a `List[T]` element type. All elements must have the same type, or be `Unknown`. An empty list is `List[Unknown]`. Nested lists infer nested element types.
 - A map literal infers a `Map[K, V]` type. All keys must have one scalar type and all values one type, or be `Unknown`. An empty map is `Map[Unknown, Unknown]`. Nested maps infer nested value types. Keys must be `Int`, `Float`, `String`, or `Bool`.
 - Indexing requires a list, map, or string. A list needs an `Int` index and produces the element type; a map needs a key assignable to `K` and produces `V`; a string needs an `Int` index and produces a `String`. Negative list and string indices are accepted at runtime and count from the end.
-- Index assignment `map[key] = value` requires a mutable `let` map binding. The key must be assignable to `K` and the value to `V`. Assigning through a `const` binding is rejected. List and string index assignment is rejected because lists and strings are immutable.
+- Index assignment `map[key] = value` requires a mutable `let` map binding. The key must be assignable to `K` and the value to `V`. Assigning through a `const` binding is rejected. `let` lists also support `values[index] = value`; string index assignment is rejected because strings are immutable. Index assignment checks the index type and bounds at runtime.
 - `get(map, key, default)` requires a map, a key assignable to `K`, and a default assignable to `V`; it returns `V`. When `V` is `Unknown` (as in an empty map), the default's type becomes the result type.
 - `len` accepts a list, a map, or a string and produces `Int`.
 - `range` requires 1 to 3 `Int` arguments and produces `List[Int]`.
@@ -266,24 +266,24 @@ The rules for the current subset:
 - `if` and `while` conditions require `Bool`.
 - A `for` loop requires a `List[T]`, a `Map[K, V]`, a `String`, or `Unknown`. The loop variable takes the element type `T` for a list, the key type `K` for a map (in insertion order), `String` for a string (one-character strings), or `Unknown`. It is mutable and scoped to the loop. An outer binding with the same name is restored afterward. Body declarations leak, matching `while` and `if`. `break` and `continue` are only allowed inside a loop.
 - Loop variables cannot conflict with functions or built-in names.
-- Both branches of an `if` expression must produce the same type. `Int` and `Float` branches are not unified yet.
+- Both branches of an `if` expression must produce a compatible type. `Int` and `Float` branches unify to `Float`, and the runtime applies the corresponding coercion.
 - An `if` expression branch may be a block value. Its statements run in the current scope, and its final expression determines the branch type.
 - A binding keeps the type of its first value. Reassigning it to a different type is an error.
 - Reassigning a `const` is a semantic error.
 - Undefined names are semantic errors.
 - `fn` declarations are hoisted, so a call can appear before the declaration. Duplicate function names and duplicate parameter names are errors.
 - Parameter annotations are optional; an unannotated parameter is `Unknown`. Annotated parameter types may be scalar, `List[T]`, or `Map[K, V]`, including nested types.
-- An annotated return type is checked against the body. An unannotated return type is inferred from the body after top-level statements are checked; a top-level call to that function is `Unknown`.
+- An annotated return type is checked against the body. An unannotated return type is inferred to a fixed point before call sites are checked, so forward and mutual references see the inferred type rather than `Unknown`.
 - Calls check the argument count and each annotated parameter type. A type error points at the argument that does not match.
 - A function body runs in a local scope copied from the top-level bindings. Local bindings do not leak, and assignment to a top-level name changes the local copy, not the global.
-- Function names and variable names must not conflict. Built-in names such as `print`, `len`, `get`, `read_file`, and `read_csv` are reserved: they cannot be used for functions, variables, or parameters.
+- Function names and variable names must not conflict. Built-in names — including `print`, `len`, `get`, `range`, `input`, `int`, `float`, `str`, `read_file`, `read_csv`, `upper`, `lower`, `contains`, `split`, `append`, `first`, `last`, and `sum` — are reserved: they cannot be used for functions, variables, or parameters.
 - `print` accepts any type, including lists and maps.
 
 The checker runs before execution in `--run` and before code generation in `--emit-bytecode`. `--parse` and `--lex` do not run it. In the executing REPL, the checker is seeded from the interpreter's current bindings and function signatures, so types and inferred function returns persist between lines without a second symbol table.
 
 Division by zero remains a runtime error; the checker does not evaluate expressions.
 
-Known gaps: no user-defined generics or type aliases, no list mutation, no iteration over ranges or strings, no first-class functions, no general block scoping beyond function calls, no definite-assignment analysis, no flow-sensitive merging/narrowing of branch bindings, and only the first semantic error is reported. `Int` widens to `Float` (type checking and key runtime coercion points such as annotated `let` bindings and function arguments/returns), but not every runtime storage context is coerced yet. Block values are currently available only as `if` expression branches and function bodies. Statement-form `if` (including early `return` without `else`) is supported inside block values before the final expression; a trailing `if` used as the block's final value is still parsed as an `if` expression. Expression statements (including function calls) are supported for side effects. `return` exits functions (not arbitrary blocks). Blocks without an explicit final expression yield `Unit` (`()`). `#` starts a line comment; block comments are not supported. The interpreter and VM keep their runtime checks so they can still be tested independently.
+Known gaps: no user-defined generics or type aliases, no first-class functions, no general block scoping beyond function calls, no flow-sensitive merging/narrowing of branch bindings, and only the first semantic error is reported. `Int` widens to `Float` in both type checking and runtime storage contexts, including annotated bindings, function arguments and returns, mixed numeric literals, and container writes. Definite-assignment analysis rejects variables that may not have been assigned on every path. Block values are currently available only as `if` expression branches and function bodies. Statement-form `if` (including early `return` without `else`) is supported inside block values before the final expression; a trailing `if` used as the block's final value is still parsed as an `if` expression. Expression statements (including function calls) are supported for side effects. `return` exits functions (not arbitrary blocks). Blocks without an explicit final expression yield `Unit` (`()`). `#` starts a line comment; block comments are not supported. The interpreter and VM keep their runtime checks so they can still be tested independently.
 
 Status: implemented as a separate pass for the current subset.
 
