@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-27
 
-**Status:** verified snapshot at commit `bbe7229`.
+**Status:** verified snapshot at commit `9f42b0b`.
 
 **Method:** source inspection, test runs, CI records, and command-line checks.
 
@@ -35,13 +35,13 @@ future 1.0 features are marked deferred rather than treated as defects.
 | D09 | Medium | Testing | RESOLVED — generic table-driven parity harness added | `bbe7229`; `tests/test_engine_parity_table.py` has `run_both_engines()` plus 8 cases; 941 tests OK on 3.10/3.13/3.14 | Extend `CASES` when new language features land |
 | D10 | Medium | Testing | No golden fixtures, property-based tests, fuzz tests, or benchmarks | `tests/golden/`, fuzz harnesses, and benchmark suite are absent | Add golden fixtures first; fuzz/property work after release gates are stable |
 | D11 | Medium | CI | CI has no lint, type-check, coverage, dependency scan, or docs-example checks | `.github/workflows/ci.yml` runs tests, build, install, CLI smoke only | Add one check at a time, starting with `git diff --check`/compileall and coverage baseline |
-| D12 | Medium | Documentation | Required 1.0 docs are missing | no `LANGUAGE_SPEC.md`, `GRAMMAR.md`, `TYPE_SYSTEM.md`, `SECURITY.md`, `decisions/`, etc. | Create ADR directory and spec docs incrementally from this baseline |
+| D12 | Medium | Documentation | PARTIAL — ADR directory exists, spec docs still missing | `docs/decisions/` with `TEMPLATE.md` and `0001-cli-grammar.md` at `82e3271`; no `LANGUAGE_SPEC.md`, `GRAMMAR.md`, `TYPE_SYSTEM.md`, or `SECURITY.md` | Write `LANGUAGE_SPEC.md` and `GRAMMAR.md` from `docs/EXISTING_LANGUAGE_BEHAVIOR.md` |
 | D13 | Medium | Documentation | The production blueprint is untracked in the repo root | `SWARNA_1.0_Production_Engineering_Blueprint.md` is untracked | Decide whether to move it under `docs/` and track it |
 | D14 | Medium | Compatibility | RESOLVED — reserved builtins documented as a migration note | `039c086`; `CHANGELOG.md` Migration Notes cover `first`, `last`, `sum`, `append`, `upper`, `lower`, `contains`, `split` | Repeat the guidance in a language spec when one exists |
-| D15 | Medium | CLI | Blueprint proposes subcommands while current CLI is flag-only | blueprint §9 lists `swarna run main.sw`; current CLI uses `--run` | Choose CLI grammar in an ADR before adding subcommands |
+| D15 | Medium | CLI | RESOLVED — CLI grammar settled in ADR 0001 | `82e3271`; `docs/decisions/0001-cli-grammar.md` keeps flags canonical and allows subcommands only as additive aliases | None until a versioned migration is proposed |
 | D16 | Medium | Robustness | No parser nesting/input-size limits; VM has call-depth but no instruction/memory limits | parser recursion and VM dispatch are unbounded by policy; CPython recursion eventually raises `RecursionError` | Define configurable limits as a reliability feature, not a security sandbox |
 | D17 | Low | Runtime | `format_value` handles cycles but deep acyclic nesting can still hit Python recursion limits | `runtime/values.py` uses recursive formatting with a cycle set only | Add depth guard with a clear diagnostic if it becomes user-visible |
-| D18 | Low | Examples | Only one realistic example program | `examples/team_averages.sw` and `scores.csv`; `tests/test_examples.py` covers only that example | Add a language-tour example using functions, slices, lists, maps, and errors |
+| D18 | Low | Examples | RESOLVED — two realistic examples now covered | `9f42b0b`; `examples/language_tour.sw` plus `team_averages.sw`; 4 tests in `tests/test_examples.py` | Extend the tour when new language features land |
 | D19 | Deferred | Language | No structs, enums, traits, generics, modules, closures, optional types, or `Result` | absent from AST, checker, runtime, and docs | Treat as blueprint Tasks 5–11 with ADRs; do not implement prematurely |
 | D20 | Deferred | VM | No GC, optimizer, debugger, formatter, linter, or LSP | absent; blueprint §6–§9 proposes them | Gate behind correctness, benchmarks, and explicit ADRs |
 
@@ -102,8 +102,10 @@ without new evidence:
 - narrow CI matrix and no wheel smoke test
 - accumulated `[Unreleased]` changelog entries cut into a `0.2.0` section (`039c086`)
 - reserved builtin names documented as a migration note (`039c086`)
-- coverage baseline measured at 93% (`bbe7229`; gate still pending, see D04)
+- coverage baseline measured at 93% (`c373805`, refreshed at `bbe7229`; gate still pending, see D04)
 - generic interpreter/VM parity harness (`bbe7229`)
+- CLI grammar settled in ADR 0001 (`82e3271`)
+- language-tour example added and tested in both engines (`9f42b0b`)
 
 ## 5. Prioritized next steps
 
@@ -113,8 +115,9 @@ Before calling the project portfolio-ready:
 2. Cut a 0.2.0 changelog section with migration notes for reserved builtins — done at `039c086`.
 3. Add a coverage baseline as a dev-only measurement — done at `c373805`, refreshed at `bbe7229`; gate still pending (D04).
 4. Add a generic interpreter/VM parity harness — done at `bbe7229`.
-5. Choose the CLI grammar (flags vs subcommands) in an ADR.
-6. Add a language-tour example and test it in both engines.
+5. Choose the CLI grammar (flags vs subcommands) in an ADR — done at `82e3271`.
+6. Add a language-tour example and test it in both engines — done at `9f42b0b`.
+7. Turn the coverage baseline into a CI gate after declaring coverage as a dev dependency (D04).
 
 Longer-term blueprint work (HIR, verifier, structs, enums, modules, tooling,
 GC) should start only after these smaller items are complete.

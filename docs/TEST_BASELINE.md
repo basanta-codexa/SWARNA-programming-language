@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-27
 
-**Status:** verified snapshot at commit `bbe7229`.
+**Status:** verified snapshot at commit `9f42b0b`.
 
 **Purpose:** record the current test surface, exact commands, pass counts,
 coverage areas, and gaps before adding new layers from the production blueprint.
@@ -19,10 +19,10 @@ Canonical full-suite commands:
 
 ```bash
 python -m unittest discover -s tests
-# Ran 941 tests ... OK
+# Ran 943 tests ... OK
 
 python -m unittest discover -v
-# Ran 941 tests ... OK
+# Ran 943 tests ... OK
 ```
 
 Both forms work because `tests/` is a package and discovery starts at the
@@ -49,9 +49,9 @@ Local runs were executed on Python:
 
 | Version | Result |
 |---|---|
-| 3.10 | 941 tests, OK |
-| 3.13 | 941 tests, OK |
-| 3.14.1 | 941 tests, OK |
+| 3.10 | 943 tests, OK |
+| 3.13 | 943 tests, OK |
+| 3.14.1 | 943 tests, OK |
 
 Python 3.11 and 3.12 are not installed locally, but CI covers them.
 
@@ -92,7 +92,7 @@ There are 40 Python test files. Per-module counts verified by direct
 | `tests.test_duplicate_declarations` | 5 | duplicate bindings/map keys |
 | `tests.test_engine_parity` | 7 | interpreter/VM exception parity |
 | `tests.test_engine_parity_table` | 1 | generic interpreter/VM output and environment parity |
-| `tests.test_examples` | 2 | runnable example and VM parity |
+| `tests.test_examples` | 4 | runnable examples and VM parity |
 | `tests.test_files` | 2 | BOM-aware file reading |
 | `tests.test_float_coercion` | 10 | Float storage/annotation coercion |
 | `tests.test_host_exceptions` | 5 | host traceback boundary |
@@ -116,7 +116,7 @@ There are 40 Python test files. Per-module counts verified by direct
 | `tests.test_values` | 6 | value formatting |
 | `tests.test_vm` | 140 | VM semantics and diagnostics |
 
-**Total: 941 tests.**
+**Total: 943 tests.**
 
 The suite layout is guarded: duplicate test classes that used to appear after
 `unittest.main()` were removed, and `tests.test_suite_layout` prevents them
@@ -148,6 +148,7 @@ from returning.
 - list/map mutation, slicing, builtins, cycle formatting
 - numeric edge cases, Float coercion, CSV and file I/O
 - host-exception boundary and index error spans
+- both checked-in examples run on the interpreter and match the VM
 
 Parity is covered by `tests/test_engine_parity.py` and feature-specific paired
 tests. `tests/test_engine_parity_table.py` adds a reusable `run_both_engines()`
@@ -165,7 +166,7 @@ environments across both engines over a table of representative programs.
 ### 4.5 Measured statement coverage
 
 Measured locally with `coverage.py` 7.17.5 on Python 3.14.1 at commit
-`bbe7229`:
+`9f42b0b`:
 
 ```bash
 python -m pip install coverage
@@ -174,7 +175,7 @@ python -m coverage run --source=compiler,runtime,swarna -m unittest discover -s 
 python -m coverage report -m
 ```
 
-The run executed all 941 tests successfully. Statement coverage by module:
+The run executed all 943 tests successfully. Statement coverage by module:
 
 | Module | Stmts | Miss | Cover |
 |---|---:|---:|---:|
@@ -231,7 +232,7 @@ These are absent or incomplete and are candidates for later blueprint tasks:
 7. **Structured diagnostics assertions** — many tests assert rendered strings;
    there are no stable diagnostic codes yet.
 8. **Bytecode verifier tests** — no verifier exists.
-9. **Docs example checking** — only one example program is tested; README code
+9. **Docs example checking** — two example programs are tested; README code
    snippets are not automatically executed.
 10. **Module/package tests** — modules and package manager are not implemented.
 
@@ -258,7 +259,7 @@ What it does **not** yet enforce from blueprint §10.7:
 ## 7. Baseline conclusion
 
 The current suite is a strong regression baseline for the implemented language:
-941 tests, all passing locally and across the declared CI matrix. The highest
+943 tests, all passing locally and across the declared CI matrix. The highest
 value next testing work is not more feature tests, but **test infrastructure**:
 a generic engine-parity harness, structured diagnostic assertions, and golden
 fixtures. Coverage is now measured at 93% but is not yet a CI gate.
