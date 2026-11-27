@@ -2,6 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from compiler.bytecode.program import CompiledProgram, FunctionInfo
 from compiler.codegen.compiler import Compiler
 from compiler.diagnostics import DiagnosticError, render_diagnostic
 from compiler.lexer.lexer import Lexer
@@ -62,14 +63,20 @@ def emit_bytecode_source(source: str) -> str:
     return "\n".join(lines)
 
 
-def _bindings_from_interpreter(interpreter: Interpreter) -> dict[str, Binding]:
+def _bindings_from_env(env: dict, constants) -> dict[str, Binding]:
+    def is_constant(name: str) -> bool:
+        if isinstance(constants, dict):
+            return constants.get(name, False)
+        return name in constants
+
     return {
-        name: Binding(
-            type_of_value(value),
-            constant=interpreter.constant.get(name, False),
-        )
-        for name, value in interpreter.env.items()
+        name: Binding(type_of_value(value), constant=is_constant(name))
+        for name, value in env.items()
     }
+
+
+def _bindings_from_interpreter(interpreter: Interpreter) -> dict[str, Binding]:
+    return _bindings_from_env(interpreter.env, interpreter.constant)
 
 
 def _functions_from_interpreter(interpreter: Interpreter) -> dict[str, FunctionSignature]:
@@ -117,16 +124,35 @@ def run_source(
     return "\n".join(format_value(value) for value in interpreter.output[output_start:])
 
 
-def run_vm_source(source: str, print_hook=None) -> str:
-    """Run source on the bytecode VM and return its printed output."""
+def run_vm_source(
+    source: str,
+    print_hook=None,
+    vm: VM | None = None,
+    functions: dict[str, FunctionInfo] | None = None,
+    function_signatures: dict[str, FunctionSignature] | None = None,
+) -> str:
+    """Run source on the VM, optionally preserving state across calls."""
 
     program = Parser(Lexer(source)).parse_program()
-    checker = TypeChecker()
+    initial_bindings = _bindings_from_env(vm.env, vm.constant) if vm is not None else {}
+    checker = TypeChecker(initial_bindings, dict(function_signatures or {}))
     checker.check(program)
-    vm = VM()
-    vm.print_hook = print_hook
-    vm.run(Compiler(checker.expression_types).compile(program))
-    return "\n".join(format_value(value) for value in vm.output)
+    if function_signatures is not None:
+        function_signatures.clear()
+        function_signatures.update(checker.functions)
+
+    compiled = Compiler(checker.expression_types).compile(program)
+    all_functions = dict(functions or {})
+    all_functions.update(compiled.functions)
+    if functions is not None:
+        functions.clear()
+        functions.update(all_functions)
+
+    target_vm = vm if vm is not None else VM()
+    target_vm.print_hook = print_hook
+    output_start = len(target_vm.output)
+    target_vm.run(CompiledProgram(compiled.instructions, all_functions))
+    return "\n".join(format_value(value) for value in target_vm.output[output_start:])
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -252,6 +278,9 @@ def main(argv: list[str] | None = None) -> int:
 
     interpreter = cli_interpreter()
     function_signatures: dict[str, FunctionSignature] = {}
+    vm = VM()
+    vm_functions: dict[str, FunctionInfo] = {}
+    vm_signatures: dict[str, FunctionSignature] = {}
     explain = args.explain
     print(
         "SWARNA (minimal) — enter a line, :lex/:parse/:bytecode/:run/:vm prefixes optional, "
@@ -291,7 +320,7 @@ def main(argv: list[str] | None = None) -> int:
             elif action == "run":
                 run_source(source, interpreter, function_signatures)
             elif action == "vm":
-                run_vm_source(source, stream)
+                run_vm_source(source, stream, vm, vm_functions, vm_signatures)
             else:
                 print(lex_source(source))
         except DiagnosticError as e:

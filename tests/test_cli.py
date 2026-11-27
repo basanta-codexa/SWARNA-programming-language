@@ -687,6 +687,40 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertIn("Undefined name 'missing'", output)
         self.assertIn(str(path), output)
 
+    def test_vm_repl_persists_bindings(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        inputs = iter(["let x = 1", "print(x)", ":q"])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = main(["--vm"])
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(stdout.getvalue().splitlines()[-1], "1")
+
+    def test_vm_repl_persists_functions(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        inputs = iter([
+            "fn add(a: Int, b: Int) -> Int { a + b }",
+            "print(add(2, 3))",
+            ":q",
+        ])
+        with (
+            patch("sys.stdin", FakeStdin()),
+            patch("builtins.input", side_effect=lambda _: next(inputs)),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = main(["--vm"])
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(stdout.getvalue().splitlines()[-1], "5")
+
     def test_cli_streams_output_before_error(self):
         stdout = io.StringIO()
         stderr = io.StringIO()
