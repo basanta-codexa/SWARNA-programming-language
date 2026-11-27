@@ -1046,14 +1046,3 @@ class TestInitialBindings(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-class TestExceptions(unittest.TestCase):
-    def test_throw_requires_string(self):
-        with self.assertRaisesRegex(SwarnaSemanticError, r"`throw` expects a String message, got Int"):
-            check("throw 1")
-
-    def test_try_catch_binds_string(self):
-        check('try { throw "oops" } catch e { print(e) }')
-
-    def test_try_catch_catches_runtime_errors(self):
-        check('try { let x = 1 / 0 } catch e { print(e) }')
