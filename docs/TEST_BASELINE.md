@@ -1,15 +1,19 @@
 # SWARNA Test Baseline
 
-**Date:** 2026-11-27  
-**Status:** verified snapshot at commit `4269a85`.  
+**Date:** 2026-11-27
+
+**Status:** verified snapshot at commit `039c086`.
+
 **Purpose:** record the current test surface, exact commands, pass counts,
 coverage areas, and gaps before adding new layers from the production blueprint.
 
 ## 1. Framework and commands
 
 The project uses the Python standard library `unittest` only. There is no
-`pytest`, `tox`, `nox`, Hypothesis, coverage, lint, or type-check configuration
-in the repository.
+`pytest`, `tox`, `nox`, Hypothesis, lint, or type-check configuration in the
+repository. Coverage is measured locally with `coverage.py`, installed as a dev
+tool; it is not declared as a project dependency, configured in the repository,
+or run in CI.
 
 Canonical full-suite commands:
 
@@ -157,12 +161,65 @@ effects.
 - streaming output before errors
 - wheel metadata, console script, CI matrix/build gates
 
+### 4.5 Measured statement coverage
+
+Measured locally with `coverage.py` 7.17.5 on Python 3.14.1 at commit
+`039c086`:
+
+```bash
+python -m pip install coverage
+python -m coverage erase
+python -m coverage run --source=compiler,runtime,swarna -m unittest discover -s tests
+python -m coverage report -m
+```
+
+The run executed all 940 tests successfully. Statement coverage by module:
+
+| Module | Stmts | Miss | Cover |
+|---|---:|---:|---:|
+| `compiler/__init__.py` | 0 | 0 | 100% |
+| `compiler/ast/__init__.py` | 0 | 0 | 100% |
+| `compiler/ast/nodes.py` | 159 | 0 | 100% |
+| `compiler/bytecode/__init__.py` | 0 | 0 | 100% |
+| `compiler/bytecode/instructions.py` | 75 | 0 | 100% |
+| `compiler/bytecode/program.py` | 24 | 0 | 100% |
+| `compiler/codegen/__init__.py` | 0 | 0 | 100% |
+| `compiler/codegen/compiler.py` | 448 | 39 | 91% |
+| `compiler/csv_schema.py` | 41 | 1 | 98% |
+| `compiler/diagnostics.py` | 69 | 0 | 100% |
+| `compiler/lexer/__init__.py` | 0 | 0 | 100% |
+| `compiler/lexer/lexer.py` | 195 | 7 | 96% |
+| `compiler/lexer/tokens.py` | 62 | 0 | 100% |
+| `compiler/parser/__init__.py` | 0 | 0 | 100% |
+| `compiler/parser/parser.py` | 493 | 23 | 95% |
+| `compiler/semantic/__init__.py` | 2 | 0 | 100% |
+| `compiler/semantic/checker.py` | 853 | 60 | 93% |
+| `runtime/__init__.py` | 0 | 0 | 100% |
+| `runtime/csv.py` | 171 | 2 | 99% |
+| `runtime/files.py` | 18 | 3 | 83% |
+| `runtime/interpreter.py` | 571 | 47 | 92% |
+| `runtime/values.py` | 116 | 13 | 89% |
+| `runtime/vm.py` | 569 | 81 | 86% |
+| `swarna/__init__.py` | 2 | 0 | 100% |
+| `swarna/__main__.py` | 243 | 55 | 77% |
+
+**Total: 4,111 statements, 331 missed, 92% statement coverage.**
+
+This exceeds the blueprint's 85% core coverage target. The lowest-covered
+modules are the CLI entry point (`swarna/__main__.py`, 77%), the VM (86%), and
+`runtime/values.py` (89%); the uncovered lines are mostly interactive REPL
+branches, rare error paths, and VM instruction handlers. This is a baseline,
+not a gate: no `--fail-under` threshold, repository config, or CI step has been
+added.
+
 ## 5. Known test gaps
 
 These are absent or incomplete and are candidates for later blueprint tasks:
 
-1. **Coverage measurement** — no `coverage.py` configuration or gate. The
-   blueprint's 85% core coverage target is not measured.
+1. **Coverage gate** — baseline measured locally at 92% statement coverage
+   (§4.5), but there is no repository config, declared dev dependency, or CI
+   gate. The blueprint's 85% core coverage target is already met by the
+   baseline.
 2. **Golden fixtures** — no `tests/golden/` tree with source/expected pairs.
 3. **Property-based tests** — no Hypothesis or equivalent.
 4. **Fuzz tests** — no random token streams, deep nesting, malformed bytecode,
@@ -190,7 +247,7 @@ What CI currently enforces:
 What it does **not** yet enforce from blueprint §10.7:
 
 - lint and static checks
-- coverage target
+- coverage target (baseline measured locally at 92%; not yet a CI gate)
 - fuzz smoke tests
 - golden fixture suite
 - example/docs snippet checks
@@ -202,8 +259,8 @@ What it does **not** yet enforce from blueprint §10.7:
 The current suite is a strong regression baseline for the implemented language:
 940 tests, all passing locally and across the declared CI matrix. The highest
 value next testing work is not more feature tests, but **test infrastructure**:
-a generic engine-parity harness, structured diagnostic assertions, golden
-fixtures, and coverage measurement.
+a generic engine-parity harness, structured diagnostic assertions, and golden
+fixtures. Coverage is now measured at 92% but is not yet a CI gate.
 
 This baseline should be updated whenever supported Python versions, CI steps,
 or the canonical test command change.
