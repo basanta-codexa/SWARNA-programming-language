@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import sys
 from dataclasses import dataclass
+from typing import Callable
 
 from compiler.ast.nodes import AssignmentStatement, BinaryExpression, BlockExpression, BlockStatement, BoolLiteral, BreakStatement, CallExpression, ContinueStatement, Expression, ExpressionStatement, FloatLiteral, ForStatement, FunctionDeclaration, Identifier, IfExpression, IfStatement, IndexAssignmentStatement, IndexExpression, IntegerLiteral, LetStatement, ListLiteral, MapLiteral, PrintStatement, Program, ReturnStatement, Statement, StringLiteral, ThrowStatement, TryCatchStatement, TypeAnnotation, UnaryExpression, UnitLiteral, WhileStatement
 from compiler.csv_schema import CsvSchemaError, parse_csv_schema
@@ -70,6 +71,7 @@ class Interpreter:
         self.annotations: dict[str, TypeAnnotation] = self.global_annotations
         self.functions: dict[str, Function] = {}
         self.output: list[Value] = []
+        self.print_hook: Callable[[Value], None] | None = None
         self.inferred_types: dict[int, TypeAnnotation] = {}
         self.call_depth = 0
         self.max_call_depth = 200
@@ -124,6 +126,8 @@ class Interpreter:
     def _print_values(self, values: list[Value]) -> Value:
         output = values[0] if len(values) == 1 else ", ".join(format_value(value) for value in values)
         self.output.append(output)
+        if self.print_hook is not None:
+            self.print_hook(output)
         return output
 
     def eval_statement(self, stmt: Statement) -> None:

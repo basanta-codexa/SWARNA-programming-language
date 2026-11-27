@@ -60,6 +60,7 @@ class VM:
         self.env: dict[str, Value] = {}
         self.constant: set[str] = set()
         self.output: list[Value] = []
+        self.print_hook: Callable[[Value], None] | None = None
         self.global_env: dict[str, Value] = self.env
         self.global_constant: set[str] = self.constant
         self.functions: dict[str, FunctionInfo] = {}
@@ -326,9 +327,15 @@ class VM:
                     values.reverse()
                     self.stack.append(", ".join(format_value(value) for value in values))
                 elif ins.op == Op.PRINT:
-                    self.output.append(self._pop(ins))
+                    value = self._pop(ins)
+                    self.output.append(value)
+                    if self.print_hook is not None:
+                        self.print_hook(value)
                 elif ins.op == Op.PRINT_EXPR:
-                    self.output.append(self._pop(ins))
+                    value = self._pop(ins)
+                    self.output.append(value)
+                    if self.print_hook is not None:
+                        self.print_hook(value)
                     self.stack.append(UNIT)
                 elif ins.op == Op.JUMP:
                     ip = self._jump_target(ins, len(instructions))

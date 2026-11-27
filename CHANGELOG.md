@@ -43,6 +43,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `Int`-to-`Float` widening in type checking and key runtime coercions (annotated `let` bindings and function arguments/returns in interpreter/VM).
 
 ### Changed
+- The CLI now streams `print` output as it runs, so earlier output survives a later error.
 - CI now builds the distribution, installs the wheel, and smoke-tests the `swarna` CLI.
 - Packaging now requires setuptools 77+ and reads the version from `swarna.__version__`.
 - Index errors now point at the same source span in the interpreter and VM.

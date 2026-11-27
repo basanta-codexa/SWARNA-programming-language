@@ -687,6 +687,31 @@ class TestCLIHelpers(unittest.TestCase):
         self.assertIn("Undefined name 'missing'", output)
         self.assertIn(str(path), output)
 
+    def test_cli_streams_output_before_error(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = main(["--run", 'print("before") let z = 1 / 0'])
+        self.assertEqual(code, 1)
+        self.assertIn("before", stdout.getvalue())
+        self.assertIn("division by zero", stderr.getvalue())
+
+    def test_vm_cli_streams_output_before_error(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = main(["--vm", 'print("before") let z = 1 / 0'])
+        self.assertEqual(code, 1)
+        self.assertIn("before", stdout.getvalue())
+        self.assertIn("division by zero", stderr.getvalue())
+
+    def test_cli_prints_each_output_once(self):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            code = main(["--run", "print(1) print(2)"])
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.getvalue(), "1\n2\n")
+
     def test_vm_cli_runs_inline_source(self):
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):

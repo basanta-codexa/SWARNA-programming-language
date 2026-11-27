@@ -117,13 +117,14 @@ def run_source(
     return "\n".join(format_value(value) for value in interpreter.output[output_start:])
 
 
-def run_vm_source(source: str) -> str:
+def run_vm_source(source: str, print_hook=None) -> str:
     """Run source on the bytecode VM and return its printed output."""
 
     program = Parser(Lexer(source)).parse_program()
     checker = TypeChecker()
     checker.check(program)
     vm = VM()
+    vm.print_hook = print_hook
     vm.run(Compiler(checker.expression_types).compile(program))
     return "\n".join(format_value(value) for value in vm.output)
 
@@ -156,11 +157,25 @@ def main(argv: list[str] | None = None) -> int:
     source_name: str | None = None
     mode_explicit = bool(args.run or args.vm or args.parse or args.emit_bytecode or args.lex)
 
-    def render(source: str) -> str:
+    def stream(value) -> None:
+        print(format_value(value), flush=True)
+
+    def cli_interpreter() -> Interpreter:
+        interpreter = Interpreter()
+        interpreter.print_hook = stream
+        return interpreter
+
+    def run_streaming(source: str, interpreter: Interpreter) -> str:
+        run_source(source, interpreter)
+        return ""
+
+    def render(source: str, interpreter: Interpreter | None = None) -> str:
         if args.vm:
-            return run_vm_source(source)
+            run_vm_source(source, stream)
+            return ""
         if args.run:
-            return run_source(source)
+            run_streaming(source, interpreter or cli_interpreter())
+            return ""
         if args.parse:
             return parse_source(source)
         if args.emit_bytecode:
@@ -192,8 +207,9 @@ def main(argv: list[str] | None = None) -> int:
             source_name = str(candidate)
 
         run_file = is_file and not mode_explicit
+        interpreter = cli_interpreter()
         try:
-            output = run_source(source) if run_file else render(source)
+            output = run_streaming(source, interpreter) if run_file else render(source, interpreter)
         except DiagnosticError as e:
             if source_name and e.source is None and e.source_name is None:
                 e.source_name = source_name
@@ -217,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
     if not sys.stdin.isatty():
         source = sys.stdin.read()
         try:
-            output = render(source)
+            output = render(source, cli_interpreter())
         except DiagnosticError as e:
             print(render_diagnostic(source, e, explain=args.explain), file=sys.stderr)
             return 1
@@ -234,7 +250,7 @@ def main(argv: list[str] | None = None) -> int:
             print(output)
         return 0
 
-    interpreter = Interpreter()
+    interpreter = cli_interpreter()
     function_signatures: dict[str, FunctionSignature] = {}
     explain = args.explain
     print(
@@ -273,13 +289,9 @@ def main(argv: list[str] | None = None) -> int:
             elif action == "bytecode":
                 print(emit_bytecode_source(source))
             elif action == "run":
-                output = run_source(source, interpreter, function_signatures)
-                if output:
-                    print(output)
+                run_source(source, interpreter, function_signatures)
             elif action == "vm":
-                output = run_vm_source(source)
-                if output:
-                    print(output)
+                run_vm_source(source, stream)
             else:
                 print(lex_source(source))
         except DiagnosticError as e:
