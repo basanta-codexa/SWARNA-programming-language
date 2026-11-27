@@ -1,8 +1,11 @@
 # SWARNA Technical Debt Register
 
-**Date:** 2026-11-27  
-**Status:** verified snapshot at commit `46f4772`.  
-**Method:** source inspection, test runs, CI records, and command-line checks.  
+**Date:** 2026-11-27
+
+**Status:** verified snapshot at commit `bbe7229`.
+
+**Method:** source inspection, test runs, CI records, and command-line checks.
+
 **Purpose:** rank known debt so work can proceed in small, reviewable steps.
 
 This register describes current debt. It does not propose a large rewrite. Each
@@ -24,17 +27,17 @@ future 1.0 features are marked deferred rather than treated as defects.
 | D01 | High | Packaging | Generic top-level packages `compiler` and `runtime` are collision-prone | `pyproject.toml:22` includes `compiler*` and `runtime*` | Decide namespace policy; if migration is approved, add ADR before moving files |
 | D02 | High | Architecture | Package-level dependency inversion between compiler and runtime | `compiler/semantic/checker.py:43` imports `runtime.values`; `runtime/interpreter.py:7-12` and `runtime/vm.py:10-15` import `compiler.*` | Write an ADR defining allowed dependency direction |
 | D03 | High | Diagnostics | Diagnostics have categories but no stable codes, severity, or structured secondary labels | `compiler/diagnostics.py` has `category`, no `code=`/`E0NNN`/severity fields | Add structured diagnostic codes without changing rendered CLI output |
-| D04 | High | Testing | No coverage measurement or gate | no `.coveragerc`, no coverage step in CI; blueprint §10.7 target 85% | Add `coverage` as a dev-only tool and measure baseline; do not gate until baseline is known |
-| D05 | High | Release | The changelog has everything under `[Unreleased]` and three `### Changed` sections | `CHANGELOG.md` headings at lines 8, 10, 45, 72, 75, 78 | Cut a `0.2.0` release section with Added/Changed/Fixed and migration notes |
+| D04 | High | Testing | PARTIAL — coverage baseline measured, but no gate or declared dev dependency | 93% statement coverage at `bbe7229` (docs/TEST_BASELINE.md §4.5); no CI coverage step | Declare coverage as a dev dependency and add a `--fail-under` gate after triaging low-coverage areas |
+| D05 | High | Release | RESOLVED — 0.2.0 section cut with migration notes | `039c086`; `CHANGELOG.md` has `[Unreleased]` then `[0.2.0] - 2026-11-27` with Added/Changed/Fixed/Migration Notes | None; keep `[Unreleased]` empty between releases |
 | D06 | Medium | VM | No bytecode verifier or serialized bytecode format | no verifier module; VM consumes in-memory `CompiledProgram`; 60 opcodes exist | Document actual opcode stack effects before designing verification |
 | D07 | Medium | Architecture | No typed HIR; compiler consumes AST directly | no `hir/` directory; `Compiler.compile()` walks AST in `compiler/codegen/compiler.py` | Write HIR ADR; prototype only for existing supported constructs |
 | D08 | Medium | Runtime | Builtin dispatch is duplicated in interpreter and VM | `Interpreter.eval_call()` and VM builtin opcodes implement overlapping behavior | Add a shared builtin specification/helper table where practical; preserve parity |
-| D09 | Medium | Testing | Parity tests are feature-specific, not one generic harness | `tests/test_engine_parity.py` plus paired feature tests; no arbitrary-source parity runner | Build a table-driven `run_both_engines()` harness |
+| D09 | Medium | Testing | RESOLVED — generic table-driven parity harness added | `bbe7229`; `tests/test_engine_parity_table.py` has `run_both_engines()` plus 8 cases; 941 tests OK on 3.10/3.13/3.14 | Extend `CASES` when new language features land |
 | D10 | Medium | Testing | No golden fixtures, property-based tests, fuzz tests, or benchmarks | `tests/golden/`, fuzz harnesses, and benchmark suite are absent | Add golden fixtures first; fuzz/property work after release gates are stable |
 | D11 | Medium | CI | CI has no lint, type-check, coverage, dependency scan, or docs-example checks | `.github/workflows/ci.yml` runs tests, build, install, CLI smoke only | Add one check at a time, starting with `git diff --check`/compileall and coverage baseline |
 | D12 | Medium | Documentation | Required 1.0 docs are missing | no `LANGUAGE_SPEC.md`, `GRAMMAR.md`, `TYPE_SYSTEM.md`, `SECURITY.md`, `decisions/`, etc. | Create ADR directory and spec docs incrementally from this baseline |
 | D13 | Medium | Documentation | The production blueprint is untracked in the repo root | `SWARNA_1.0_Production_Engineering_Blueprint.md` is untracked | Decide whether to move it under `docs/` and track it |
-| D14 | Medium | Compatibility | Newly reserved builtins are a breaking change without a migration note | `first`, `last`, `sum`, `append`, etc. cannot be user names; internal tests were renamed to `head` | Document reserved names and migration guidance in `CHANGELOG.md` and language docs |
+| D14 | Medium | Compatibility | RESOLVED — reserved builtins documented as a migration note | `039c086`; `CHANGELOG.md` Migration Notes cover `first`, `last`, `sum`, `append`, `upper`, `lower`, `contains`, `split` | Repeat the guidance in a language spec when one exists |
 | D15 | Medium | CLI | Blueprint proposes subcommands while current CLI is flag-only | blueprint §9 lists `swarna run main.sw`; current CLI uses `--run` | Choose CLI grammar in an ADR before adding subcommands |
 | D16 | Medium | Robustness | No parser nesting/input-size limits; VM has call-depth but no instruction/memory limits | parser recursion and VM dispatch are unbounded by policy; CPython recursion eventually raises `RecursionError` | Define configurable limits as a reliability feature, not a security sandbox |
 | D17 | Low | Runtime | `format_value` handles cycles but deep acyclic nesting can still hit Python recursion limits | `runtime/values.py` uses recursive formatting with a cycle set only | Add depth guard with a clear diagnostic if it becomes user-visible |
@@ -67,22 +70,19 @@ while preserving current CLI output.
 
 ### D04: coverage measurement
 
-The suite has 940 tests, but no statement/branch coverage is measured. Several
-important areas have targeted tests, yet the project cannot answer “what
-percentage of the compiler/runtime is covered?” without adding a dev tool.
-
-Start by measuring, not by gating. A target such as 85% core coverage should
-only become a CI gate after a baseline is known and gaps are triaged.
+Baseline measured at `bbe7229`: 4,111 statements, 299 missed, 93% statement
+coverage across `compiler/`, `runtime/`, and `swarna/` (docs/TEST_BASELINE.md
+§4.5). This clears the blueprint's 85% core target. The remaining debt is
+process: coverage is installed locally only, is not a declared dev dependency,
+and has no CI gate. Low-coverage areas are the CLI REPL branches (77%),
+`runtime/values.py` (89%), and the VM (89%).
 
 ### D05: release shape
 
-The changelog contains a long `[Unreleased]` history with repeated `### Changed`
-headings. The installed version is still `0.1.0`, despite many compatible
-features since the initial release. Newly reserved builtin names are a breaking
-change but are not called out as a migration note.
-
-The next small release-engineering step is to cut a `0.2.0` section with clear
-Added/Changed/Fixed groups and compatibility notes.
+RESOLVED at `039c086`. The changelog now has an empty `[Unreleased]` section
+followed by a dated `0.2.0` section with Added, Changed, Fixed, Documentation,
+and Migration Notes. The installed version is still `0.1.0`; bumping it and
+tagging a release are separate steps, not part of this debt item.
 
 ## 4. Debt already retired
 
@@ -100,15 +100,19 @@ without new evidence:
 - stale design-principle contradictions
 - duplicate test classes after `unittest.main()`
 - narrow CI matrix and no wheel smoke test
+- accumulated `[Unreleased]` changelog entries cut into a `0.2.0` section (`039c086`)
+- reserved builtin names documented as a migration note (`039c086`)
+- coverage baseline measured at 93% (`bbe7229`; gate still pending, see D04)
+- generic interpreter/VM parity harness (`bbe7229`)
 
 ## 5. Prioritized next steps
 
 Before calling the project portfolio-ready:
 
 1. Create `docs/TECHNICAL_DEBT.md` — this document (done).
-2. Cut a 0.2.0 changelog section with migration notes for reserved builtins.
-3. Add a coverage baseline as a dev-only measurement.
-4. Add a generic interpreter/VM parity harness.
+2. Cut a 0.2.0 changelog section with migration notes for reserved builtins — done at `039c086`.
+3. Add a coverage baseline as a dev-only measurement — done at `c373805`, refreshed at `bbe7229`; gate still pending (D04).
+4. Add a generic interpreter/VM parity harness — done at `bbe7229`.
 5. Choose the CLI grammar (flags vs subcommands) in an ADR.
 6. Add a language-tour example and test it in both engines.
 

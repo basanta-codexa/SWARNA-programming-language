@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-27
 
-**Status:** verified snapshot at commit `039c086`.
+**Status:** verified snapshot at commit `bbe7229`.
 
 **Purpose:** record the current test surface, exact commands, pass counts,
 coverage areas, and gaps before adding new layers from the production blueprint.
@@ -19,10 +19,10 @@ Canonical full-suite commands:
 
 ```bash
 python -m unittest discover -s tests
-# Ran 940 tests ... OK
+# Ran 941 tests ... OK
 
 python -m unittest discover -v
-# Ran 940 tests ... OK
+# Ran 941 tests ... OK
 ```
 
 Both forms work because `tests/` is a package and discovery starts at the
@@ -49,9 +49,9 @@ Local runs were executed on Python:
 
 | Version | Result |
 |---|---|
-| 3.10 | 940 tests, OK |
-| 3.13 | 940 tests, OK |
-| 3.14.1 | 940 tests, OK |
+| 3.10 | 941 tests, OK |
+| 3.13 | 941 tests, OK |
+| 3.14.1 | 941 tests, OK |
 
 Python 3.11 and 3.12 are not installed locally, but CI covers them.
 
@@ -73,7 +73,7 @@ audit commits. No skipped or expected-failure tests are currently recorded.
 
 ## 3. Test inventory
 
-There are 39 Python test files. Per-module counts verified by direct
+There are 40 Python test files. Per-module counts verified by direct
 `python -m unittest <module>` invocation:
 
 | Module | Tests | Area |
@@ -91,6 +91,7 @@ There are 39 Python test files. Per-module counts verified by direct
 | `tests.test_docs` | 2 | docs contradiction guards |
 | `tests.test_duplicate_declarations` | 5 | duplicate bindings/map keys |
 | `tests.test_engine_parity` | 7 | interpreter/VM exception parity |
+| `tests.test_engine_parity_table` | 1 | generic interpreter/VM output and environment parity |
 | `tests.test_examples` | 2 | runnable example and VM parity |
 | `tests.test_files` | 2 | BOM-aware file reading |
 | `tests.test_float_coercion` | 10 | Float storage/annotation coercion |
@@ -115,7 +116,7 @@ There are 39 Python test files. Per-module counts verified by direct
 | `tests.test_values` | 6 | value formatting |
 | `tests.test_vm` | 140 | VM semantics and diagnostics |
 
-**Total: 940 tests.**
+**Total: 941 tests.**
 
 The suite layout is guarded: duplicate test classes that used to appear after
 `unittest.main()` were removed, and `tests.test_suite_layout` prevents them
@@ -149,9 +150,9 @@ from returning.
 - host-exception boundary and index error spans
 
 Parity is covered by `tests/test_engine_parity.py` and feature-specific paired
-tests. There is not yet one generic table-driven parity harness that runs an
-arbitrary supported source through both engines and compares all observable
-effects.
+tests. `tests/test_engine_parity_table.py` adds a reusable `run_both_engines()`
+helper that checks a program once and compares printed output and final
+environments across both engines over a table of representative programs.
 
 ### 4.4 CLI and packaging
 
@@ -164,7 +165,7 @@ effects.
 ### 4.5 Measured statement coverage
 
 Measured locally with `coverage.py` 7.17.5 on Python 3.14.1 at commit
-`039c086`:
+`bbe7229`:
 
 ```bash
 python -m pip install coverage
@@ -173,7 +174,7 @@ python -m coverage run --source=compiler,runtime,swarna -m unittest discover -s 
 python -m coverage report -m
 ```
 
-The run executed all 940 tests successfully. Statement coverage by module:
+The run executed all 941 tests successfully. Statement coverage by module:
 
 | Module | Stmts | Miss | Cover |
 |---|---:|---:|---:|
@@ -184,7 +185,7 @@ The run executed all 940 tests successfully. Statement coverage by module:
 | `compiler/bytecode/instructions.py` | 75 | 0 | 100% |
 | `compiler/bytecode/program.py` | 24 | 0 | 100% |
 | `compiler/codegen/__init__.py` | 0 | 0 | 100% |
-| `compiler/codegen/compiler.py` | 448 | 39 | 91% |
+| `compiler/codegen/compiler.py` | 448 | 31 | 93% |
 | `compiler/csv_schema.py` | 41 | 1 | 98% |
 | `compiler/diagnostics.py` | 69 | 0 | 100% |
 | `compiler/lexer/__init__.py` | 0 | 0 | 100% |
@@ -193,20 +194,20 @@ The run executed all 940 tests successfully. Statement coverage by module:
 | `compiler/parser/__init__.py` | 0 | 0 | 100% |
 | `compiler/parser/parser.py` | 493 | 23 | 95% |
 | `compiler/semantic/__init__.py` | 2 | 0 | 100% |
-| `compiler/semantic/checker.py` | 853 | 60 | 93% |
+| `compiler/semantic/checker.py` | 853 | 54 | 94% |
 | `runtime/__init__.py` | 0 | 0 | 100% |
 | `runtime/csv.py` | 171 | 2 | 99% |
 | `runtime/files.py` | 18 | 3 | 83% |
 | `runtime/interpreter.py` | 571 | 47 | 92% |
 | `runtime/values.py` | 116 | 13 | 89% |
-| `runtime/vm.py` | 569 | 81 | 86% |
+| `runtime/vm.py` | 569 | 63 | 89% |
 | `swarna/__init__.py` | 2 | 0 | 100% |
 | `swarna/__main__.py` | 243 | 55 | 77% |
 
-**Total: 4,111 statements, 331 missed, 92% statement coverage.**
+**Total: 4,111 statements, 299 missed, 93% statement coverage.**
 
 This exceeds the blueprint's 85% core coverage target. The lowest-covered
-modules are the CLI entry point (`swarna/__main__.py`, 77%), the VM (86%), and
+modules are the CLI entry point (`swarna/__main__.py`, 77%), the VM (89%), and
 `runtime/values.py` (89%); the uncovered lines are mostly interactive REPL
 branches, rare error paths, and VM instruction handlers. This is a baseline,
 not a gate: no `--fail-under` threshold, repository config, or CI step has been
@@ -216,7 +217,7 @@ added.
 
 These are absent or incomplete and are candidates for later blueprint tasks:
 
-1. **Coverage gate** — baseline measured locally at 92% statement coverage
+1. **Coverage gate** — baseline measured locally at 93% statement coverage
    (§4.5), but there is no repository config, declared dev dependency, or CI
    gate. The blueprint's 85% core coverage target is already met by the
    baseline.
@@ -247,7 +248,7 @@ What CI currently enforces:
 What it does **not** yet enforce from blueprint §10.7:
 
 - lint and static checks
-- coverage target (baseline measured locally at 92%; not yet a CI gate)
+- coverage target (baseline measured locally at 93%; not yet a CI gate)
 - fuzz smoke tests
 - golden fixture suite
 - example/docs snippet checks
@@ -257,10 +258,10 @@ What it does **not** yet enforce from blueprint §10.7:
 ## 7. Baseline conclusion
 
 The current suite is a strong regression baseline for the implemented language:
-940 tests, all passing locally and across the declared CI matrix. The highest
+941 tests, all passing locally and across the declared CI matrix. The highest
 value next testing work is not more feature tests, but **test infrastructure**:
 a generic engine-parity harness, structured diagnostic assertions, and golden
-fixtures. Coverage is now measured at 92% but is not yet a CI gate.
+fixtures. Coverage is now measured at 93% but is not yet a CI gate.
 
 This baseline should be updated whenever supported Python versions, CI steps,
 or the canonical test command change.
